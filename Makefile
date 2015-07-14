@@ -1,7 +1,7 @@
 #$(call is-feature-enabled,featurename)
 #returns non-empty string if enabled, empty if not
 define is-feature-enabled
-$(findstring -$1-,-$(VARIANT)-)
+$(findstring -$1-,-$(TPL_OPTIONS)-)
 endef
 
 SRC_DIR = ./src
@@ -15,8 +15,8 @@ CC ?= gcc
 CFLAGS += -Wall -fPIC -I$(SRC_DIR)
 LDFLAGS += 
 
-CFLAGS += $(pkg-config --cflags gles20 libdrm libtbm)
-LDFLAGS += $(pkg-config --libs gles20 libdrm libtbm)
+CFLAGS += `pkg-config --cflags gles20 libdrm libtbm`
+LDFLAGS += `pkg-config --libs gles20 libdrm libtbm`
 
 ifneq ($(call is-feature-enabled,winsys_dri2),)
 	CFLAGS += -DWINSYS_DRI2

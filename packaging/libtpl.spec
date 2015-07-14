@@ -9,6 +9,8 @@
 
 %define ENABLE_TTRACE	0
 
+################################################################################
+
 Name:			libtpl
 Summary:		Tizen Porting Layer for ARM Mali EGL
 %if "%{WINSYS_DRI2}" == "1"
@@ -30,7 +32,8 @@ Group:			System/Libraries
 License:		MIT
 Source:			%{name}-%{version}.tar.gz
 
-BuildRequires:		pkgconfig(glesv2)
+BuildRequires:		pkg-config
+BuildRequires:		pkgconfig(gles20)
 BuildRequires:		pkgconfig(libdrm)
 BuildRequires:		pkgconfig(libtbm)
 
@@ -91,31 +94,34 @@ make -C src/wayland_module/gbm_tbm all
 %endif
 
 %if "%{WINSYS_DRI2}" == "1" 
-export TPL_OPTIONS=%{TPL_OPTIONS}-winsys_dri2
+export TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri2
 %endif
 %if "%{WINSYS_DRI3}" == "1" 
-export TPL_OPTIONS=%{TPL_OPTIONS}-winsys_dri3
+export TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri3
 %endif
 %if "%{WINSYS_WL}" == "1" 
-export TPL_OPTIONS=%{TPL_OPTIONS}-winsys_wl
+export TPL_OPTIONS=${TPL_OPTIONS}-winsys_wl
 %endif
 
 export TPL_VER_MAJOR=%{TPL_VER_MAJOR}
 export TPL_VER_MINOR=%{TPL_VER_MINOR}
 
 %if "%{ENABLE_TTRACE}" == "1"
-export TPL_OPTIONS=%{TPL_OPTIONS}-ttrace
+export TPL_OPTIONS=${TPL_OPTIONS}-ttrace
 %endif
+
+export TPL_OPTIONS=${TPL_OPTIONS}-
 
 make all
 
 %install
 mkdir -p %{buildroot}%{_libdir}
+mkdir -p %{buildroot}%{_includedir}
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
 
 cp -a libtpl.so.%{TPL_VERSION}		%{buildroot}%{_libdir}/
-ln -sf libtpl.so.%{TPL_VER_MAJOR}	%{buildroot}%{_libdir}/libtpl.so.%{TPL_VERSION}
-ln -sf libtpl.so			%{buildroot}%{_libdir}/libtpl.so.%{TPL_VER_MAJOR}
+ln -sf libtpl.so.%{TPL_VERSION}		%{buildroot}%{_libdir}/libtpl.so.%{TPL_VER_MAJOR}
+ln -sf libtpl.so.%{TPL_VER_MAJOR}	%{buildroot}%{_libdir}/libtpl.so
 
 cp -a src/tpl.h				%{buildroot}%{_includedir}/
 cp -a pkgconfig/tpl.pc			%{buildroot}%{_libdir}/pkgconfig/
