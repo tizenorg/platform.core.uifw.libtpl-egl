@@ -4,8 +4,8 @@
 %define TPL_RELEASE	01
 
 %define WINSYS_DRI2	0
-%define WINSYS_DRI3	0
-%define WINSYS_WL	1
+%define WINSYS_DRI3	1
+%define WINSYS_WL	0
 
 %define ENABLE_TTRACE	0
 

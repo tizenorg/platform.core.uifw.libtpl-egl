@@ -53,13 +53,13 @@ void tpl_util_sys_yield(void)
 	status = sched_yield();
 	if (0 != status)
 	{
-		printf("sched_yield failed, ret=%.8x\n", status);
+		TPL_ERR("sched_yield failed, ret=%.8x\n", status);
 	}
 }
 
-int tpl_util_clz(int input)
+int tpl_util_clz(int val)
 {
-	return runtime->egl_funcs->clz(input);
+	return __builtin_clz( val );
 }
 
 int tpl_util_osu_atomic_get(const tpl_util_osu_atomic * const atom)
