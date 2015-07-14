@@ -610,4 +610,3 @@ void __tpl_x11_display_wait_native(tpl_display_t *display)
 
     }
 }
-

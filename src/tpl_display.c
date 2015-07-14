@@ -148,4 +148,3 @@ tpl_display_wait_native(tpl_display_t *dpy)
 
 	dpy->backend.wait_native(dpy);
 }
-

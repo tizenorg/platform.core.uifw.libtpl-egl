@@ -1592,5 +1592,3 @@ __tpl_buffer_init_backend_x11_dri3(tpl_buffer_backend_t *backend)
 	backend->unlock		= __tpl_x11_buffer_unlock;
     backend->get_reused_flag    = __tpl_x11_buffer_get_reused_flag;
 }
-
-

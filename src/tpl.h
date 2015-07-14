@@ -59,8 +59,6 @@
  * For detailed API semantics, please refer to the API documentations.
  */
 
-#include <EGL/eglplatform.h>
-
 #define TPL_TRUE	1
 #define TPL_FALSE	0
 

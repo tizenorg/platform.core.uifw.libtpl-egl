@@ -4,8 +4,8 @@
 %define TPL_RELEASE	01
 
 %define WINSYS_DRI2	0
-%define WINSYS_DRI3	1
-%define WINSYS_WL	0
+%define WINSYS_DRI3	0
+%define WINSYS_WL	1
 
 %define ENABLE_TTRACE	0
 
@@ -33,7 +33,6 @@ License:		MIT
 Source:			%{name}-%{version}.tar.gz
 
 BuildRequires:		pkg-config
-BuildRequires:		pkgconfig(gles20)
 BuildRequires:		pkgconfig(libdrm)
 BuildRequires:		pkgconfig(libtbm)
 
@@ -143,6 +142,7 @@ cp -a pkgconfig/tpl.pc			%{buildroot}%{_libdir}/pkgconfig/
 %if "%{WINSYS_WL}" == "1"
 %files -n libgbm_tbm
 %{_libdir}/gbm/gbm_tbm.so
+%{_libdir}/gbm/libgbm_tbm.so
 %{_libdir}/libgbm_tbm.so
 %endif
 
