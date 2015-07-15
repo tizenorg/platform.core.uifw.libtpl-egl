@@ -4,8 +4,8 @@
 %define TPL_RELEASE	01
 
 %define WINSYS_DRI2	0
-%define WINSYS_DRI3	1
-%define WINSYS_WL	0
+%define WINSYS_DRI3	0
+%define WINSYS_WL	1
 
 %define ENABLE_TTRACE	0
 
@@ -53,6 +53,7 @@ BuildRequires:		pkgconfig(xshmfence)
 BuildRequires:  	pkgconfig(gbm)
 BuildRequires:  	wayland-devel
 BuildRequires:  	pkgconfig(wayland-drm)
+BuildRequires:		pkgconfig(wayland-egl)
 %endif
 
 %description
@@ -69,11 +70,11 @@ Group:			System/Libraries
 Requires:		%{name} = %{version}-%{release}
 
 %description devel
-This package contains the development libraries, header files needed by
+This package contains the development libraries and header files needed by
 the DDK for ARM Mali EGL.
 
 %if "%{WINSYS_WL}" == "1"
-%Package -n libgbm_tbm
+%package -n libgbm_tbm
 Summary:		A backend of GBM using TBM
 Group:			Development/Libraries
 BuildRequires:		pkgconfig(gbm)
@@ -82,6 +83,14 @@ BuildRequires:		pkgconfig(wayland-drm)
 
 %description -n libgbm_tbm
 GBM backend using TBM(Tizen Buffer Manager)
+
+%package -n libgbm_tbm-devel
+Summary:		Development files for GBM using TBM
+Group:			Development/Libraries
+Requires:		libgbm_tbm = %{version}-%{release}
+
+%description -n libgbm_tbm-devel
+This package contains the development libraries and header files.
 %endif
 
 %prep
@@ -139,14 +148,17 @@ cp -a pkgconfig/tpl.pc			%{buildroot}%{_libdir}/pkgconfig/
 %{_libdir}/libtpl.so.%{TPL_VER_MAJOR}
 %{_libdir}/libtpl.so.%{TPL_VER_MAJOR}.%{TPL_VER_MINOR}
 
+%files devel
+%defattr(-,root,root,-)
+%{_includedir}/tpl.h
+%{_libdir}/pkgconfig/tpl.pc
+
 %if "%{WINSYS_WL}" == "1"
 %files -n libgbm_tbm
 %{_libdir}/gbm/gbm_tbm.so
 %{_libdir}/gbm/libgbm_tbm.so
 %{_libdir}/libgbm_tbm.so
-%endif
 
-%files devel
-%defattr(-,root,root,-)
-%{_includedir}/tpl.h
-%{_libdir}/pkgconfig/tpl.pc
+%files -n libgbm_tbm-devel
+%{_includedir}/gbm_tbm.h
+%endif

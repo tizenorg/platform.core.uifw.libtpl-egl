@@ -40,6 +40,7 @@ install: all
 	cp -va $(BIN_NAME) $(INST_LIBDIR)/gbm/
 	ln -sf gbm/gbm_tbm.so $(INST_LIBDIR)/libgbm_tbm.so
 	ln -sf gbm/gbm_tbm.so $(INST_LIBDIR)/gbm/libgbm_tbm.so
+	cp -va gbm_tbm.h $(INST_INCDIR)/
 
 uninstall:
 	rm -f $(INST_LIBDIR)/gbm/$(BIN_NAME)
