@@ -1,7 +1,5 @@
 #define inline __inline__
 
-#include <EGL/egl.h>
-
 #include <wayland-drm.h>
 
 #include "wayland-egl-priv.h"
@@ -18,10 +16,13 @@
 
 #include "tpl_internal.h"
 
-
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+
+#if EGL_BIND_WL_DISPLAY == 1
+#include <EGL/egl.h>
+#endif
 
 /* In wayland, application and compositor create its own drawing buffers. Recommend size is more than 2. */
 #define TPL_BUFFER_ALLOC_SIZE_APP               3

@@ -202,12 +202,12 @@ static void tpl_handle_and_free_error( Display *dpy, xcb_generic_error_t *error,
 
 		XGetErrorText( dpy, error->error_code, error_txt, len );
 		error_txt[ len - 1] = '\0';
-		CDBG_PRINT_WARN(CDBG_EGL, "%s failed \"[%d]:%s\"", request_string, error->error_code, error_txt );
+		TPL_WARN("%s failed \"[%d]:%s\"", request_string, error->error_code, error_txt );
 		free(error);
 	}
 	else
 	{
-		CDBG_PRINT_WARN(CDBG_EGL, "%s failed \"Unknown error\"", request_string );
+		TPL_WARN("%s failed \"Unknown error\"", request_string );
 	}
 }
 
@@ -244,7 +244,7 @@ static int tpl_get_alpha_offset( int offset_r, int offset_g, int offset_b, int b
 {
 	int ret = -1;
 
-	CDBG_ASSERT_MSG( bpp == 32, "alpha only supported for 32bits pixel formats");
+	TPL_CHECK_ON_FALSE_ASSERT_FAIL( bpp == 32, "alpha only supported for 32bits pixel formats");
 
 	if( offset_r != 0 && offset_g != 0 && offset_b != 0 )
 	{
@@ -256,7 +256,7 @@ static int tpl_get_alpha_offset( int offset_r, int offset_g, int offset_b, int b
 	}
 	else
 	{
-		CDBG_ASSERT_MSG(MALI_FALSE, "Alpha component has to be at either the offset 0 or 24");
+		TPL_CHECK_ON_FALSE_ASSERT_FAIL(TPL_FALSE, "Alpha component has to be at either the offset 0 or 24");
 	}
 
 	return ret;
@@ -371,7 +371,7 @@ static tpl_format_t tpl_offsets_to_color_buffer_format( int offset_r, int offset
 
 	else
 	{
-		CDBG_PRINT_WARN(CDBG_EGL, "Format not supported: offset_r=%d, offset_g=%d, offset_b=%d, offset_a=%d, bpp=%d",
+		TPL_WARN("Format not supported: offset_r=%d, offset_g=%d, offset_b=%d, offset_a=%d, bpp=%d",
 				offset_r, offset_g, offset_b, offset_a, bpp);
 	}
 
@@ -410,7 +410,7 @@ __tpl_x11_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 	XVisualInfo *visual_info = NULL;
 
 
-	attr_cookie = xcb_get_window_attributes( display->xcb_connection, window );
+	attr_cookie = xcb_get_window_attributes( display->xcb_connection, (xcb_window_t) window );
 	attr_reply = xcb_get_window_attributes_reply( display->xcb_connection, attr_cookie, &attr_error );
 
 	res = tpl_check_reply_for_error((Display *)display->native_handle, (xcb_generic_reply_t *)attr_reply, attr_error, "xcb_get_window_attributes");

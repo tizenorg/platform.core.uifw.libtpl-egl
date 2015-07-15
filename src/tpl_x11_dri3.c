@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -7,9 +8,6 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <dlfcn.h>
-
-#include <EGL/egl.h>
-/*#include <EGL/mali_egl.h>*/
 
 #include <X11/Xlib-xcb.h>
 #include <X11/Xlib.h>
@@ -330,7 +328,7 @@ dri3_update_drawable(void *loaderPrivate)
 		priv->width = geom_reply->width;
 		priv->height = geom_reply->height;
 		priv->depth = geom_reply->depth;
-		priv->is_pixmap = EGL_FALSE;
+		priv->is_pixmap = TPL_FALSE;
 
 		free(geom_reply);
 
@@ -360,15 +358,15 @@ dri3_update_drawable(void *loaderPrivate)
 			if (error->error_code != BadWindow)
 			{
 				free(error);
-				return EGL_FALSE;
+				return TPL_FALSE;
 			}
-			priv->is_pixmap = EGL_TRUE;
+			priv->is_pixmap = TPL_TRUE;
 			xcb_unregister_for_special_event(c, priv->special_event);
 			priv->special_event = NULL;
 		}
 	}
 	dri3_flush_present_events(priv);
-	return EGL_TRUE;
+	return TPL_TRUE;
 }
 
 /** dri3_get_pixmap_buffer
@@ -417,7 +415,7 @@ dri3_get_pixmap_buffer(void *loaderPrivate, Pixmap pixmap)/*TODO:format*/
 	xcb_dri3_fence_from_fd(c,
 		pixmap,
 		(sync_fence = xcb_generate_id(c)),
-		EGL_FALSE,
+		TPL_FALSE,
 		fence_fd);
 
 	/* Get an FD for the pixmap object
@@ -438,7 +436,7 @@ dri3_get_pixmap_buffer(void *loaderPrivate, Pixmap pixmap)/*TODO:format*/
 	buffer->tbo = tbo;
 	buffer->dma_buf_fd = *fds;
 	buffer->pixmap = pixmap;
-	buffer->own_pixmap = EGL_FALSE;
+	buffer->own_pixmap = TPL_FALSE;
 	buffer->width = bp_reply->width;
 	buffer->height = bp_reply->height;
     buffer->pitch = bp_reply->width*(bp_reply->bpp/8);
@@ -523,7 +521,6 @@ dri3_alloc_render_buffer(dri3_drawable *priv,
 	tbm_bo_handle handle;
 	xcb_void_cookie_t cookie;
 	xcb_generic_error_t *error;
-	char error_txt[256];
 
 	/* Create an xshmfence object and
 	 * prepare to send that to the X server
@@ -598,7 +595,7 @@ dri3_alloc_render_buffer(dri3_drawable *priv,
 	cookie = xcb_dri3_fence_from_fd_checked(c,
 			pixmap,
 			(sync_fence = xcb_generate_id(c)),
-			EGL_FALSE,
+			TPL_FALSE,
 			fence_fd);
 	error = xcb_request_check( c, cookie);
 	if (error)
@@ -608,7 +605,7 @@ dri3_alloc_render_buffer(dri3_drawable *priv,
 		goto no_pixmap;
 	}
 	buffer->pixmap = pixmap;
-	buffer->own_pixmap = EGL_TRUE;
+	buffer->own_pixmap = TPL_TRUE;
 	buffer->sync_fence = sync_fence;
 	buffer->shm_fence = shm_fence;
 	buffer->width = width;
@@ -660,12 +657,12 @@ dri3_free_render_buffer(dri3_drawable *pdraw, dri3_buffer *buffer)
 
 /** dri3_free_buffers
  *
- * Free the front bufffer or all of the back buffers. Used
+ * Free the front buffer or all of the back buffers. Used
  * when the application changes which buffers it needs
  */
+ #if 0
 static void
-dri3_free_buffers(enum dri3_buffer_type buffer_type,
-		void *loaderPrivate)
+dri3_free_buffers(enum dri3_buffer_type buffer_type, void *loaderPrivate)
 {
 	dri3_drawable	*priv = loaderPrivate;
 	dri3_buffer	*buffer;
@@ -694,6 +691,7 @@ dri3_free_buffers(enum dri3_buffer_type buffer_type,
 		}
 	}
 }
+#endif
 
 /** dri3_get_window_buffer
  *
@@ -779,8 +777,6 @@ static dri3_buffer *dri3_get_buffers(XID drawable,  void *loaderPrivate,
 {
 	dri3_drawable *priv = loaderPrivate;
 	dri3_buffer *buffers = NULL;
-	int i = 0;
-	unsigned int format;
 
 	MALI_DEBUG_PRINT(0, ("%s:begin\n",__func__));
 
@@ -801,7 +797,6 @@ static dri3_buffer *dri3_get_buffers(XID drawable,  void *loaderPrivate,
 	if (!buffers)
 		return NULL;*//*TODO*/
 
-	format = 2; /*TODO*/
 	if (*attachments == dri3_buffer_front)
 		buffers = dri3_get_pixmap_buffer(loaderPrivate, priv->xDrawable);
 	else
@@ -1000,8 +995,6 @@ dri3_create_drawable(Display *dpy, XID xDrawable)
 static tpl_bool_t
 dri3_display_init(Display *dpy)
 {
-	int fd = 0;
-
 	/* Initialize DRI3 & DRM */
 	xcb_connection_t		*c = XGetXCBConnection(dpy);
 	xcb_dri3_query_version_cookie_t	dri3_cookie;
@@ -1132,7 +1125,7 @@ __tpl_x11_dri3_display_init(tpl_display_t *display)
     display->xcb_connection = XGetXCBConnection( (Display*)display->native_handle );
     if( NULL == display->xcb_connection )
 	{
-		CDBG_PRINT_WARN( CDBG_EGL, "XGetXCBConnection failed");
+		TPL_WARN("XGetXCBConnection failed");
 	}
 
 	pthread_mutex_lock(&mutex);
@@ -1292,12 +1285,9 @@ __tpl_x11_dri3_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
 		tpl_bool_t is_worker)
 {
 	Display *display;
-	Drawable drawable;
-	CARD64 swap_count;
 	tpl_x11_dri3_surface_t *x11_surface;
 	XRectangle *xrects;
 	XRectangle xrects_stack[TPL_STACK_XRECTANGLE_SIZE];
-	void *pDrawable;
 
 	x11_surface = (tpl_x11_dri3_surface_t *)surface->backend.data;
 
@@ -1306,7 +1296,6 @@ __tpl_x11_dri3_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
 	else
 		display = surface->display->native_handle;
 
-	drawable = (Drawable)surface->native_handle;
 	if (frame->interval != x11_surface->latest_post_interval)
 	{
 		x11_surface->latest_post_interval = frame->interval;/*FIXME:set interval?*/
@@ -1438,7 +1427,6 @@ static tpl_buffer_t *
 __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 {
 	tpl_buffer_t *buffer = NULL;
-	Display *display;
 	Drawable drawable;
 	dri3_buffer *buffers = NULL;
 	uint32_t attachments[1] = { dri3_buffer_back };
@@ -1447,21 +1435,15 @@ __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 	int width, height, num_buffers;
 	tpl_x11_dri3_surface_t *x11_surface =
 			(tpl_x11_dri3_surface_t *)surface->backend.data;
-	void *data;
-	int cpp = 0;
+	int cpp = 32;
 
 	if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
 	{
 		attachments[0] = dri3_buffer_front;
 	}
 
-
-	display = (Display *)surface->display->native_handle;
 	drawable = (Drawable)surface->native_handle;
 
-	/* [BEGIN: 20141125-xing.huang] Get the current buffer via DRI3. */
-	cpp = 32;/*_mali_surface_specifier_bpp(&(surface->sformat));/* cpp get from mali is not right */
-	/* [END: 20141125-xing.huang] */
 	buffers = dri3_get_buffers(drawable, x11_surface->drawable, &width,
 			&height, attachments, 1, &num_buffers, cpp);
 
@@ -1485,21 +1467,19 @@ __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 	}
 	else
 	{
-		/* [BEGIN: 20141125-xuelian.bai] Remove the buffer from the cache. */
+		/* Remove the buffer from the cache. */
 		__tpl_x11_surface_buffer_cache_remove(
 				&x11_surface->buffer_cache,
 				buffers->dma_buf_fd);
-		/* [END: 20141125-xuelian.bai] */
-		/* [BEGIN: 20141125-xuelian.bai] old_dma_fd stands for the find reused
-		 * buffer but size not match. It must be removed from the list and
-		 * make a unref. */
+
+		/* old_dma_fd stands for the find reused buffer but size not match. 
+		 * It must be removed from the list and make a unref. */
 		if(buffers->old_dma_fd != 0)
 		{
 			__tpl_x11_surface_buffer_cache_remove(
 					&x11_surface->buffer_cache,
 					buffers->old_dma_fd);
 		}
-		/* [END: 20141125-xuelian.bai] */
 	}
 
 
@@ -1590,5 +1570,4 @@ __tpl_buffer_init_backend_x11_dri3(tpl_buffer_backend_t *backend)
 	backend->unmap		= __tpl_x11_buffer_unmap;
 	backend->lock		= __tpl_x11_buffer_lock;
 	backend->unlock		= __tpl_x11_buffer_unlock;
-    backend->get_reused_flag    = __tpl_x11_buffer_get_reused_flag;
 }

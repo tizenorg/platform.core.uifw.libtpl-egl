@@ -180,6 +180,17 @@ extern unsigned int tpl_log_lvl;
 	}										\
 	while (0)
 
+#define TPL_CHECK_ON_FALSE_ASSERT_FAIL(exp, mesg)					\
+	do										\
+	{										\
+		if (!(exp))								\
+		{									\
+			TPL_ERR("%s", mesg);						\
+			assert(0);							\
+		}									\
+	}										\
+	while (0)
+
 typedef struct _tpl_list_node	tpl_list_node_t;
 typedef struct _tpl_list	tpl_list_t;
 typedef struct _tpl_region	tpl_region_t;

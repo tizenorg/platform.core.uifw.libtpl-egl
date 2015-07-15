@@ -18,7 +18,6 @@ tpl_buffer_t *
 __tpl_buffer_alloc(tpl_surface_t *surface, unsigned int key, int fd, int width, int height,
 		   int depth, int pitch)
 {
-	tpl_display_t *display;
 	tpl_buffer_t *buffer;
 
 	TPL_ASSERT(surface != NULL);
@@ -108,11 +107,6 @@ int
 tpl_buffer_get_fd(tpl_buffer_t *buffer)
 {
 	return buffer->fd;
-}
-
-tpl_bool_t tpl_buffer_get_reused(tpl_buffer_t *buffer)
-{
-	return buffer->backend.get_reused_flag(buffer);
 }
 
 int

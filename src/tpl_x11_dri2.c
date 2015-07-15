@@ -9,6 +9,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xproto.h>
+#include <X11/Xlib-xcb.h>
 
 #include <libdrm/drm.h>
 #include <xf86drm.h>
@@ -148,7 +149,7 @@ __tpl_x11_dri2_display_init(tpl_display_t *display)
     display->xcb_connection = XGetXCBConnection( (Display*)display->native_handle );
     if( NULL == display->xcb_connection )
 	{
-		CDBG_PRINT_WARN( CDBG_EGL, "XGetXCBConnection failed");
+		TPL_WARN("XGetXCBConnection failed");
 	}
 
 	pthread_mutex_lock(&mutex);
@@ -235,7 +236,6 @@ __tpl_x11_dri2_surface_init(tpl_surface_t *surface)
 	Display *display;
 	Drawable drawable;
 	tpl_x11_dri2_surface_t *x11_surface;
-	char *env_str_comp;
 	tpl_format_t format = TPL_FORMAT_INVALID;
 
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW)
@@ -508,5 +508,4 @@ __tpl_buffer_init_backend_x11_dri2(tpl_buffer_backend_t *backend)
 	backend->unmap		= __tpl_x11_buffer_unmap;
 	backend->lock		= __tpl_x11_buffer_lock;
 	backend->unlock		= __tpl_x11_buffer_unlock;
-	backend->get_reused_flag= __tpl_x11_buffer_get_reused_flag;
 }
