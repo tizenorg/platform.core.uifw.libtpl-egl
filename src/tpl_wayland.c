@@ -20,10 +20,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#if EGL_BIND_WL_DISPLAY == 1
-#include <EGL/egl.h>
-#endif
-
 /* In wayland, application and compositor create its own drawing buffers. Recommend size is more than 2. */
 #define TPL_BUFFER_ALLOC_SIZE_APP               3
 #define TPL_BUFFER_ALLOC_SIZE_COMPOSITOR        4
@@ -87,10 +83,6 @@ static const struct wl_registry_listener registry_listener;
 static const struct wl_callback_listener sync_listener;
 static const struct wl_callback_listener frame_listener;
 static const struct wl_buffer_listener buffer_release_listener;
-
-#if EGL_BIND_WL_DISPLAY == 1
-static struct wayland_drm_callbacks wl_drm_server_listener;
-#endif
 
 static struct gbm_bo *__cb_server_gbm_surface_lock_front_buffer(struct gbm_surface *gbm_surf);
 static void __cb_server_gbm_surface_release_buffer(struct gbm_surface *gbm_surf, struct gbm_bo *gbm_bo);
@@ -1502,7 +1494,8 @@ __cb_server_gbm_surface_has_free_buffers(struct gbm_surface *gbm_surf)
 	return 0;
 }
 
-#if EGL_BIND_WL_DISPLAY == 1
+#ifdef EGL_BIND_WL_DISPLAY
+static struct wayland_drm_callbacks wl_drm_server_listener;
 
 static int
 __cb_server_wayland_drm_display_authenticate(void *user_data, uint32_t magic)
@@ -1544,7 +1537,7 @@ static struct wayland_drm_callbacks wl_drm_server_listener =
 	__cb_server_wayland_drm_unreference_buffer
 };
 
-EGLBoolean __egl_platform_bind_wayland_display(EGLNativeDisplayType display, struct wl_display *wayland_display)
+unsigned int __egl_platform_bind_wayland_display(void * display, struct wl_display *wayland_display)
 {
 	tpl_display_t *tpl_display = tpl_display_get(TPL_BACKEND_WAYLAND, display);
 	tpl_wayland_display_t *tpl_wayland_display = (tpl_wayland_display_t *)tpl_display->backend.data;
@@ -1559,7 +1552,7 @@ EGLBoolean __egl_platform_bind_wayland_display(EGLNativeDisplayType display, str
 	return TPL_TRUE;
 }
 
-EGLBoolean __egl_platform_unbind_wayland_display(EGLNativeDisplayType display, struct wl_display *wayland_display)
+unsigned int __egl_platform_unbind_wayland_display(void * display, struct wl_display *wayland_display)
 {
 	tpl_display_t *tpl_display = tpl_display_get(TPL_BACKEND_WAYLAND, display);
 	tpl_wayland_display_t *tpl_wayland_display = (tpl_wayland_display_t *)tpl_display->backend.data;
@@ -1572,50 +1565,5 @@ EGLBoolean __egl_platform_unbind_wayland_display(EGLNativeDisplayType display, s
 	close(tpl_display->bufmgr_fd);
 
 	return TPL_TRUE;
-}
-
-EGLBoolean __egl_platform_query_wayland_buffer(EGLNativeDisplayType display, struct wl_resource *wayland_buffer,
-					 EGLint attribute, EGLint *value)
-{
-	tpl_display_t *tpl_display = tpl_display_get(TPL_BACKEND_WAYLAND, display);
-	int width = 0, height = 0;
-	tpl_format_t format = TPL_FORMAT_INVALID;
-
-
-	if(NULL == tpl_display)
-	{
-		return EGL_FALSE;
-	}
-
-	if (!tpl_get_native_pixmap_info(tpl_display, (tpl_handle_t)wayland_buffer, &width, &height, &format))
-		return EGL_FALSE;
-
-	switch (attribute)
-	{
-		case EGL_TEXTURE_FORMAT:
-			switch (format)
-			{
-				case TPL_FORMAT_ARGB8888:
-					*value = EGL_TEXTURE_RGBA;
-					break;
-				case TPL_FORMAT_XRGB8888:
-				case TPL_FORMAT_RGB565:
-					*value = EGL_TEXTURE_RGB;
-					break;
-				default:
-					return EGL_FALSE;
-			}
-			break;
-		case EGL_WIDTH:
-			*value = width;
-			break;
-		case EGL_HEIGHT:
-			*value = height;
-			break;
-		default:
-			return EGL_FALSE;
-	}
-
-	return EGL_TRUE;
 }
 #endif
