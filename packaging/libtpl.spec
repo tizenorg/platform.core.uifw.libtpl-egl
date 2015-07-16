@@ -132,6 +132,14 @@ ln -sf libtpl.so.%{TPL_VERSION}		%{buildroot}%{_libdir}/libtpl.so.%{TPL_VER_MAJO
 ln -sf libtpl.so.%{TPL_VER_MAJOR}	%{buildroot}%{_libdir}/libtpl.so
 
 cp -a src/tpl.h				%{buildroot}%{_includedir}/
+cp -a src/tpl_internal.h		%{buildroot}%{_includedir}/
+cp -a src/tpl_utils.h			%{buildroot}%{_includedir}/
+%if "%{WINSYS_DRI2}" == "1"
+cp -a src/tpl_x11_internal.h		%{buildroot}%{_includedir}/
+%endif
+%if "%{WINSYS_DRI3}" == "1"
+cp -a src/tpl_x11_internal.h		%{buildroot}%{_includedir}/
+%endif
 cp -a pkgconfig/tpl.pc			%{buildroot}%{_libdir}/pkgconfig/
 
 %if "%{WINSYS_WL}" == "1"
@@ -151,6 +159,14 @@ cp -a pkgconfig/tpl.pc			%{buildroot}%{_libdir}/pkgconfig/
 %files devel
 %defattr(-,root,root,-)
 %{_includedir}/tpl.h
+%{_includedir}/tpl_internal.h
+%{_includedir}/tpl_utils.h
+%if "%{WINSYS_DRI2}" == "1"
+%{_includedir}/tpl_x11_internal.h
+%endif
+%if "%{WINSYS_DRI3}" == "1"
+%{_includedir}/tpl_x11_internal.h
+%endif
 %{_libdir}/pkgconfig/tpl.pc
 
 %if "%{WINSYS_WL}" == "1"

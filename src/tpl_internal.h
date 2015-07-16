@@ -244,10 +244,12 @@ void __tpl_buffer_init_backend_x11_dri3(tpl_buffer_backend_t *backend);
 /* DDK dependent functions */
 void tpl_util_sys_yield(void);
 int tpl_util_clz(int input);
+
 int tpl_util_osu_atomic_get(const tpl_util_osu_atomic * const atom);
 void tpl_util_osu_atomic_set(tpl_util_osu_atomic * const atom, int val);
 int tpl_util_osu_atomic_inc( tpl_util_osu_atomic * const atom );
 int tpl_util_osu_atomic_dec( tpl_util_osu_atomic * const atom );
+
 tpl_utils_ptrdict tpl_utils_ptrdict_allocate(void (*freefunc)(void *));
 tpl_bool_t tpl_utils_ptrdict_insert(tpl_utils_ptrdict d, void *name, void *data);
 void *tpl_utils_ptrdict_get(tpl_utils_ptrdict d, void *name);

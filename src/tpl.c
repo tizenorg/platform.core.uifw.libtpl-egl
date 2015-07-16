@@ -81,8 +81,6 @@ int tpl_util_osu_atomic_dec( tpl_util_osu_atomic * const atom )
 	return runtime->egl_funcs->atomic_dec(atom);
 }
 
-
-
 tpl_utils_ptrdict tpl_utils_ptrdict_allocate(void (*freefunc)(void *))
 {
 	tpl_utils_ptrdict d;
