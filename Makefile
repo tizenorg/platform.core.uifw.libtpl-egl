@@ -5,10 +5,9 @@ $(findstring -$1-,-$(TPL_OPTIONS)-)
 endef
 
 SRC_DIR = ./src
-SO_NAME = libtpl.so.$(TPL_VER_MAJOR)
-BIN_NAME = $(SO_NAME).$(TPL_VER_MINOR)
+SO_NAME = libtpl-egl.so.$(TPL_VER_MAJOR).$(TPL_VER_MINOR)
+BIN_NAME = $(SO_NAME).$(TPL_RELEASE)
 INST_DIR = $(libdir)
-SO_VER = $(TPL_VER_MAJOR)
 
 CC ?= gcc
 

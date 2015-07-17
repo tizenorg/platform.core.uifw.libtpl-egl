@@ -46,8 +46,6 @@ struct _tpl_egl_funcs
 	int			ptrdict_size;
 	int			ptrdict_iter_size;
 
-	void			(*yield)();
-
 	int			(*atomic_get)(const tpl_util_osu_atomic * const atom);
 	void			(*atomic_set)(tpl_util_osu_atomic * const atom, int val);
 	int			(*atomic_inc)(tpl_util_osu_atomic * const atom);

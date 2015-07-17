@@ -1,7 +1,8 @@
 %define TPL_VER_MAJOR	0
-%define TPL_VER_MINOR	1
+%define TPL_VER_MINOR	2
+%define TPL_RELEASE	1
 %define TPL_VERSION	%{TPL_VER_MAJOR}.%{TPL_VER_MINOR}
-%define TPL_RELEASE	01
+%define TPL_VER_FULL	%{TPL_VERSION}.%{TPL_RELEASE}
 
 %define WINSYS_DRI2	0
 %define WINSYS_DRI3	0
@@ -11,7 +12,7 @@
 
 ################################################################################
 
-Name:			libtpl
+Name:			libtpl-egl
 Summary:		Tizen Porting Layer for ARM Mali EGL
 %if "%{WINSYS_DRI2}" == "1"
 Version:		%{TPL_VERSION}.dri2
@@ -101,18 +102,19 @@ This package contains the development libraries and header files.
 make -C src/wayland_module/gbm_tbm all
 %endif
 
-%if "%{WINSYS_DRI2}" == "1" 
+%if "%{WINSYS_DRI2}" == "1"
 export TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri2
 %endif
-%if "%{WINSYS_DRI3}" == "1" 
+%if "%{WINSYS_DRI3}" == "1"
 export TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri3
 %endif
-%if "%{WINSYS_WL}" == "1" 
+%if "%{WINSYS_WL}" == "1"
 export TPL_OPTIONS=${TPL_OPTIONS}-winsys_wl
 %endif
 
 export TPL_VER_MAJOR=%{TPL_VER_MAJOR}
 export TPL_VER_MINOR=%{TPL_VER_MINOR}
+export TPL_RELEASE=%{TPL_RELEASE}
 
 %if "%{ENABLE_TTRACE}" == "1"
 export TPL_OPTIONS=${TPL_OPTIONS}-ttrace
@@ -127,9 +129,10 @@ mkdir -p %{buildroot}%{_libdir}
 mkdir -p %{buildroot}%{_includedir}
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
 
-cp -a libtpl.so.%{TPL_VERSION}		%{buildroot}%{_libdir}/
-ln -sf libtpl.so.%{TPL_VERSION}		%{buildroot}%{_libdir}/libtpl.so.%{TPL_VER_MAJOR}
-ln -sf libtpl.so.%{TPL_VER_MAJOR}	%{buildroot}%{_libdir}/libtpl.so
+cp -a libtpl-egl.so.%{TPL_VER_FULL}	%{buildroot}%{_libdir}/
+ln -sf libtpl-egl.so.%{TPL_VER_FULL}	%{buildroot}%{_libdir}/libtpl-egl.so.%{TPL_VERSION}
+ln -sf libtpl-egl.so.%{TPL_VERSION}	%{buildroot}%{_libdir}/libtpl-egl.so.%{TPL_VER_MAJOR}
+ln -sf libtpl-egl.so.%{TPL_VER_MAJOR}	%{buildroot}%{_libdir}/libtpl-egl.so
 
 cp -a src/tpl.h				%{buildroot}%{_includedir}/
 cp -a src/tpl_internal.h		%{buildroot}%{_includedir}/
@@ -140,7 +143,7 @@ cp -a src/tpl_x11_internal.h		%{buildroot}%{_includedir}/
 %if "%{WINSYS_DRI3}" == "1"
 cp -a src/tpl_x11_internal.h		%{buildroot}%{_includedir}/
 %endif
-cp -a pkgconfig/tpl.pc			%{buildroot}%{_libdir}/pkgconfig/
+cp -a pkgconfig/tpl-egl.pc		%{buildroot}%{_libdir}/pkgconfig/
 
 %if "%{WINSYS_WL}" == "1"
 %makeinstall -C src/wayland_module/gbm_tbm
@@ -152,9 +155,10 @@ cp -a pkgconfig/tpl.pc			%{buildroot}%{_libdir}/pkgconfig/
 
 %files
 %defattr(-,root,root,-)
-%{_libdir}/libtpl.so
-%{_libdir}/libtpl.so.%{TPL_VER_MAJOR}
-%{_libdir}/libtpl.so.%{TPL_VER_MAJOR}.%{TPL_VER_MINOR}
+%{_libdir}/libtpl-egl.so
+%{_libdir}/libtpl-egl.so.%{TPL_VER_MAJOR}
+%{_libdir}/libtpl-egl.so.%{TPL_VERSION}
+%{_libdir}/libtpl-egl.so.%{TPL_VER_FULL}
 
 %files devel
 %defattr(-,root,root,-)
@@ -167,7 +171,7 @@ cp -a pkgconfig/tpl.pc			%{buildroot}%{_libdir}/pkgconfig/
 %if "%{WINSYS_DRI3}" == "1"
 %{_includedir}/tpl_x11_internal.h
 %endif
-%{_libdir}/pkgconfig/tpl.pc
+%{_libdir}/pkgconfig/tpl-egl.pc
 
 %if "%{WINSYS_WL}" == "1"
 %files -n libgbm_tbm

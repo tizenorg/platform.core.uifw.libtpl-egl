@@ -53,7 +53,8 @@ void tpl_util_sys_yield(void)
 	status = sched_yield();
 	if (0 != status)
 	{
-		TPL_ERR("sched_yield failed, ret=%.8x\n", status);
+		/* non-fatal on error, warning is enough */
+		TPL_WARN("Yield failed, ret=%.8x\n", status);
 	}
 }
 
