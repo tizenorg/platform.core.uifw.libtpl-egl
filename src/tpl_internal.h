@@ -51,13 +51,22 @@ struct _tpl_egl_funcs
 	int			(*atomic_inc)(tpl_util_osu_atomic * const atom);
 	int			(*atomic_dec)(tpl_util_osu_atomic * const atom);
 
-	tpl_utils_ptrdict	(*ptrdict_init)(tpl_utils_ptrdict d, void *mem_alloc_context, void (*allocfunc)(void *, size_t), void (*freefunc)(void *));
+	tpl_utils_ptrdict	(*ptrdict_allocate_utgard)();
+
+	void			(*ptrdict_free_utgard)(tpl_utils_ptrdict d, void (*freefunc)());
+	void			(*ptrdict_term_midgard)(tpl_utils_ptrdict d);
+
+	tpl_utils_ptrdict	(*ptrdict_init_midgard)(tpl_utils_ptrdict d, void *mem_alloc_context, void (*allocfunc)(void *, size_t), void (*freefunc)(void *));
+
 	tpl_bool_t		(*ptrdict_insert)(tpl_utils_ptrdict d, void *name, void *data);
 	void *			(*ptrdict_lookup_key)(tpl_utils_ptrdict d, void *key, void **value);
-	void			(*ptrdict_term)(tpl_utils_ptrdict d);
 	void			(*ptrdict_remove)(tpl_utils_ptrdict d, void *name);
-	void			(*ptrdict_iter_init)(tpl_utils_ptrdict_iter *it, tpl_utils_ptrdict d);
-	void *			(*ptrdict_next)(tpl_utils_ptrdict_iter *it, void **value);
+
+	void			(*ptrdict_iter_init_utgard)(tpl_utils_ptrdict d, tpl_utils_ptrdict_iter *it);
+	void			(*ptrdict_iter_init_midgard)(tpl_utils_ptrdict_iter *it, tpl_utils_ptrdict d);
+
+	void *			(*ptrdict_next_utgard)(void **value, tpl_utils_ptrdict_iter *it);
+	void *			(*ptrdict_next_midgard)(tpl_utils_ptrdict_iter *it, void **value);
 };
 
 struct _tpl_display_backend

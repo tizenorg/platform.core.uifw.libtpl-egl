@@ -84,14 +84,21 @@ int tpl_util_osu_atomic_dec( tpl_util_osu_atomic * const atom )
 
 tpl_utils_ptrdict tpl_utils_ptrdict_allocate(void (*freefunc)(void *))
 {
-	tpl_utils_ptrdict d;
-	d = malloc(runtime->egl_funcs->ptrdict_size);
+	if (runtime->egl_funcs->ptrdict_allocate_utgard)
+	{
+		return (tpl_utils_ptrdict) runtime->egl_funcs->ptrdict_allocate_utgard();
+	}
+	else
+	{
+		tpl_utils_ptrdict d = NULL;
 
-	if (!d)
-		return NULL;
+		d = malloc(runtime->egl_funcs->ptrdict_size);
+		if (!d)
+			return NULL;
 
-	runtime->egl_funcs->ptrdict_init(d, NULL, NULL, freefunc);
-	return d;
+		runtime->egl_funcs->ptrdict_init_midgard(d, NULL, NULL, freefunc);
+		return d;
+	}
 }
 
 tpl_bool_t tpl_utils_ptrdict_insert(tpl_utils_ptrdict d, void *name, void *data)
@@ -109,7 +116,10 @@ void *tpl_utils_ptrdict_get(tpl_utils_ptrdict d, void *name)
 
 void tpl_utils_ptrdict_free(tpl_utils_ptrdict d)
 {
-	runtime->egl_funcs->ptrdict_term(d);
+	if (runtime->egl_funcs->ptrdict_free_utgard)
+		runtime->egl_funcs->ptrdict_free_utgard(d, NULL);
+	else
+		runtime->egl_funcs->ptrdict_term_midgard(d);
 }
 
 void tpl_utils_ptrdict_remove(tpl_utils_ptrdict d, void *name)
@@ -119,12 +129,18 @@ void tpl_utils_ptrdict_remove(tpl_utils_ptrdict d, void *name)
 
 void tpl_utils_ptrdict_iterate_init(tpl_utils_ptrdict d, tpl_utils_ptrdict_iter it)
 {
-	runtime->egl_funcs->ptrdict_iter_init(it, d);
+	if (runtime->egl_funcs->ptrdict_iter_init_utgard)
+		runtime->egl_funcs->ptrdict_iter_init_utgard(d, it);
+	else
+		runtime->egl_funcs->ptrdict_iter_init_midgard(it, d);
 }
 
 void *tpl_utils_ptrdict_next( tpl_utils_ptrdict_iter it, void  **value )
 {
-	return runtime->egl_funcs->ptrdict_next(it, value);
+	if (runtime->egl_funcs->ptrdict_next_utgard)
+		return runtime->egl_funcs->ptrdict_next_utgard(value, it);
+	else
+		return runtime->egl_funcs->ptrdict_next_midgard(it, value);
 }
 /* End: DDK dependent types and function definition */
 
