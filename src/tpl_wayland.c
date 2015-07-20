@@ -594,11 +594,10 @@ __tpl_wayland_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 				frame->damage.rects[i * 4 + 3]);
 		}
 		if (frame->damage.num_rects == 0) {
-			wl_surface_damage(wl_egl_window->surface, 
-							  wl_egl_window->dx, wl_egl_window->dy, 
-							  wl_egl_window->width, wl_egl_window->height);
+			wl_surface_damage(wl_egl_window->surface,
+					  wl_egl_window->dx, wl_egl_window->dy,
+					  wl_egl_window->width, wl_egl_window->height);
 		}
-
 
 		{
 			/* Register a meaningless surface frame callback.
@@ -738,7 +737,6 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	/* Create tpl buffer. */
 	bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
 
-	
 	name = tbm_bo_export(bo);
 	buffer = __tpl_buffer_alloc(surface, (int)name, (int)bo_handle.u32, width, height, depth, stride);
 	TPL_CHECK_ON_NULL_RETURN_VAL(buffer, NULL);
@@ -971,7 +969,7 @@ __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffe
 		}
 	}
 	else
-	{	
+	{
 		int reused = 1;
 
 		if (surface->type == TPL_SURFACE_TYPE_WINDOW &&
@@ -1025,13 +1023,12 @@ __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffe
 			}
 		}
 
-		if (surface->type == TPL_SURFACE_TYPE_WINDOW)		
+		if (surface->type == TPL_SURFACE_TYPE_WINDOW)
 		{
 			tpl_wayland_buffer_t *tpl_wayland_buffer;
-		
+
 			tpl_wayland_buffer = (tpl_wayland_buffer_t *)wayland_surface->current_rendering_buffer->backend.data;
-			tpl_wayland_buffer->reused = reused; 		
-			
+			tpl_wayland_buffer->reused = reused;
 		}
 	}
 
@@ -1051,7 +1048,7 @@ static void
 __tpl_wayland_buffer_fini(tpl_buffer_t *buffer)
 {
 	TPL_LOG(3, "tpl_buffer(%p) key:%d fd:%d %dx%d", buffer, buffer->key, buffer->fd, buffer->width, buffer->height);
-	
+
 	if (buffer->backend.data)
 	{
 		tpl_wayland_buffer_t *wayland_buffer = (tpl_wayland_buffer_t *)buffer->backend.data;
@@ -1114,6 +1111,8 @@ __tpl_wayland_buffer_lock(tpl_buffer_t *buffer, tpl_lock_usage_t usage)
 	TPL_ASSERT(wayland_buffer != NULL);
 	TPL_ASSERT(wayland_buffer->bo != NULL);
 
+	TPL_OBJECT_UNLOCK(buffer);
+
 	switch (usage)
 	{
 		case TPL_LOCK_USAGE_GPU_READ:
@@ -1133,6 +1132,8 @@ __tpl_wayland_buffer_lock(tpl_buffer_t *buffer, tpl_lock_usage_t usage)
 			return TPL_FALSE;
 	}
 
+	TPL_OBJECT_LOCK(buffer);
+
 	if (handle.u32 != 0 || handle.ptr != NULL)
 		return TPL_FALSE;
 
@@ -1147,7 +1148,9 @@ __tpl_wayland_buffer_unlock(tpl_buffer_t *buffer)
 	TPL_ASSERT(wayland_buffer != NULL);
 	TPL_ASSERT(wayland_buffer->bo != NULL);
 
+	TPL_OBJECT_UNLOCK(buffer);
 	tbm_bo_unmap(wayland_buffer->bo);
+	TPL_OBJECT_LOCK(buffer);
 }
 
 static void *

@@ -553,6 +553,8 @@ __tpl_x11_buffer_lock(tpl_buffer_t *buffer, tpl_lock_usage_t usage)
 	bo = (tbm_bo)buffer->backend.data;
 	TPL_ASSERT(bo);
 
+	TPL_OBJECT_UNLOCK(buffer);
+
 	switch (usage)
 	{
 		case TPL_LOCK_USAGE_GPU_READ:
@@ -572,6 +574,8 @@ __tpl_x11_buffer_lock(tpl_buffer_t *buffer, tpl_lock_usage_t usage)
 			return TPL_FALSE;
 	}
 
+	TPL_OBJECT_LOCK(buffer);
+
 	if (handle.u32 != 0 || handle.ptr != NULL)
 		return TPL_FALSE;
 
@@ -586,7 +590,9 @@ __tpl_x11_buffer_unlock(tpl_buffer_t *buffer)
 	bo = (tbm_bo)buffer->backend.data;
 	TPL_ASSERT(bo);
 
+	TPL_OBJECT_UNLOCK(buffer);
 	tbm_bo_unmap(bo);
+	TPL_OBJECT_LOCK(buffer);
 }
 
 tpl_bool_t __tpl_x11_buffer_get_reused_flag(tpl_buffer_t *buffer)
