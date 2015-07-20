@@ -3,10 +3,10 @@ exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 includedir=${prefix}/include
 
-Name: libtpl
+Name: libtpl-egl
 Description: Tizen Porting Layer for ARM Mali EGL
 Version: 0.1
 Requires.private:
-Libs: -L${libdir} -ltpl
+Libs: -L${libdir} -ltpl-egl
 Libs.private:
 Cflags: -I${includedir}
