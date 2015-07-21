@@ -25,8 +25,8 @@ ifneq ($(call is-feature-enabled,winsys_dri3),)
 endif
 ifneq ($(call is-feature-enabled,winsys_wl),)
 	CFLAGS += -DWINSYS_WL -DEGL_BIND_WL_DISPLAY
-	CFLAGS += -I$(SRC_DIR)/wayland_module/gbm_tbm `pkg-config --cflags wayland-drm`
-	LDFLAGS += `pkg-config --libs wayland-drm`
+	CFLAGS += -I$(SRC_DIR)/wayland_module/gbm_tbm `pkg-config --cflags wayland-drm gbm`
+	LDFLAGS += `pkg-config --libs wayland-drm gbm`
 endif
 ifneq ($(call is-feature-enabled,ttrace),)
 	CFLAGS += -DTTRACE_ENABLE

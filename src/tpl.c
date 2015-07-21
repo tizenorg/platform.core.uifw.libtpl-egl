@@ -255,15 +255,15 @@ __tpl_runtime_flush_all_display()
 tpl_backend_type_t
 __tpl_display_choose_backend(tpl_handle_t native_dpy)
 {
-#if TPL_WITH_WAYLAND == 1
+#ifdef TPL_WINSYS_WL
 	if (__tpl_display_choose_backend_wayland(native_dpy) == TPL_TRUE)
 		return TPL_BACKEND_WAYLAND;
 #endif
-#if TPL_WITH_X11_DRI2 == 1
+#ifdef TPL_WINSYS_DRI2
 	if (__tpl_display_choose_backend_x11_dri2(native_dpy) == TPL_TRUE)
 		return TPL_BACKEND_X11_DRI2;
 #endif
-#if TPL_WITH_X11_DRI3 == 1
+#ifdef TPL_WINSYS_DRI3
 	if (__tpl_display_choose_backend_x11_dri3(native_dpy) == TPL_TRUE)
 		return TPL_BACKEND_X11_DRI3;
 #endif
@@ -275,17 +275,17 @@ __tpl_display_init_backend(tpl_display_t *display, tpl_backend_type_t type)
 {
 	switch (type)
 	{
-#if TPL_WITH_WAYLAND == 1
+#ifdef TPL_WINSYS_WL
 	case TPL_BACKEND_WAYLAND:
 		__tpl_display_init_backend_wayland(&display->backend);
 		break;
 #endif
-#if TPL_WITH_X11_DRI2 == 1
+#ifdef TPL_WINSYS_DRI2
 	case TPL_BACKEND_X11_DRI2:
 		__tpl_display_init_backend_x11_dri2(&display->backend);
 		break;
 #endif
-#if TPL_WITH_X11_DRI3 == 1
+#ifdef TPL_WINSYS_DRI3
 	case TPL_BACKEND_X11_DRI3:
 		__tpl_display_init_backend_x11_dri3(&display->backend);
 		break;
@@ -301,17 +301,17 @@ __tpl_surface_init_backend(tpl_surface_t *surface, tpl_backend_type_t type)
 {
 	switch (type)
 	{
-#if TPL_WITH_WAYLAND == 1
+#ifdef TPL_WINSYS_WL
 	case TPL_BACKEND_WAYLAND:
 		__tpl_surface_init_backend_wayland(&surface->backend);
 		break;
 #endif
-#if TPL_WITH_X11_DRI2 == 1
+#ifdef TPL_WINSYS_DRI2
 	case TPL_BACKEND_X11_DRI2:
 		__tpl_surface_init_backend_x11_dri2(&surface->backend);
 		break;
 #endif
-#if TPL_WITH_X11_DRI3 == 1
+#ifdef TPL_WINSYS_DRI3
 	case TPL_BACKEND_X11_DRI3:
 		__tpl_surface_init_backend_x11_dri3(&surface->backend);
 		break;
@@ -327,17 +327,17 @@ __tpl_buffer_init_backend(tpl_buffer_t *buffer, tpl_backend_type_t type)
 {
 	switch (type)
 	{
-#if TPL_WITH_WAYLAND == 1
+#ifdef TPL_WINSYS_WL
 	case TPL_BACKEND_WAYLAND:
 		__tpl_buffer_init_backend_wayland(&buffer->backend);
 		break;
 #endif
-#if TPL_WITH_X11_DRI2 == 1
+#ifdef TPL_WINSYS_DRI2
 	case TPL_BACKEND_X11_DRI2:
 		__tpl_buffer_init_backend_x11_dri2(&buffer->backend);
 		break;
 #endif
-#if TPL_WITH_X11_DRI3 == 1
+#ifdef TPL_WINSYS_DRI3
 	case TPL_BACKEND_X11_DRI3:
 		__tpl_buffer_init_backend_x11_dri3(&buffer->backend);
 		break;
