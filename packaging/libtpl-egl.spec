@@ -28,7 +28,6 @@ Version:		%{TPL_VERSION}.unknown
 %endif
 %endif
 Release:		%{TPL_RELEASE}
-ExclusiveArch:		%arm
 Group:			System/Libraries
 License:		MIT
 Source:			%{name}-%{version}.tar.gz
