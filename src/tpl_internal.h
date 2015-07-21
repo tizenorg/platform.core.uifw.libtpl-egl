@@ -20,10 +20,6 @@ typedef struct _tpl_surface_backend	tpl_surface_backend_t;
 typedef struct _tpl_buffer_backend	tpl_buffer_backend_t;
 typedef struct _tpl_frame		tpl_frame_t;
 
-typedef volatile unsigned int tpl_util_osu_atomic;
-typedef void * tpl_utils_ptrdict;
-typedef void * tpl_utils_ptrdict_iter;
-
 typedef enum
 {
 	TPL_FRAME_STATE_INVALID,
@@ -38,35 +34,6 @@ struct _tpl_frame
 	int			interval;
 	tpl_region_t		damage;
 	tpl_frame_state_t	state;
-};
-
-struct _tpl_egl_funcs
-{
-	int			atomic_int_size;
-	int			ptrdict_size;
-	int			ptrdict_iter_size;
-
-	int			(*atomic_get)(const tpl_util_osu_atomic * const atom);
-	void			(*atomic_set)(tpl_util_osu_atomic * const atom, int val);
-	int			(*atomic_inc)(tpl_util_osu_atomic * const atom);
-	int			(*atomic_dec)(tpl_util_osu_atomic * const atom);
-
-	tpl_utils_ptrdict	(*ptrdict_allocate_utgard)();
-
-	void			(*ptrdict_free_utgard)(tpl_utils_ptrdict d, void (*freefunc)());
-	void			(*ptrdict_term_midgard)(tpl_utils_ptrdict d);
-
-	tpl_utils_ptrdict	(*ptrdict_init_midgard)(tpl_utils_ptrdict d, void *mem_alloc_context, void (*allocfunc)(void *, size_t), void (*freefunc)(void *));
-
-	tpl_bool_t		(*ptrdict_insert)(tpl_utils_ptrdict d, void *name, void *data);
-	void *			(*ptrdict_lookup_key)(tpl_utils_ptrdict d, void *key, void **value);
-	void			(*ptrdict_remove)(tpl_utils_ptrdict d, void *name);
-
-	void			(*ptrdict_iter_init_utgard)(tpl_utils_ptrdict d, tpl_utils_ptrdict_iter *it);
-	void			(*ptrdict_iter_init_midgard)(tpl_utils_ptrdict_iter *it, tpl_utils_ptrdict d);
-
-	void *			(*ptrdict_next_utgard)(void **value, tpl_utils_ptrdict_iter *it);
-	void *			(*ptrdict_next_midgard)(tpl_utils_ptrdict_iter *it, void **value);
 };
 
 struct _tpl_display_backend
@@ -134,7 +101,7 @@ struct _tpl_buffer_backend
 struct _tpl_object
 {
 	tpl_object_type_t	type;
-	tpl_util_osu_atomic	reference;
+	tpl_util_atomic_uint	reference;
 	tpl_free_func_t		free;
 	pthread_mutex_t		mutex;
 
@@ -252,10 +219,10 @@ void __tpl_buffer_init_backend_x11_dri3(tpl_buffer_backend_t *backend);
 void tpl_util_sys_yield(void);
 int tpl_util_clz(int input);
 
-int tpl_util_osu_atomic_get(const tpl_util_osu_atomic * const atom);
-void tpl_util_osu_atomic_set(tpl_util_osu_atomic * const atom, int val);
-int tpl_util_osu_atomic_inc( tpl_util_osu_atomic * const atom );
-int tpl_util_osu_atomic_dec( tpl_util_osu_atomic * const atom );
+int tpl_util_atomic_get(const tpl_util_atomic_uint * const atom);
+void tpl_util_atomic_set(tpl_util_atomic_uint * const atom, unsigned int val);
+int tpl_util_atomic_inc(tpl_util_atomic_uint * const atom );
+int tpl_util_atomic_dec(tpl_util_atomic_uint * const atom );
 
 tpl_utils_ptrdict tpl_utils_ptrdict_allocate(void (*freefunc)(void *));
 tpl_bool_t tpl_utils_ptrdict_insert(tpl_utils_ptrdict d, void *name, void *data);

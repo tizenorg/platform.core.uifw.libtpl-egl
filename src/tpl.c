@@ -63,23 +63,43 @@ int tpl_util_clz(int val)
 	return __builtin_clz( val );
 }
 
-int tpl_util_osu_atomic_get(const tpl_util_osu_atomic * const atom)
+int tpl_util_atomic_get(const tpl_util_atomic_uint * const atom)
 {
-	return runtime->egl_funcs->atomic_get(atom);
+	unsigned int ret;
+
+	if (!atom)
+		abort();
+
+	TPL_DMB();
+	ret = *atom;
+	TPL_DMB();
+
+	return ret;
 }
 
-void tpl_util_osu_atomic_set(tpl_util_osu_atomic * const atom, int val)
+void tpl_util_atomic_set(tpl_util_atomic_uint * const atom, unsigned int val)
 {
-	runtime->egl_funcs->atomic_set(atom, val);
+	if (!atom)
+		abort();
+
+	TPL_DMB();
+	*atom = val;
+	TPL_DMB();
 }
 
-int tpl_util_osu_atomic_inc( tpl_util_osu_atomic * const atom )
+int tpl_util_atomic_inc(tpl_util_atomic_uint * const atom )
 {
-	return 	runtime->egl_funcs->atomic_inc(atom);
+	if (!atom)
+		abort();
+
+	return __sync_add_and_fetch(atom, 1);
 }
-int tpl_util_osu_atomic_dec( tpl_util_osu_atomic * const atom )
+int tpl_util_atomic_dec( tpl_util_atomic_uint * const atom )
 {
-	return runtime->egl_funcs->atomic_dec(atom);
+	if (!atom)
+		abort();
+
+	return __sync_sub_and_fetch(atom, 1);
 }
 
 tpl_utils_ptrdict tpl_utils_ptrdict_allocate(void (*freefunc)(void *))

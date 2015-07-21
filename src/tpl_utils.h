@@ -11,6 +11,8 @@
 #define TPL_INLINE			__inline__
 #define TPL_IGNORE(x)			(void)x
 
+#define TPL_DMB()			__asm__ volatile("dmb sy" : : : "memory")
+
 #if (TTRACE_ENABLE)
 #include <ttrace.h>
 #define DDK_TAG				TTRACE_TAG_GRAPHICS

@@ -4,7 +4,7 @@
 tpl_bool_t
 __tpl_object_is_valid(tpl_object_t *object)
 {
-	return tpl_util_osu_atomic_get(&object->reference) != 0;
+	return tpl_util_atomic_get(&object->reference) != 0;
 }
 
 void
@@ -12,7 +12,7 @@ __tpl_object_init(tpl_object_t *object, tpl_object_type_t type, tpl_free_func_t 
 {
 	object->type = type;
 	object->free = free_func;
-	tpl_util_osu_atomic_set(&object->reference, 1);
+	tpl_util_atomic_set(&object->reference, 1);
 	pthread_mutex_init(&object->mutex, NULL);
 }
 
@@ -43,7 +43,7 @@ int
 tpl_object_reference(tpl_object_t *object)
 {
 	TPL_ASSERT(__tpl_object_is_valid(object));
-	return (int) tpl_util_osu_atomic_inc(&object->reference);
+	return (int) tpl_util_atomic_inc(&object->reference);
 }
 
 int
@@ -53,7 +53,7 @@ tpl_object_unreference(tpl_object_t *object)
 
 	TPL_ASSERT(__tpl_object_is_valid(object));
 
-	reference = (int)tpl_util_osu_atomic_dec(&object->reference);
+	reference = (int)tpl_util_atomic_dec(&object->reference);
 
 	if (reference == 0)
 	{
@@ -68,7 +68,7 @@ int
 tpl_object_get_reference(tpl_object_t *object)
 {
 	TPL_ASSERT(__tpl_object_is_valid(object));
-	return (int)tpl_util_osu_atomic_get(&object->reference);
+	return (int)tpl_util_atomic_get(&object->reference);
 }
 
 tpl_object_type_t
