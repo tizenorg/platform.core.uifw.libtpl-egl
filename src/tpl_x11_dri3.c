@@ -19,7 +19,6 @@
 #include <libdrm/drm.h>
 #include <xf86drm.h>
 
-#include <X11/xshmfence.h>
 #include <xcb/xcb.h>
 #include <xcb/dri3.h>
 #include <xcb/xcbext.h>
@@ -27,7 +26,6 @@
 #include <xcb/sync.h>
 
 #include <tbm_bufmgr.h>
-
 
 #include "tpl_internal.h"
 
@@ -37,7 +35,13 @@ static int dri3_max_back = 0;/*max number of back buffer*/
 #define DRI3_NUM_BUFFERS	20
 #define DRI3_BUFFER_REUSED	0x08
 
-#define MALI_DEBUG_PRINT(string,args) do {} while(0)
+/* 2015-04-15 joonbum.ko@samsung.com */
+/* Add macro function for pitch align calculation.*/
+#define SIZE_ALIGN( value, base ) (((value) + ((base) - 1)) & ~((base) - 1))
+#define ALIGNMENT_PITCH_ARGB 64
+
+
+#define USE_FENCE 0
 
 typedef struct _tpl_x11_dri3_surface	tpl_x11_dri3_surface_t;
 
@@ -57,13 +61,18 @@ enum dri3_buffer_type
 	dri3_buffer_front = 1
 };
 
+enum dri3_buffer_status
+{
+        dri3_buffer_idle = 0,
+        dri3_buffer_busy = 1,
+        dri3_buffer_posted = 2
+};
+
 typedef struct _dri3_buffer
 {
 	tbm_bo		tbo;
 	uint32_t	pixmap;
-	uint32_t	sync_fence;	/* XID of X SyncFence object */
-	struct xshmfence *shm_fence;	/* pointer to xshmfence object */
-	uint32_t	busy;		/* Set on swap, cleared on IdleNotify */
+	enum dri3_buffer_status	status;		/* Set on swap, cleared on IdleNotify */
 	void		*driverPrivate;
 
 	/*param of buffer */
@@ -71,16 +80,23 @@ typedef struct _dri3_buffer
 	uint32_t	pitch;
 	uint32_t	cpp;
 	uint32_t	flags;
-	int32_t		width, height, depth;
+	int32_t		width, height;
 	uint64_t	last_swap;
 	int32_t		own_pixmap;	/* We allocated the pixmap ID,
 					   free on destroy */
 	uint32_t	dma_buf_fd;	/* fd of dma buffer */
 	/* [BEGIN: 20141125-xuelian.bai] Add old dma fd to save old fd
 	 * before use new fd */
-	uint32_t	old_dma_fd;
+        /* 2015-04-08 joonbum.ko@samsung.com */
+        /* Change old buffer name to old_bo_name from old_dma_fd */
+	/* uint32_t	old_dma_fd; */
+        uint32_t        old_bo_name;
 	/* [END: 20141125-xuelian.bai] */
 	enum dri3_buffer_type buffer_type; /* back=0,front=1 */
+
+        /* [BEGIN: 20140119-leiba.sun] Add support for buffer age */
+        uint32_t        buffer_age;
+        /* [END:20150119-leiba.sun] */
 } dri3_buffer;
 
 typedef struct _dri3_drawable
@@ -88,7 +104,7 @@ typedef struct _dri3_drawable
 	Display		*dpy;
 	XID		xDrawable;
 
-	tbm_bufmgr 	bufmgr;		/* tbm bufmgr */
+	tbm_bufmgr	bufmgr;		/* tbm bufmgr */
 
 	int32_t		width, height, depth;
 	int32_t		swap_interval;
@@ -110,7 +126,7 @@ typedef struct _dri3_drawable
 
 	uint32_t	stamp;
 	xcb_present_event_t	eid;
-	xcb_special_event_t 	*special_event;
+	xcb_special_event_t	*special_event;
 } dri3_drawable;
 
 typedef struct _dri3_drawable_node
@@ -118,156 +134,201 @@ typedef struct _dri3_drawable_node
 	XID		xDrawable;
 	dri3_drawable	*drawable;
 } dri3_drawable_node;
+
 static tpl_x11_global_t	global =
 {
 	0,
 	NULL,
 	-1,
 	NULL,
-	TPL_X11_SWAP_TYPE_ASYNC,
-	TPL_X11_SWAP_TYPE_SYNC
+	TPL_X11_SWAP_TYPE_LAZY,
+	TPL_X11_SWAP_TYPE_LAZY
 };
 
 static tpl_list_t dri3_drawable_list;
 static void
 dri3_free_render_buffer(dri3_drawable *pdraw, dri3_buffer *buffer);
-
-
-static inline void
-dri3_fence_reset(dri3_buffer *buffer)
+static void dri3_flush_present_events(dri3_drawable *priv);
+/* Wrapper around xcb_dri3_open*/
+static int
+dri3_open(Display *dpy, Window root, CARD32 provider)
 {
-	xshmfence_reset(buffer->shm_fence);
-}
+	xcb_dri3_open_cookie_t	cookie;
+	xcb_dri3_open_reply_t	*reply;
+	xcb_connection_t	*c = XGetXCBConnection(dpy);
+	int			fd;
 
-static inline void
-dri3_fence_set(dri3_buffer *buffer)
-{
-	xshmfence_trigger(buffer->shm_fence);
-}
+	cookie = xcb_dri3_open(c,
+			root,
+			provider);
 
-static inline void
-dri3_fence_trigger(xcb_connection_t *c, dri3_buffer *buffer)
-{
-	xcb_sync_trigger_fence(c, buffer->sync_fence);
-}
-
-static inline void
-dri3_fence_await(xcb_connection_t *c, dri3_buffer *buffer)
-{
-	xcb_flush(c);
-	xshmfence_await(buffer->shm_fence);
-}
-
-static inline tpl_bool_t
-dri3_fence_triggered(dri3_buffer *buffer)
-{
-	return xshmfence_query(buffer->shm_fence);
-}
-
-
-/******************************************
-  * dri3_handle_present_event
-  * Process Present event from xserver
-  *****************************************/
-void
-dri3_handle_present_event(dri3_drawable *priv, xcb_present_generic_event_t *ge)
-{
-	switch (ge->evtype)
+	reply = xcb_dri3_open_reply(c, cookie, NULL);
+	if (!reply)
 	{
-		case XCB_PRESENT_CONFIGURE_NOTIFY:
-		{
-			xcb_present_configure_notify_event_t *ce = (void *) ge;
-			MALI_DEBUG_PRINT(0,
-				("%s: XCB_PRESENT_CONFIGURE_NOTIFY\n", __func__));
-			priv->width = ce->width;
-			priv->height = ce->height;
-			break;
-		}
-		case XCB_PRESENT_COMPLETE_NOTIFY:
-		{
-			xcb_present_complete_notify_event_t *ce = (void *) ge;
-			MALI_DEBUG_PRINT(0,
-				("%s: XCB_PRESENT_COMPLETE_NOTIFY\n", __func__));
-			/* Compute the processed SBC number from the received
-			 * 32-bit serial number merged with the upper 32-bits
-		 	 * of the sent 64-bit serial number while checking for
-		 	 * wrap
-		 	 */
-			if (ce->kind == XCB_PRESENT_COMPLETE_KIND_PIXMAP)
-			{
-				priv->recv_sbc =
-					(priv->send_sbc & 0xffffffff00000000LL) |
-					ce->serial;
-				if (priv->recv_sbc > priv->send_sbc)
-					priv->recv_sbc -= 0x100000000;
-				switch (ce->mode)
-				{
-					case XCB_PRESENT_COMPLETE_MODE_FLIP:
-						priv->flipping = 1;
-						break;
-					case XCB_PRESENT_COMPLETE_MODE_COPY:
-						priv->flipping = 0;
-						break;
-				}
-			} else
-			{
-				priv->recv_msc_serial = ce->serial;
-			}
-			priv->ust = ce->ust;
-			priv->msc = ce->msc;
-			break;
-		}
-		case XCB_PRESENT_EVENT_IDLE_NOTIFY:
-		{
-			xcb_present_idle_notify_event_t *ie = (void *) ge;
-			uint32_t b;
-
-
-			for (b = 0; b < sizeof (priv->buffers) / sizeof (priv->buffers[0]); b++)
-			{
-				dri3_buffer        *buf = priv->buffers[b];
-
-				if (buf && buf->pixmap == ie->pixmap)
-				{
-					MALI_DEBUG_PRINT(0,
-							("%s: id=%d XCB_PRESENT_EVENT_IDLE_NOTIFY\n", __func__, b));
-					buf->busy = 0;
-					tbm_bo_unref(priv->buffers[b]->tbo);
-				break;
-				}
-			}
-		break;
-		}
+		return -1;
 	}
-	free(ge);
- }
 
- /******************************************************
- * dri3_flush_present_events
- *
- * Process any present events that have been received from the X server
- * called when get buffer or swap buffer
- ******************************************************/
+	if (reply->nfd != 1)
+	{
+		free(reply);
+		return -1;
+	}
+
+	fd = xcb_dri3_open_reply_fds(c, reply)[0];
+	fcntl(fd, F_SETFD, FD_CLOEXEC);
+
+	free(reply);
+	return fd;
+}
+
+static tpl_bool_t
+dri3_display_init(Display *dpy)
+{
+	/* Initialize DRI3 & DRM */
+	xcb_connection_t		*c = XGetXCBConnection(dpy);
+	xcb_dri3_query_version_cookie_t	dri3_cookie;
+	xcb_dri3_query_version_reply_t	*dri3_reply;
+	xcb_present_query_version_cookie_t	present_cookie;
+	xcb_present_query_version_reply_t	*present_reply;
+	xcb_generic_error_t		*error;
+	const xcb_query_extension_reply_t	*extension;
+	xcb_extension_t			xcb_dri3_id = { "DRI3", 0 };
+	xcb_extension_t			xcb_present_id = { "Present", 0 };
+
+	xcb_prefetch_extension_data(c, &xcb_dri3_id);
+	xcb_prefetch_extension_data(c, &xcb_present_id);
+
+	extension = xcb_get_extension_data(c, &xcb_dri3_id);
+	if (!(extension && extension->present))
+	{
+		return TPL_FALSE;
+	}
+
+	extension = xcb_get_extension_data(c, &xcb_present_id);
+	if (!(extension && extension->present))
+	{
+		return TPL_FALSE;
+	}
+
+	dri3_cookie = xcb_dri3_query_version(c,
+			XCB_DRI3_MAJOR_VERSION,
+			XCB_DRI3_MINOR_VERSION);
+	dri3_reply = xcb_dri3_query_version_reply(c, dri3_cookie, &error);
+	if (!dri3_reply)
+	{
+		free(error);
+		return TPL_FALSE;
+	}
+	free(dri3_reply);
+
+	present_cookie = xcb_present_query_version(c,
+			XCB_PRESENT_MAJOR_VERSION,
+			XCB_PRESENT_MINOR_VERSION);
+	present_reply = xcb_present_query_version_reply(c, present_cookie, &error);
+	if (!present_reply)
+	{
+		free(error);
+		return TPL_FALSE;
+	}
+	free(present_reply);
+	return TPL_TRUE;
+}
+
+static void *
+dri3_create_drawable(Display *dpy, XID xDrawable)
+{
+	dri3_drawable			*pdraw = NULL;
+	xcb_connection_t		*c = XGetXCBConnection(dpy);
+	xcb_get_geometry_cookie_t	geom_cookie;
+	xcb_get_geometry_reply_t	*geom_reply;
+	int i;
+	tpl_list_node_t		        *node;
+	dri3_drawable_node		*drawable_node;
+
+	/* Check drawable list to find that if it has been created*/
+	node = tpl_list_get_front_node(&dri3_drawable_list);
+	while (node)
+	{
+		dri3_drawable_node *drawable = (dri3_drawable_node *)tpl_list_node_get_data(node);
+
+		if (drawable->xDrawable == xDrawable)
+		{
+			pdraw = drawable->drawable;
+			return (void *)pdraw;/* Reuse old drawable */
+		}
+		node = tpl_list_node_next(node);
+	}
+	pdraw = calloc(1, sizeof(*pdraw));
+	TPL_ASSERT(pdraw != NULL);
+
+	geom_cookie = xcb_get_geometry(c, xDrawable);
+	geom_reply = xcb_get_geometry_reply(c, geom_cookie, NULL);
+	TPL_ASSERT(geom_reply != NULL);
+
+	pdraw->bufmgr = global.bufmgr;
+	pdraw->width = geom_reply->width;
+	pdraw->height = geom_reply->height;
+	pdraw->depth = geom_reply->depth;
+	pdraw->is_pixmap = TPL_FALSE;
+
+	free(geom_reply);
+        pdraw->dpy = global.worker_display;
+	pdraw->xDrawable = xDrawable;
+
+	for (i = 0; i < dri3_max_back + 1;i++)
+		pdraw->buffers[i] = NULL;
+
+	/* Add new allocated drawable to drawable list */
+	drawable_node = calloc(1, sizeof(dri3_drawable_node));
+	drawable_node->drawable = pdraw;
+	drawable_node->xDrawable = xDrawable;
+	tpl_list_push_back(&dri3_drawable_list, (void *)drawable_node);
+
+	return (void*)pdraw;
+}
+
 static void
-dri3_flush_present_events(dri3_drawable *priv)
+dri3_destroy_drawable(Display *dpy, XID xDrawable)
 {
-	xcb_connection_t *c = XGetXCBConnection(priv->dpy);
+	dri3_drawable		*pdraw;
+	xcb_connection_t	*c = XGetXCBConnection(dpy);
+	int			i;
+	tpl_list_node_t	        *node;
+	dri3_drawable_node	*drawable;
 
-	/* Check to see if any configuration changes have occurred
-	 * since we were last invoked
-	 */
-	if (priv->special_event)
+	/* Remove drawable from list */
+	node =  tpl_list_get_front_node(&dri3_drawable_list);
+	while (node)
 	{
-		xcb_generic_event_t    *ev;
+		drawable = (dri3_drawable_node *)tpl_list_node_get_data(node);
 
-		while ((ev = xcb_poll_for_special_event(c, priv->special_event)) != NULL)
+		if (drawable->xDrawable== xDrawable)
 		{
-			xcb_present_generic_event_t *ge = (void *) ev;
-			dri3_handle_present_event(priv, ge);
-		}
-	}
-}
+			pdraw = drawable->drawable;
 
+			if (!pdraw)
+				return;
+
+			for (i = 0; i < dri3_max_back + 1; i++)
+			{
+				if (pdraw->buffers[i])
+					dri3_free_render_buffer(pdraw, pdraw->buffers[i]);
+			}
+
+			if (pdraw->special_event)
+				xcb_unregister_for_special_event(c, pdraw->special_event);
+			free(pdraw);
+			pdraw = NULL;
+			tpl_list_remove(node, free);
+			return;
+		}
+
+		node = tpl_list_node_next(node);
+	}
+
+	/* If didn't find the drawable, means it is already free*/
+	return;
+}
 
 /** dri3_update_drawable
  *
@@ -353,8 +414,6 @@ dri3_update_drawable(void *loaderPrivate)
 
 		if (error)
 		{
-			MALI_DEBUG_PRINT(0, ("%s:select input error=%d\n",
-						__func__, error->error_code));
 			if (error->error_code != BadWindow)
 			{
 				free(error);
@@ -369,95 +428,142 @@ dri3_update_drawable(void *loaderPrivate)
 	return TPL_TRUE;
 }
 
-/** dri3_get_pixmap_buffer
- *
- * Get the DRM object for a pixmap from the X server
- */
-static dri3_buffer *
-dri3_get_pixmap_buffer(void *loaderPrivate, Pixmap pixmap)/*TODO:format*/
+/******************************************
+  * dri3_handle_present_event
+  * Process Present event from xserver
+  *****************************************/
+void
+dri3_handle_present_event(dri3_drawable *priv, xcb_present_generic_event_t *ge)
 {
-	dri3_drawable *pdraw = loaderPrivate;
-	dri3_buffer *buffer = pdraw->buffers[dri3_max_back];
-	xcb_dri3_buffer_from_pixmap_cookie_t bp_cookie;
-	xcb_dri3_buffer_from_pixmap_reply_t  *bp_reply;
-	int *fds;
-	Display *dpy;
-	xcb_connection_t *c;
-	xcb_sync_fence_t sync_fence;
-	struct xshmfence *shm_fence;
-	int fence_fd;
-	tbm_bo tbo = NULL;
-
-	/* Reuse this pixmap buffer if it already exist  */
-	if (buffer)
+        switch (ge->evtype)
 	{
-		buffer->flags = DRI3_BUFFER_REUSED;
-		tbm_bo_ref(buffer->tbo);
-		return buffer;
+		case XCB_PRESENT_CONFIGURE_NOTIFY:
+		{
+                        TRACE_BEGIN("DRI3:PRESENT_CONFIGURE_NOTIFY");
+                        xcb_present_configure_notify_event_t *ce = (void *) ge;
+                        priv->width = ce->width;
+                        priv->height = ce->height;
+                        TRACE_END();
+                        break;
+		}
+
+		case XCB_PRESENT_COMPLETE_NOTIFY:
+		{
+                        TRACE_BEGIN("DRI3:PRESENT_COMPLETE_NOTIFY");
+			xcb_present_complete_notify_event_t *ce = (void *) ge;
+			/* Compute the processed SBC number from the received
+			 * 32-bit serial number merged with the upper 32-bits
+		 	 * of the sent 64-bit serial number while checking for
+		 	 * wrap
+		 	 */
+			if (ce->kind == XCB_PRESENT_COMPLETE_KIND_PIXMAP)
+			{
+				priv->recv_sbc =
+					(priv->send_sbc & 0xffffffff00000000LL) |
+					ce->serial;
+				if (priv->recv_sbc > priv->send_sbc)
+					priv->recv_sbc -= 0x100000000;
+				switch (ce->mode)
+				{
+					case XCB_PRESENT_COMPLETE_MODE_FLIP:
+						priv->flipping = 1;
+						break;
+					case XCB_PRESENT_COMPLETE_MODE_COPY:
+						priv->flipping = 0;
+						break;
+				}
+			}
+                        else
+                        {
+                                priv->recv_msc_serial = ce->serial;
+                        }
+                        priv->ust = ce->ust;
+                        priv->msc = ce->msc;
+                        TRACE_END();
+                        break;
+                }
+
+		case XCB_PRESENT_EVENT_IDLE_NOTIFY:
+		{
+			xcb_present_idle_notify_event_t *ie = (void *) ge;
+			uint32_t b;
+
+			for (b = 0; b < sizeof (priv->buffers) / sizeof (priv->buffers[0]); b++)
+			{
+				dri3_buffer        *buf = priv->buffers[b];
+
+				if (buf && buf->pixmap == ie->pixmap)
+				{
+                                        TRACE_MARK("IDLE:%d",tbm_bo_export(priv->buffers[b]->tbo));
+					buf->status = dri3_buffer_idle;
+                                        break;
+				}
+			}
+                        break;
+		}
 	}
-	dpy = pdraw->dpy;
-	c = XGetXCBConnection(dpy);
+	free(ge);
+ }
 
-	buffer = calloc(1, sizeof (dri3_buffer));
-	if (!buffer)
-		goto no_buffer;
+ /******************************************************
+ * dri3_flush_present_events
+ *
+ * Process any present events that have been received from the X server
+ * called when get buffer or swap buffer
+ ******************************************************/
+static void
+dri3_flush_present_events(dri3_drawable *priv)
+{
+	xcb_connection_t *c = XGetXCBConnection(priv->dpy);
 
-	fence_fd = xshmfence_alloc_shm();
-	if (fence_fd < 0)
-		goto no_fence;
-	shm_fence = xshmfence_map_shm(fence_fd);
-	if (shm_fence == NULL)
-	{
-		close (fence_fd);
-		goto no_fence;
-	}
-
-	xcb_dri3_fence_from_fd(c,
-		pixmap,
-		(sync_fence = xcb_generate_id(c)),
-		TPL_FALSE,
-		fence_fd);
-
-	/* Get an FD for the pixmap object
+        TRACE_BEGIN("DRI3:FLUSH_PRESENT_EVENTS");
+	/* Check to see if any configuration changes have occurred
+	 * since we were last invoked
 	 */
-	bp_cookie = xcb_dri3_buffer_from_pixmap(c, pixmap);
-	bp_reply = xcb_dri3_buffer_from_pixmap_reply(c, bp_cookie, NULL);
-	if (!bp_reply)
-		goto no_image;
-	fds = xcb_dri3_buffer_from_pixmap_reply_fds(c, bp_reply);
-
-	tbo = tbm_bo_import_fd(pdraw->bufmgr,(tbm_fd)(*fds));
-	MALI_DEBUG_PRINT(0, ("imported tbo==%x, FUNC:%s\n",tbo,__func__));
-	if(NULL == tbo)
+	if (priv->special_event)
 	{
-		MALI_DEBUG_PRINT(0, ("error:tbo==NULL, FUNC:%s\n",__func__));
+		xcb_generic_event_t    *ev;
+
+		while ((ev = xcb_poll_for_special_event(c, priv->special_event)) != NULL)
+		{
+			xcb_present_generic_event_t *ge = (void *) ev;
+			dri3_handle_present_event(priv, ge);
+		}
 	}
-	tbm_bo_ref(tbo);/* add a ref when created,and unref in dri3_free_render_buffer */
-	buffer->tbo = tbo;
-	buffer->dma_buf_fd = *fds;
-	buffer->pixmap = pixmap;
-	buffer->own_pixmap = TPL_FALSE;
-	buffer->width = bp_reply->width;
-	buffer->height = bp_reply->height;
-    buffer->pitch = bp_reply->width*(bp_reply->bpp/8);
-	buffer->buffer_type = dri3_buffer_front;
-	buffer->shm_fence = shm_fence;
-	buffer->sync_fence = sync_fence;
+        TRACE_END();
+}
 
-	pdraw->buffers[dri3_max_back] = buffer;
-	return buffer;
+static tpl_bool_t
+dri3_wait_for_notify(xcb_connection_t *c, dri3_drawable *priv)
+{
+        xcb_generic_event_t *ev;
+	xcb_present_generic_event_t *ge;
 
-no_image:
-    MALI_DEBUG_PRINT(0, ("error:no_image,buffer_from_pixmap failed in FUNC:%s",
-				__func__));
-	xcb_sync_destroy_fence(c, sync_fence);
-	xshmfence_unmap_shm(shm_fence);
-no_fence:
-	free(buffer);
-	MALI_DEBUG_PRINT(0, ("error:no_fence,xshmfence_map_shm failed in FUNC:%s",
-				__func__));
-no_buffer:
-	return NULL;
+        TRACE_BEGIN("TPL:DRI3:WAIT_FOR_NOTIFY");
+
+        if (((uint32_t)priv->send_sbc) == 0)
+        {
+                TRACE_END();
+                return TPL_TRUE;
+        }
+        for (;;)
+        {
+                if( (uint32_t)priv->send_sbc <= (uint32_t)priv->recv_sbc )
+                {
+                        TRACE_END();
+                        return TPL_TRUE;
+                }
+
+                xcb_flush(c);
+                ev = xcb_wait_for_special_event(c, priv->special_event);
+                if (!ev)
+                {
+                        TRACE_END();
+                        return TPL_FALSE;
+                }
+                ge = (void *) ev;
+		dri3_handle_present_event(priv, ge);
+        }
 }
 
 /** dri3_find_back
@@ -472,28 +578,34 @@ dri3_find_back(xcb_connection_t *c, dri3_drawable *priv)
 	xcb_generic_event_t *ev;
 	xcb_present_generic_event_t *ge;
 
-
 	for (;;)
 	{
 		for (b = 0; b < dri3_max_back; b++)
 		{
 			int id = (b + priv->cur_back + 1) % dri3_max_back;
-			dri3_buffer *buffer = priv->buffers[id];
+                        int pre_id = (id + dri3_max_back - 2) % dri3_max_back;
 
-			MALI_DEBUG_PRINT(0, ("%s id=%d,buffer=%p\n",
-						__func__, id, buffer));
-			if (!buffer || !buffer->busy)
-			{
-				MALI_DEBUG_PRINT(0, ("%s find buffer success:id=%d,buffer=%p\n",
-							__func__, id, buffer));
-				priv->cur_back = id;
-				return id;
+			dri3_buffer *buffer = priv->buffers[id];
+                        dri3_buffer *pre_buffer = priv->buffers[pre_id];
+
+                        if (pre_buffer && pre_buffer->status != dri3_buffer_posted)
+                                pre_buffer->status = dri3_buffer_idle;
+
+                        if (!buffer || buffer->status == dri3_buffer_idle)
+                        {
+                                priv->cur_back = id;
+                                return id;
 			}
 		}
+
 		xcb_flush(c);
+                TRACE_BEGIN("DDK:DRI3:XCBWAIT");
 		ev = xcb_wait_for_special_event(c, priv->special_event);
+                TRACE_END();
 		if (!ev)
+                {
 			return -1;
+                }
 		ge = (void *) ev;
 		dri3_handle_present_event(priv, ge);
 	}
@@ -503,7 +615,6 @@ dri3_find_back(xcb_connection_t *c, dri3_drawable *priv)
  *
  *  allocate a render buffer and create an X pixmap from that
  *
- * Allocate an xshmfence for synchronization
  */
 static dri3_buffer *
 dri3_alloc_render_buffer(dri3_drawable *priv,
@@ -514,40 +625,17 @@ dri3_alloc_render_buffer(dri3_drawable *priv,
 	dri3_buffer *buffer = NULL;
 	xcb_connection_t *c = XGetXCBConnection(dpy);
 	xcb_pixmap_t pixmap = 0;
-	xcb_sync_fence_t sync_fence;
-	struct xshmfence *shm_fence;
-	int buffer_fd, fence_fd;
+        int buffer_fd;
 	int size;
 	tbm_bo_handle handle;
 	xcb_void_cookie_t cookie;
 	xcb_generic_error_t *error;
-
-	/* Create an xshmfence object and
-	 * prepare to send that to the X server
-	 */
-	fence_fd = xshmfence_alloc_shm();
-	if (fence_fd < 0)
-	{
-		MALI_DEBUG_PRINT(0, ("%s:error:xshmfence_alloc_shm failed\n",
-					__func__));
-		return NULL;
-	}
-
-	shm_fence = xshmfence_map_shm(fence_fd);
-	if (shm_fence == NULL)
-	{
-		MALI_DEBUG_PRINT(0, ("%s:error:xshmfence_map_shm failed\n",
-					__func__));
-		goto no_shm_fence;
-	}
 
 	/* Allocate the image from the driver
 	 */
 	buffer = calloc(1, sizeof (dri3_buffer));
 	if (!buffer)
 	{
-		MALI_DEBUG_PRINT(0, ("%s:error:buffer alloc failed\n",
-					__func__));
 		goto no_buffer;
 	}
 
@@ -555,21 +643,32 @@ dri3_alloc_render_buffer(dri3_drawable *priv,
 	/* size = ((width * 32)>>5) * 4 * height; */
 	/* [BEGIN: 20141125-xing.huang] calculate pitch and size
 	 * by input parameter cpp */
-	buffer->pitch = width*(cpp/8);
+	/* buffer->pitch = width*(cpp/8); */
+
+        /* 2015-04-15 joonbum.ko@samsung.com */
+        /* Modify the calculation of pitch (strdie) */
+        buffer->pitch = SIZE_ALIGN((width * cpp)>>3, ALIGNMENT_PITCH_ARGB);
+
 	size = buffer->pitch*height;
 	/* [END:20141125-xing.huang] */
 
 	buffer->tbo = tbm_bo_alloc(priv->bufmgr, size, TBM_BO_DEFAULT);
 	if (NULL == buffer->tbo)
 	{
-		MALI_DEBUG_PRINT(0, ("%s:error: buffer->tbo==NULL\n",
-					__func__));
 		goto no_buffer;
 	}
 
 	/* dup tbo, because X will close it */
-	handle = tbm_bo_get_handle(buffer->tbo, TBM_DEVICE_3D);
-	buffer_fd = dup(handle.u32);
+        /* 2015-04-08 joonbum.ko@samsung.com */
+        /* delete tbm_bo_get_handle function call and
+           add tbm_bo_export_fd function call */
+
+        handle = tbm_bo_get_handle(buffer->tbo, TBM_DEVICE_3D);
+        buffer_fd = dup(handle.u32);
+
+        /* buffer_fd = tbm_bo_export_fd(buffer->tbo);*/
+        /* 2015-04-08 joonbum.ko@samsung.com */
+        /* disable the value dma_buf_fd */
 	buffer->dma_buf_fd = handle.u32;
 	buffer->size = size;
 	cookie = xcb_dri3_pixmap_from_buffer_checked(c,
@@ -580,52 +679,30 @@ dri3_alloc_render_buffer(dri3_drawable *priv,
 			depth, cpp,
 			buffer_fd);
 	error = xcb_request_check( c, cookie);
+        /* 2015-04-08 joonbum.ko@samsung.com */
+        /* buffer_fd is unuseful */
+        /* close(buffer_fd);*/
+
 	if (error)
 	{
-		MALI_DEBUG_PRINT(0, ("%s: xcb_dri3_pixmap_from_buffer failed, err_code=%d\n",
-					__func__, error->error_code));
 		goto no_pixmap;
 	}
 	if (0 == pixmap)
 	{
-		MALI_DEBUG_PRINT(0, ("%s: error:xcb_dri3_pixmap_from_buffer pixmap=0\n",
-				__func__));
 		goto no_pixmap;
 	}
-	cookie = xcb_dri3_fence_from_fd_checked(c,
-			pixmap,
-			(sync_fence = xcb_generate_id(c)),
-			TPL_FALSE,
-			fence_fd);
-	error = xcb_request_check( c, cookie);
-	if (error)
-	{
-		MALI_DEBUG_PRINT(0, ("%s: xcb_dri3_fence_from_fd failed,err_code=%d\n",
-				__func__, error->error_code));
-		goto no_pixmap;
-	}
+
 	buffer->pixmap = pixmap;
 	buffer->own_pixmap = TPL_TRUE;
-	buffer->sync_fence = sync_fence;
-	buffer->shm_fence = shm_fence;
 	buffer->width = width;
 	buffer->height = height;
-    buffer->depth = depth;
-    buffer->cpp = cpp;
 	buffer->flags = 0;
-
-	/* Mark the buffer as idle
-	 */
-	dri3_fence_set(buffer);
 
 	return buffer;
 no_pixmap:
 	tbm_bo_unref(buffer->tbo);
 	free(buffer);
 no_buffer:
-	xshmfence_unmap_shm(shm_fence);
-no_shm_fence:
-	close(fence_fd);
 	return NULL;
 }
 
@@ -639,64 +716,27 @@ dri3_free_render_buffer(dri3_drawable *pdraw, dri3_buffer *buffer)
 {
 	xcb_connection_t *c = XGetXCBConnection(pdraw->dpy);
 
-	MALI_DEBUG_PRINT(0, ("%s buffer=%p\n",__func__, buffer));
-	if (buffer->own_pixmap)
-		xcb_free_pixmap(c, buffer->pixmap);
-	xcb_sync_destroy_fence(c, buffer->sync_fence);
-	xshmfence_unmap_shm(buffer->shm_fence);
-	if (buffer->busy)
+        /* 2015-04-08 joonbum.ko@samsung.com */
+        /* if drawable type is pixmap, it requires only free buffer */
+        if (!pdraw->is_pixmap)
+        {
+                if (buffer->own_pixmap)
+		        xcb_free_pixmap(c, buffer->pixmap);
 		tbm_bo_unref(buffer->tbo);
-    /* added a ref when created and unref while free, see dri3_get_pixmap_buffer */
-    if(pdraw->is_pixmap)
-    {
-        tbm_bo_unref(buffer->tbo);
-    }
-	free(buffer);
-    buffer = NULL;
+                /* added a ref when created and unref while free, see dri3_get_pixmap_buffer */
+        }
+
+        buffer = NULL;
 }
 
-/** dri3_free_buffers
- *
- * Free the front buffer or all of the back buffers. Used
- * when the application changes which buffers it needs
- */
- #if 0
-static void
-dri3_free_buffers(enum dri3_buffer_type buffer_type, void *loaderPrivate)
-{
-	dri3_drawable	*priv = loaderPrivate;
-	dri3_buffer	*buffer;
-	int		first_id;
-	int		n_id;
-	int		buf_id;
-
-	switch (buffer_type)
-	{
-		case dri3_buffer_back:
-			first_id = 0;
-			n_id = dri3_max_back;
-			break;
-		case dri3_buffer_front:
-			first_id = dri3_max_back;
-			n_id = 1;
-	}
-
-	for (buf_id = first_id; buf_id < first_id + n_id; buf_id++)
-	{
-		buffer = priv->buffers[buf_id];
-		if (buffer)
-		{
-			dri3_free_render_buffer(priv, buffer);
-			priv->buffers[buf_id] = NULL;
-		}
-	}
-}
-#endif
 
 /** dri3_get_window_buffer
  *
  * Find a front or back buffer, allocating new ones as necessary
  */
+
+/* 2015-04-08 joonbum.ko@samsung.com */
+/* Change the value of old_dma_fd to old_bo_name */
 static dri3_buffer *
 dri3_get_window_buffer(void *loaderPrivate, int cpp)
 {
@@ -704,110 +744,173 @@ dri3_get_window_buffer(void *loaderPrivate, int cpp)
 	xcb_connection_t	*c = XGetXCBConnection(priv->dpy);
 	dri3_buffer		*backbuffer = NULL;
 	int			back_buf_id,reuse = 1;
-	uint32_t		old_dma_fd = 0;
+        uint32_t                old_bo_name = 0;
+
+        TRACE_BEGIN("DDK:DRI3:GETBUFFERS:WINDOW");
+        TRACE_BEGIN("DDK:DRI3:FINDBACK");
 	back_buf_id = dri3_find_back(c, priv);
+        TRACE_END();
 
 	backbuffer = priv->buffers[back_buf_id];
-
 
 	/* Allocate a new buffer if there isn't an old one, or if that
 	 * old one is the wrong size.
 	 */
 	if (!backbuffer || backbuffer->width != priv->width ||
-			backbuffer->height != priv->height)
+			backbuffer->height != priv->height )
 	{
 		dri3_buffer   *new_buffer;
 
 		/* Allocate the new buffers
 		 */
+                TRACE_BEGIN("DDK:DRI3:ALLOCRENDERBUFFER");
 		new_buffer = dri3_alloc_render_buffer(priv,
 				priv->width, priv->height, priv->depth, cpp);
+                TRACE_END();
 
 		if (!new_buffer)
 		{
-			MALI_DEBUG_PRINT(0, ("%s:error: alloc new buffer failed\n",
-						__func__));
+                        TRACE_END();
 			return NULL;
 		}
-		reuse = 0;
-		/* When resizing, copy the contents of the old buffer,
-		 * waiting for that copy to complete using our fences
-		 * before proceeding
-		 */
 		if (backbuffer)
 		{
-			dri3_fence_reset(new_buffer);
-			dri3_fence_await(c, backbuffer);
 			/* [BEGIN: 20141125-xuelian.bai] Size not match,this buffer
 			 * must be removed from buffer cache, so we have to save
 			 * dma_buf_fd of old buffer.*/
-			old_dma_fd = backbuffer->dma_buf_fd;
+                        old_bo_name = tbm_bo_export(backbuffer->tbo);
 			/* [END: 20141125-xuelian.bai] */
+                        TRACE_BEGIN("DDK:DRI3:FREERENDERBUFFER");
 			dri3_free_render_buffer(priv, backbuffer);
+                        TRACE_END();
 		}
 		backbuffer = new_buffer;
 		backbuffer->buffer_type = dri3_buffer_back;
-		backbuffer->old_dma_fd = old_dma_fd;/*save dma_buf_fd of old buffer*/
-		priv->buffers[back_buf_id] = backbuffer;
-		goto no_need_wait;/* Skip dri3_fence_await */
+		backbuffer->old_bo_name = old_bo_name;
+                priv->buffers[back_buf_id] = backbuffer;
+                reuse = 0;
 	}
 
-	dri3_fence_await(c, backbuffer);
-no_need_wait:
 	backbuffer->flags = DRI2_BUFFER_FB;
-	if (!reuse)
-	{
-		MALI_DEBUG_PRINT(0, ("%s:allocate new buffer\n", __func__));
-	}
-	else
+        backbuffer->status = dri3_buffer_busy;
+        if(reuse)
 	{
 		backbuffer->flags |= DRI2_BUFFER_REUSED;
-		MALI_DEBUG_PRINT(0, ("%s:reuse old buffer\n", __func__));
 	}
-	backbuffer->busy = 1;
-	tbm_bo_ref(backbuffer->tbo);
-
 	/* Return the requested buffer */
+        TRACE_END();
+
+        TRACE_MARK("%d",tbm_bo_export(backbuffer->tbo));
+
 	return backbuffer;
+}
+
+/* 2015-04-07  joonbum.ko@samsung.com */
+/* modify internal flow of dri3_get_pixmap_buffer */
+/* add 3rd argument for stride information */
+static dri3_buffer *
+dri3_get_pixmap_buffer(void *loaderPrivate, Pixmap pixmap, int cpp)/*TODO:format*/
+{
+	dri3_drawable *pdraw = loaderPrivate;
+        dri3_buffer *buffer = NULL;
+	xcb_dri3_buffer_from_pixmap_cookie_t bp_cookie;
+	xcb_dri3_buffer_from_pixmap_reply_t  *bp_reply;
+	int *fds;
+	Display *dpy;
+	xcb_connection_t *c;
+	tbm_bo tbo = NULL;
+
+        TRACE_BEGIN("DDK:DRI3:GETBUFFERS:PIXMAP");
+
+        dpy = pdraw->dpy;
+	c = XGetXCBConnection(dpy);
+
+	/* Get an FD for the pixmap object
+	 */
+	bp_cookie = xcb_dri3_buffer_from_pixmap(c, pixmap);
+	bp_reply = xcb_dri3_buffer_from_pixmap_reply(c, bp_cookie, NULL);
+	if (!bp_reply)
+        {
+		goto no_image;
+        }
+	fds = xcb_dri3_buffer_from_pixmap_reply_fds(c, bp_reply);
+
+        tbo = tbm_bo_import_fd(pdraw->bufmgr,(tbm_fd)(*fds));
+
+        if (!buffer)
+        {
+	        buffer = calloc(1, sizeof (dri3_buffer));
+	        if (!buffer)
+		        goto no_buffer;
+        }
+
+	buffer->tbo = tbo;
+        /* 2015-04-08 joonbum.ko@samsung.com */
+        /* disable the value dma_buf_fd */
+	buffer->dma_buf_fd = *fds;
+	buffer->pixmap = pixmap;
+	buffer->own_pixmap = TPL_FALSE;
+	buffer->width = bp_reply->width;
+	buffer->height = bp_reply->height;
+	buffer->buffer_type = dri3_buffer_front;
+        buffer->flags = DRI3_BUFFER_REUSED;
+        /* 2015-04-07 joonbum.ko@samsung.com */
+        /* add buffer information(cpp, pitch, size) */
+        buffer->cpp = cpp;
+        buffer->pitch = bp_reply->stride;
+        buffer->size = buffer->pitch * bp_reply->height;
+
+	pdraw->buffers[dri3_max_back] = buffer;
+
+        /* 2015-04-08 joonbum.ko@samsung.com */
+        /* fds is unuseful */
+        close(*fds);
+        TRACE_END();
+	return buffer;
+
+/* 2015-04-09 joonbum.ko@samsung.com */
+/* change the lable order */
+no_image:
+        if (buffer)
+	        free(buffer);
+no_buffer:
+        TRACE_END();
+	return NULL;
 }
 
 static dri3_buffer *dri3_get_buffers(XID drawable,  void *loaderPrivate,
 		int *width, int *height, unsigned int *attachments,
-		int count, int *out_count, int cpp)
+		int cpp)
 {
 	dri3_drawable *priv = loaderPrivate;
-	dri3_buffer *buffers = NULL;
+	dri3_buffer *buffer = NULL;
 
-	MALI_DEBUG_PRINT(0, ("%s:begin\n",__func__));
+        TRACE_BEGIN("DDK:DRI3:GETBUFFERS");
 
 	if (drawable != priv->xDrawable)
 	{
-		MALI_DEBUG_PRINT(0, ("%s error:drawable mismatch\n", __func__));
+                TRACE_END();
 		return NULL;
 	}
 
 	if (!dri3_update_drawable(loaderPrivate))
 	{
-		MALI_DEBUG_PRINT(0, ("%s dri3_update_drawable filed\n", __func__));
+                TRACE_END();
 		return NULL;
 	}
 
-	/*buffers = calloc((count + 1), sizeof(buffers[0]));
-
-	if (!buffers)
-		return NULL;*//*TODO*/
-
 	if (*attachments == dri3_buffer_front)
-		buffers = dri3_get_pixmap_buffer(loaderPrivate, priv->xDrawable);
+		buffer = dri3_get_pixmap_buffer(loaderPrivate,
+				priv->xDrawable, cpp);
 	else
-		buffers = dri3_get_window_buffer(loaderPrivate, cpp);
+		buffer = dri3_get_window_buffer(loaderPrivate, cpp);
 
-	*out_count = 1;
-	*width = (int)buffers->width;
-	*height = (int)buffers->height;
+	*width = (int)buffer->width;
+	*height = (int)buffer->height;
 
-	MALI_DEBUG_PRINT(0, ("%s end\n",__func__));
-	return buffers;
+        TRACE_END();
+
+	return buffer;
 }
 
 /******************************************************
@@ -817,7 +920,7 @@ static dri3_buffer *dri3_get_buffers(XID drawable,  void *loaderPrivate,
  * if (region_t==0),swap whole frame, else swap with region
  ******************************************************/
 static int64_t
-dri3_swap_buffers(Display *dpy, void *priv, int interval, XID region_t)
+dri3_swap_buffers(Display *dpy, void *priv, tpl_buffer_t *frame_buffer, int interval, XID region_t)
 {
 
 	int64_t		ret = -1;
@@ -825,28 +928,37 @@ dri3_swap_buffers(Display *dpy, void *priv, int interval, XID region_t)
 	int64_t		divisor = 0;
 	int64_t		remainder = 0;
 	xcb_connection_t *c = XGetXCBConnection(dpy);
-	dri3_drawable	*pDrawable = (dri3_drawable*)priv;
+        dri3_drawable	*pDrawable = (dri3_drawable*)priv;
 	dri3_buffer	*back = NULL;
+        int             i = 0;
 
-	MALI_DEBUG_PRINT(0, ("\n#########%s begin######\n",__func__));
+        back = (dri3_buffer*)frame_buffer->backend.data;
 
-
-	back = pDrawable->buffers[pDrawable->cur_back];
-
-	/* Process any present events that have been received from the X
-	 * server
-	 */
-	dri3_flush_present_events(pDrawable);
-
-	if ((back == NULL)||(pDrawable == NULL)||(pDrawable->is_pixmap != 0))
+        if ((back == NULL)||(pDrawable == NULL)||(pDrawable->is_pixmap != 0))
 	{
-		MALI_DEBUG_PRINT(0, ("%s error:input error:\n",__func__));
-		MALI_DEBUG_PRINT(0, ("\t back=%p,pDrawable=%p,pDrawable->is_pixmap=%d\n",
-				back,pDrawable,pDrawable->is_pixmap));
+                TRACE_END();
 		return ret;
 	}
 
-	dri3_fence_reset(back);
+        /* Process any present events that have been received from the X
+	 * server until receive complete notify.
+	 */
+        if (!dri3_wait_for_notify(c, pDrawable))
+        {
+                TRACE_END();
+                return ret;
+        }
+         /* [BEGIN: 20140119-leiba.sun] Add support for buffer age
+          * When swap buffer, increase buffer age of every back buffer */
+        for(i = 0; i < dri3_max_back; i++)
+        {
+                if((pDrawable->buffers[i] != NULL)&&(pDrawable->buffers[i]->buffer_age > 0))
+                pDrawable->buffers[i]->buffer_age++;
+        }
+        back->buffer_age = 1;
+        /* [END:20150119-leiba.sun] */
+        /* set busy flag */
+	back->status = dri3_buffer_posted;
 
 	/* Compute when we want the frame shown by taking the last known
 	 * successful MSC and adding in a swap interval for each outstanding
@@ -860,10 +972,9 @@ dri3_swap_buffers(Display *dpy, void *priv, int interval, XID region_t)
 		target_msc = pDrawable->msc + pDrawable->swap_interval *
 			(pDrawable->send_sbc - pDrawable->recv_sbc);
 
-	/* set busy flag */
-	back->busy = 1;
 	back->last_swap = pDrawable->send_sbc;
 
+        TRACE_MARK("SWAP:%d", tbm_bo_export(back->tbo)) ;
 	xcb_present_pixmap(c,
 			pDrawable->xDrawable,		/* dst */
 			back->pixmap,			/* src */
@@ -874,233 +985,132 @@ dri3_swap_buffers(Display *dpy, void *priv, int interval, XID region_t)
 			0,				/* y_off */
 			None,				/* target_crtc */
 			None,
-			back->sync_fence,
+                        0,
 			XCB_PRESENT_OPTION_NONE,
-			target_msc,
+			/*target_msc*/0,
 			divisor,
 			remainder, 0, NULL);
 
 	ret = (int64_t) pDrawable->send_sbc;
-	if (ret == -1)
-		MALI_DEBUG_PRINT(0, ("%s swap failed\n",__func__));
-	else
-		MALI_DEBUG_PRINT(0, ("######%s finish! send_sbc=%d#######\n\n",
-					__func__, ret));
 
 	xcb_flush(c);
 
 	++(pDrawable->stamp);
+
 	return ret;
 }
 
-
-/* Wrapper around xcb_dri3_open*/
-static int
-dri3_open(Display *dpy, Window root, CARD32 provider)
+tpl_bool_t
+__tpl_x11_dri3_buffer_init(tpl_buffer_t *buffer)
 {
-	xcb_dri3_open_cookie_t	cookie;
-	xcb_dri3_open_reply_t	*reply;
-	xcb_connection_t	*c = XGetXCBConnection(dpy);
-	int			fd;
-
-	MALI_DEBUG_PRINT(0, ("\n--------%s begin-------\n",__func__));
-	cookie = xcb_dri3_open(c,
-			root,
-			provider);
-
-	reply = xcb_dri3_open_reply(c, cookie, NULL);
-	if (!reply)
-	{
-		MALI_DEBUG_PRINT(0, ("%s xcb_dri3_open failed\n", __func__));
-		return -1;
-	}
-
-	if (reply->nfd != 1)
-	{
-		MALI_DEBUG_PRINT(0, ("%s xcb_dri3_open reply error\n", __func__));
-		free(reply);
-		return -1;
-	}
-
-	fd = xcb_dri3_open_reply_fds(c, reply)[0];
-	fcntl(fd, F_SETFD, FD_CLOEXEC);
-	if (0 == fd)
-		MALI_DEBUG_PRINT(0, ("%s error: fd=0\n",__func__));
-	else
-		MALI_DEBUG_PRINT(0, ("%s open successfully fd=%d:\n",__func__, fd));
-
-	free(reply);
-	MALI_DEBUG_PRINT(0, ("\n---------%s end---------\n",__func__));
-	return fd;
-}
-
-static void *
-dri3_create_drawable(Display *dpy, XID xDrawable)
-{
-	dri3_drawable			*pdraw = NULL;
-	xcb_connection_t		*c = XGetXCBConnection(dpy);
-	xcb_get_geometry_cookie_t	geom_cookie;
-	xcb_get_geometry_reply_t	*geom_reply;
-	int i;
-	tpl_list_node_t 		*node;
-	dri3_drawable_node 		*drawable_node;
-
-
-	MALI_DEBUG_PRINT(0, ("\n--------%s begin-------\n",__func__));
-
-	/* Check drawable list to find that if it has been created*/
-	node = tpl_list_get_front_node(&dri3_drawable_list);
-	while (node)
-	{
-		dri3_drawable_node *drawable = (dri3_drawable_node *)tpl_list_node_get_data(node);
-
-		if (drawable->xDrawable == xDrawable)
-		{
-			pdraw = drawable->drawable;
-			return (void *)pdraw;/* Reuse old drawable */
-		}
-		node = tpl_list_node_next(node);
-	}
-	pdraw = calloc(1, sizeof(*pdraw));
-	TPL_ASSERT(pdraw != NULL);
-
-	geom_cookie = xcb_get_geometry(c, xDrawable);
-	geom_reply = xcb_get_geometry_reply(c, geom_cookie, NULL);
-	TPL_ASSERT(geom_reply != NULL);
-
-	pdraw->bufmgr = global.bufmgr;
-	pdraw->width = geom_reply->width;
-	pdraw->height = geom_reply->height;
-	pdraw->depth = geom_reply->depth;
-	pdraw->is_pixmap = TPL_FALSE;
-
-	free(geom_reply);
-	pdraw->dpy = dpy;
-	pdraw->xDrawable = xDrawable;
-
-	for (i = 0; i < dri3_max_back + 1;i++)
-		pdraw->buffers[i] = NULL;
-
-
-	/* Add new allocated drawable to drawable list */
-	drawable_node = calloc(1, sizeof(dri3_drawable_node));
-	drawable_node->drawable = pdraw;
-	drawable_node->xDrawable = xDrawable;
-	tpl_list_push_back(&dri3_drawable_list, (void *)drawable_node);
-
-	MALI_DEBUG_PRINT(0, ("\n---------%s end---------\n",__func__));
-	return (void*)pdraw;
-}
-
-static tpl_bool_t
-dri3_display_init(Display *dpy)
-{
-	/* Initialize DRI3 & DRM */
-	xcb_connection_t		*c = XGetXCBConnection(dpy);
-	xcb_dri3_query_version_cookie_t	dri3_cookie;
-	xcb_dri3_query_version_reply_t	*dri3_reply;
-	xcb_present_query_version_cookie_t	present_cookie;
-	xcb_present_query_version_reply_t	*present_reply;
-	xcb_generic_error_t		*error;
-	const xcb_query_extension_reply_t	*extension;
-	xcb_extension_t			xcb_dri3_id = { "DRI3", 0 };
-	xcb_extension_t			xcb_present_id = { "Present", 0 };
-
-	MALI_DEBUG_PRINT(0, ("\n---------%s begin---------\n",__func__));
-	xcb_prefetch_extension_data(c, &xcb_dri3_id);
-	xcb_prefetch_extension_data(c, &xcb_present_id);
-
-	extension = xcb_get_extension_data(c, &xcb_dri3_id);
-	if (!(extension && extension->present))
-	{
-		MALI_DEBUG_PRINT(0, ("%s get dri3 extension failed\n", __func__));
-		return TPL_FALSE;
-	}
-
-	extension = xcb_get_extension_data(c, &xcb_present_id);
-	if (!(extension && extension->present))
-	{
-		MALI_DEBUG_PRINT(0, ("%s get present extension failed\n", __func__));
-		return TPL_FALSE;
-	}
-
-	dri3_cookie = xcb_dri3_query_version(c,
-			XCB_DRI3_MAJOR_VERSION,
-			XCB_DRI3_MINOR_VERSION);
-	dri3_reply = xcb_dri3_query_version_reply(c, dri3_cookie, &error);
-	if (!dri3_reply)
-	{
-		MALI_DEBUG_PRINT(0, ("%s query dri3 version failed\n", __func__));
-		free(error);
-		return TPL_FALSE;
-	}
-	free(dri3_reply);
-
-	present_cookie = xcb_present_query_version(c,
-			XCB_PRESENT_MAJOR_VERSION,
-			XCB_PRESENT_MINOR_VERSION);
-	present_reply = xcb_present_query_version_reply(c, present_cookie, &error);
-	if (!present_reply)
-	{
-		MALI_DEBUG_PRINT(0, ("%s query present version failed\n", __func__));
-		free(error);
-		return TPL_FALSE;
-	}
-	free(present_reply);
-	MALI_DEBUG_PRINT(0, ("\n---------%s end---------\n",__func__));
+	TPL_IGNORE(buffer);
 	return TPL_TRUE;
 }
 
-static void
-dri3_destroy_drawable(Display *dpy, XID xDrawable)
+void
+__tpl_x11_dri3_buffer_fini(tpl_buffer_t *buffer)
 {
-	dri3_drawable		*pdraw;
-	xcb_connection_t	*c = XGetXCBConnection(dpy);
-	int 			i;
-	tpl_list_node_t 	*node;
-	dri3_drawable_node 	*drawable;
-	MALI_DEBUG_PRINT(0, ("\n---------%s begin---------\n",__func__));
-
-	/* Remove drawable from list */
-	node =  tpl_list_get_front_node(&dri3_drawable_list);
-	while (node)
+        dri3_buffer* back = (dri3_buffer*)buffer->backend.data;
+	if (back)
 	{
-		drawable = (dri3_drawable_node *)tpl_list_node_get_data(node);
+                tbm_bo bo = back->tbo;
+		tbm_bo_map(bo, TBM_DEVICE_3D, TBM_OPTION_READ);
+		tbm_bo_unmap(bo);
+		tbm_bo_unref(bo);
+		buffer->backend.data = NULL;
+                free(back);
+	}
+}
 
-		if (drawable->xDrawable== xDrawable)
-		{
-			pdraw = drawable->drawable;
+void *
+__tpl_x11_dri3_buffer_map(tpl_buffer_t *buffer, int size)
+{
+	tbm_bo bo;
+	tbm_bo_handle handle;
 
-			if (!pdraw)
-				return;
+	TPL_IGNORE(size);
+	bo = ((dri3_buffer*)buffer->backend.data)->tbo;
+	TPL_ASSERT(bo);
 
-			for (i = 0; i < dri3_max_back + 1; i++)
-			{
-				if (pdraw->buffers[i])
-					dri3_free_render_buffer(pdraw, pdraw->buffers[i]);
-			}
+	handle = tbm_bo_get_handle(bo, TBM_DEVICE_CPU);
+	return handle.ptr;
+}
 
-			if (pdraw->special_event)
-				xcb_unregister_for_special_event(c, pdraw->special_event);
-			free(pdraw);
-			pdraw = NULL;
-			tpl_list_remove(node, free);
-			return;
-		}
+void
+__tpl_x11_dri3_buffer_unmap(tpl_buffer_t *buffer, void *ptr, int size)
+{
+	TPL_IGNORE(buffer);
+	TPL_IGNORE(ptr);
+	TPL_IGNORE(size);
 
-		node = tpl_list_node_next(node);
+	/* Do nothing. */
+}
+
+tpl_bool_t
+__tpl_x11_dri3_buffer_lock(tpl_buffer_t *buffer, tpl_lock_usage_t usage)
+{
+	tbm_bo          bo;
+	tbm_bo_handle   handle;
+        dri3_buffer*    back = (dri3_buffer*)buffer->backend.data;
+
+        bo = back->tbo;
+        TPL_ASSERT(bo);
+        TRACE_BEGIN("TPL:BUFFERLOCK:%d",tbm_bo_export(bo));
+
+        TPL_OBJECT_UNLOCK(buffer);
+
+	switch (usage)
+	{
+		case TPL_LOCK_USAGE_GPU_READ:
+			handle = tbm_bo_map(bo, TBM_DEVICE_3D, TBM_OPTION_READ);
+			break;
+		case TPL_LOCK_USAGE_GPU_WRITE:
+			handle = tbm_bo_map(bo, TBM_DEVICE_3D, TBM_OPTION_WRITE);
+			break;
+		case TPL_LOCK_USAGE_CPU_READ:
+			handle = tbm_bo_map(bo, TBM_DEVICE_CPU, TBM_OPTION_READ);
+			break;
+		case TPL_LOCK_USAGE_CPU_WRITE:
+			handle = tbm_bo_map(bo, TBM_DEVICE_CPU, TBM_OPTION_WRITE);
+			break;
+		default:
+			TPL_ASSERT(TPL_FALSE);
+			return TPL_FALSE;
 	}
 
-	/* If didn't find the drawable, means it is already free*/
-	MALI_DEBUG_PRINT(0, ("\n---------%s end---------\n",__func__));
-	return;
+        TPL_OBJECT_LOCK(buffer);
+
+	if (handle.u32 != 0 || handle.ptr != NULL)
+        {
+                TRACE_END();
+		return TPL_FALSE;
+        }
+        TRACE_END();
+	return TPL_TRUE;
 }
+
+void
+__tpl_x11_dri3_buffer_unlock(tpl_buffer_t *buffer)
+{
+        dri3_buffer*    back    = (dri3_buffer*)buffer->backend.data;
+        tbm_bo          bo      = back->tbo;
+        TPL_ASSERT(bo);
+
+        TRACE_BEGIN("TPL:BUFFERUNLOCK:%d",tbm_bo_export(back->tbo));
+
+        TPL_OBJECT_UNLOCK(buffer);
+	tbm_bo_unmap(bo);
+        TPL_OBJECT_LOCK(buffer);
+
+        TRACE_END();
+}
+
 
 static Display *
 __tpl_x11_dri3_get_worker_display()
 {
-	Display *display;
-	pthread_mutex_t mutex = __tpl_x11_get_global_mutex();
+	Display         *display;
+	pthread_mutex_t mutex   = __tpl_x11_get_global_mutex();
 
 	pthread_mutex_lock(&mutex);
 	TPL_ASSERT(global.display_count > 0);
@@ -1117,26 +1127,24 @@ static tpl_bool_t
 __tpl_x11_dri3_display_init(tpl_display_t *display)
 {
 	pthread_mutex_t mutex = __tpl_x11_get_global_mutex();
+
+        XInitThreads();
 	if (display->native_handle == NULL)
 	{
 		display->native_handle = XOpenDisplay(NULL);
 		TPL_ASSERT(display->native_handle != NULL);
-	}
-    display->xcb_connection = XGetXCBConnection( (Display*)display->native_handle );
-    if( NULL == display->xcb_connection )
-	{
-		TPL_WARN("XGetXCBConnection failed");
 	}
 
 	pthread_mutex_lock(&mutex);
 
 	if (global.display_count == 0)
 	{
-		tpl_bool_t xres = TPL_FALSE;
-		Window root = 0;
-		drm_magic_t magic;
+		tpl_bool_t      xres = TPL_FALSE;
+		Window          root = 0;
+		drm_magic_t     magic;
 
 		/* Open a dummy display connection. */
+
 		global.worker_display = XOpenDisplay(NULL);
 		TPL_ASSERT(global.worker_display != NULL);
 
@@ -1155,19 +1163,15 @@ __tpl_x11_dri3_display_init(tpl_display_t *display)
 
 		tpl_list_init(&dri3_drawable_list);
 
-		/* Initialize swap type configuration. */
-		__tpl_x11_swap_str_to_swap_type(getenv(EGL_X11_WINDOW_SWAP_TYPE_ENV_NAME),
-						&global.win_swap_type);
-
-		__tpl_x11_swap_str_to_swap_type(getenv(EGL_X11_FB_SWAP_TYPE_ENV_NAME),
-						&global.fb_swap_type);
 		/* [BEGIN: 20141125-xuelian.bai] Add env for setting number of back buffers*/
 		{
-			const char *backend_env;
+			const char *backend_env = NULL;
 			int count = 0;
-            backend_env = getenv("MALI_EGL_DRI3_BUF_NUM");
-            if (!backend_env || strlen(backend_env) == 0)
-				dri3_max_back  = 5; /* Default value is 5*/
+			backend_env = getenv("MALI_EGL_DRI3_BUF_NUM");
+                        /* 2015-05-13 joonbum.ko@samsung.com */
+                        /* Change the value of dri3_max_back 5 to 3 */
+			if (!backend_env || strlen(backend_env) == 0)
+				dri3_max_back  = 3; /* Default value is 3*/
 			else
 			{
 				count = atoi(backend_env);
@@ -1216,8 +1220,8 @@ __tpl_x11_dri3_display_fini(tpl_display_t *display)
 static tpl_bool_t
 __tpl_x11_dri3_surface_init(tpl_surface_t *surface)
 {
-	Display *display;
-	XID drawable;
+	Display         *display = NULL;
+	XID             drawable;
 	tpl_x11_dri3_surface_t *x11_surface;
 
 	x11_surface = (tpl_x11_dri3_surface_t *)calloc(1,
@@ -1238,12 +1242,11 @@ __tpl_x11_dri3_surface_init(tpl_surface_t *surface)
 	x11_surface->drawable = dri3_create_drawable(display, drawable);
 
 	surface->backend.data = (void *)x11_surface;
-	MALI_DEBUG_PRINT(0, ("%s surface type:%d\n",__func__, surface->type));
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW)
 	{
 		__tpl_x11_display_get_window_info(surface->display,
 				surface->native_handle,
-				&surface->width, &surface->height, NULL,0,0);
+				&surface->width, &surface->height, NULL, 0, 0);
 	}
 	else
 	{
@@ -1258,13 +1261,12 @@ __tpl_x11_dri3_surface_init(tpl_surface_t *surface)
 static void
 __tpl_x11_dri3_surface_fini(tpl_surface_t *surface)
 {
-	Display *display;
-	tpl_x11_dri3_surface_t *x11_surface;
+	Display                 *display
+                = (Display *)surface->display->native_handle;
+	tpl_x11_dri3_surface_t  *x11_surface
+                = (tpl_x11_dri3_surface_t *)surface->backend.data;
 
-	display = (Display *)surface->display->native_handle;
-	x11_surface = (tpl_x11_dri3_surface_t *)surface->backend.data;
-
-	dri3_destroy_drawable(display, (XID)surface->native_handle);
+        dri3_destroy_drawable(display, (XID)surface->native_handle);
 
 	if (x11_surface)
 	{
@@ -1281,20 +1283,23 @@ __tpl_x11_dri3_surface_fini(tpl_surface_t *surface)
 }
 
 static void
-__tpl_x11_dri3_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
+__tpl_x11_dri3_surface_post_internal(tpl_surface_t *surface,
+                tpl_frame_t *frame,
 		tpl_bool_t is_worker)
 {
-	Display *display;
+	Display         *display = NULL;
+	Drawable        drawable;
+	CARD64          swap_count;
 	tpl_x11_dri3_surface_t *x11_surface;
-	XRectangle *xrects;
-	XRectangle xrects_stack[TPL_STACK_XRECTANGLE_SIZE];
+	XRectangle      *xrects;
+	XRectangle      xrects_stack[TPL_STACK_XRECTANGLE_SIZE];
+	void            *pDrawable;
 
+        TRACE_BEGIN("DDK:DRI3:SWAPBUFFERS");
 	x11_surface = (tpl_x11_dri3_surface_t *)surface->backend.data;
 
-	if (is_worker)
-		display = __tpl_x11_dri3_get_worker_display();
-	else
-		display = surface->display->native_handle;
+        display         = __tpl_x11_dri3_get_worker_display();
+	drawable        = (Drawable)surface->native_handle;
 
 	if (frame->interval != x11_surface->latest_post_interval)
 	{
@@ -1303,7 +1308,7 @@ __tpl_x11_dri3_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
 
 	if (tpl_region_is_empty(&frame->damage))
 	{
-		dri3_swap_buffers(display, x11_surface->drawable,0,0);/*TODO*/
+		dri3_swap_buffers(display, x11_surface->drawable, frame->buffer, 0,0);
 	}
 	else
 	{
@@ -1342,10 +1347,12 @@ __tpl_x11_dri3_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
 					xrects, frame->damage.num_rects);
 		}
 
-		dri3_swap_buffers(display, x11_surface->drawable, 0,
+		dri3_swap_buffers(display, x11_surface->drawable, frame->buffer, 0,
 				x11_surface->damage);
 	}
 	frame->state = TPL_FRAME_STATE_POSTED;
+
+        TRACE_END();
 }
 
 
@@ -1373,7 +1380,7 @@ __tpl_x11_dri3_surface_begin_frame(tpl_surface_t *surface)
 		     global.win_swap_type == TPL_X11_SWAP_TYPE_SYNC))
 		{
 			__tpl_surface_wait_all_frames(surface);
-		}
+                }
 	}
 }
 
@@ -1381,25 +1388,26 @@ static tpl_bool_t
 __tpl_x11_dri3_surface_validate_frame(tpl_surface_t *surface)
 {
 	tpl_x11_dri3_surface_t *x11_surface = (tpl_x11_dri3_surface_t *)surface->backend.data;
-
+        tpl_frame_t *prev_frame;
 	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
 		return TPL_TRUE;
 
 	if (surface->frame == NULL)
 		return TPL_TRUE;
 
-	if ((DRI2_BUFFER_IS_FB(surface->frame->buffer->backend.flags) &&
-	     global.fb_swap_type == TPL_X11_SWAP_TYPE_LAZY) ||
-	    (!DRI2_BUFFER_IS_FB(surface->frame->buffer->backend.flags) &&
-	     global.win_swap_type == TPL_X11_SWAP_TYPE_LAZY))
+        prev_frame = __tpl_surface_get_latest_frame(surface);
+
+	if (prev_frame && prev_frame->state != TPL_FRAME_STATE_POSTED)
 	{
-		if (x11_surface->latest_render_target == surface->frame->buffer)
+		if ((DRI2_BUFFER_IS_FB(prev_frame->buffer->backend.flags) &&
+		     global.fb_swap_type == TPL_X11_SWAP_TYPE_LAZY) ||
+		    (!DRI2_BUFFER_IS_FB(prev_frame->buffer->backend.flags) &&
+		     global.win_swap_type == TPL_X11_SWAP_TYPE_LAZY))
 		{
 			__tpl_surface_wait_all_frames(surface);
-			return TPL_FALSE;
+                        return TPL_TRUE;
 		}
 	}
-
 	return TPL_TRUE;
 }
 
@@ -1423,68 +1431,79 @@ __tpl_x11_dri3_surface_end_frame(tpl_surface_t *surface)
 	}
 }
 
+/* 2015-04-08 joonbum.ko@samsung.com */
+/* change the key value of tpl_buffer_t from dma_buf_fd to tbo name */
 static tpl_buffer_t *
 __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 {
-	tpl_buffer_t *buffer = NULL;
-	Drawable drawable;
-	dri3_buffer *buffers = NULL;
-	uint32_t attachments[1] = { dri3_buffer_back };
-	tbm_bo bo;
-	tbm_bo_handle bo_handle;
-	int width, height, num_buffers;
+	Display         *display;
+	Drawable        drawable;
+	dri3_buffer     *buffer = NULL;
+        tpl_buffer_t    *tpl_buffer = NULL;
+	uint32_t        attachments[1] = { dri3_buffer_back };
+	tbm_bo          bo;
+	tbm_bo_handle   bo_handle;
+	int width, height;
 	tpl_x11_dri3_surface_t *x11_surface =
 			(tpl_x11_dri3_surface_t *)surface->backend.data;
-	int cpp = 32;
+	void *data;
+	int cpp = 0;
 
-	if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
+        if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
 	{
 		attachments[0] = dri3_buffer_front;
 	}
 
+	display = (Display *)surface->display->native_handle;
 	drawable = (Drawable)surface->native_handle;
 
-	buffers = dri3_get_buffers(drawable, x11_surface->drawable, &width,
-			&height, attachments, 1, &num_buffers, cpp);
+	/* [BEGIN: 20141125-xing.huang] Get the current buffer via DRI3. */
+	cpp = 32;/*_mali_surface_specifier_bpp(&(surface->sformat)); cpp get from mali is not right */
+	/* [END: 20141125-xing.huang] */
 
-	if (DRI2_BUFFER_IS_REUSED(buffers->flags))
+	buffer = dri3_get_buffers(drawable, x11_surface->drawable, &width,
+			&height, attachments, cpp);
+
+	if (DRI2_BUFFER_IS_REUSED(buffer->flags))
 	{
-		buffer = __tpl_x11_surface_buffer_cache_find(
+		tpl_buffer = __tpl_x11_surface_buffer_cache_find(
 				&x11_surface->buffer_cache,
-				buffers->dma_buf_fd);
+				tbm_bo_export(buffer->tbo));
 
-		if (buffer)
+                if (tpl_buffer)
 		{
 			/* If the buffer name is reused and there's a cache
 			 * entry for that name, just update the buffer age
 			 * and return. */
-			buffer->age = DRI2_BUFFER_GET_AGE(buffers->flags);
-			MALI_DEBUG_PRINT(0, ("%s reuse tplbuffer\n",
-								__func__));
-			goto done;
+                        /* [BEGIN: 20140119-leiba.sun] Add support for buffer age */
+                        tpl_buffer->age = buffer->buffer_age;
+                        /* [END:20150119-leiba.sun] */
+
+			if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
+                                tbm_bo_unref (buffer->tbo);
+
+                        goto done;
 		}
 
 	}
-	else
-	{
-		/* Remove the buffer from the cache. */
-		__tpl_x11_surface_buffer_cache_remove(
-				&x11_surface->buffer_cache,
-				buffers->dma_buf_fd);
 
-		/* old_dma_fd stands for the find reused buffer but size not match. 
-		 * It must be removed from the list and make a unref. */
-		if(buffers->old_dma_fd != 0)
+        if (!tpl_buffer)
+	{
+		/* [BEGIN: 20141125-xuelian.bai] Remove the buffer from the cache. */
+                __tpl_x11_surface_buffer_cache_remove(
+				&x11_surface->buffer_cache,
+				tbm_bo_export(buffer->tbo));
+                if(buffer->old_bo_name != 0)
 		{
 			__tpl_x11_surface_buffer_cache_remove(
 					&x11_surface->buffer_cache,
-					buffers->old_dma_fd);
+					buffer->old_bo_name);
+                        buffer->old_bo_name = 0;
 		}
+		/* [END: 20141125-xuelian.bai] */
 	}
 
-
-	bo = buffers->tbo;
-
+	bo = buffer->tbo;
 
 	if (bo == NULL)
 	{
@@ -1492,38 +1511,51 @@ __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 		goto done;
 	}
 
-
-
 	bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
-	MALI_DEBUG_PRINT(0, ("%s dma_buf_fd=%d,handle=%d\n",
-					__func__, buffers->dma_buf_fd, bo_handle.u32));
 
 	/* Create tpl buffer. */
-	buffer = __tpl_buffer_alloc(surface, buffers->dma_buf_fd,
+	tpl_buffer = __tpl_buffer_alloc(surface, tbm_bo_export(buffer->tbo),
 			(int)bo_handle.u32,
-			width, height, buffers->depth, buffers->pitch);
+			width, height, buffer->cpp * 8, buffer->pitch);
 
-	buffer->age = DRI2_BUFFER_GET_AGE(buffers->flags);
-	buffer->backend.data = (void *)bo;
-	buffer->backend.flags = buffers->flags;
+        if (surface->type != TPL_SURFACE_TYPE_PIXMAP)
+                tbm_bo_ref(buffer->tbo);
 
-	__tpl_x11_surface_buffer_cache_add(&x11_surface->buffer_cache, buffer);
-	tpl_object_unreference(&buffer->base);
+	tpl_buffer->age = DRI2_BUFFER_GET_AGE(buffer->flags);
+	tpl_buffer->backend.data = (void *)buffer;
+	tpl_buffer->backend.flags = buffer->flags;
+        /* [BEGIN: 20140119-leiba.sun] Add support for buffer age
+         * save surface for later use */
+        tpl_buffer->surface = surface;
+        /* [END:20150119-leiba.sun] */
 
+	__tpl_x11_surface_buffer_cache_add(&x11_surface->buffer_cache, tpl_buffer);
+	tpl_object_unreference(&tpl_buffer->base);
 done:
 	if (reset_buffers)
 	{
 		/* Users use this output value to check if they have to reset previous buffers. */
-		*reset_buffers = !DRI2_BUFFER_IS_REUSED(buffers->flags) ||
+		*reset_buffers = !DRI2_BUFFER_IS_REUSED(buffer->flags) ||
 			width != surface->width || height != surface->height;
 	}
-	/*XFree(buffers);*/
-	return buffer;
+
+	return tpl_buffer;
 }
+
+/* [BEGIN: 20140119-leiba.sun] Add support for buffer age */
+int
+__tpl_x11_dri3_get_buffer_age(tpl_buffer_t *buffer)
+{
+        dri3_buffer *back = (dri3_buffer*)buffer->backend.data;
+        return back->buffer_age;
+}
+/* [END:20150119-leiba.sun] */
+
 
 tpl_bool_t
 __tpl_display_choose_backend_x11_dri3(tpl_handle_t native_dpy)
 {
+	TPL_IGNORE(native_dpy);
 	/* X11 display accepts any type of handle. So other backends must be choosen before this. */
 	return TPL_TRUE;
 }
@@ -1537,10 +1569,10 @@ __tpl_display_init_backend_x11_dri3(tpl_display_backend_t *backend)
 	backend->init			= __tpl_x11_dri3_display_init;
 	backend->fini			= __tpl_x11_dri3_display_fini;
 	backend->query_config		= __tpl_x11_display_query_config;
+	backend->filter_config		= NULL;
 	backend->get_window_info	= __tpl_x11_display_get_window_info;
 	backend->get_pixmap_info	= __tpl_x11_display_get_pixmap_info;
 	backend->flush			= __tpl_x11_display_flush;
-    backend->wait_native    = __tpl_x11_display_wait_native;
 }
 
 void
@@ -1564,10 +1596,15 @@ __tpl_buffer_init_backend_x11_dri3(tpl_buffer_backend_t *backend)
 	backend->type = TPL_BACKEND_X11_DRI3;
 	backend->data = NULL;
 
-	backend->init		= __tpl_x11_buffer_init;
-	backend->fini		= __tpl_x11_buffer_fini;
-	backend->map		= __tpl_x11_buffer_map;
-	backend->unmap		= __tpl_x11_buffer_unmap;
-	backend->lock		= __tpl_x11_buffer_lock;
-	backend->unlock		= __tpl_x11_buffer_unlock;
+	backend->init		= __tpl_x11_dri3_buffer_init;
+	backend->fini		= __tpl_x11_dri3_buffer_fini;
+	backend->map		= __tpl_x11_dri3_buffer_map;
+	backend->unmap		= __tpl_x11_dri3_buffer_unmap;
+	backend->lock		= __tpl_x11_dri3_buffer_lock;
+	backend->unlock		= __tpl_x11_dri3_buffer_unlock;
+        /* [BEGIN: 20140119-leiba.sun] Add support for buffer age */
+        backend->get_buffer_age = __tpl_x11_dri3_get_buffer_age;
+        /* [END:20150119-leiba.sun] */
 }
+
+

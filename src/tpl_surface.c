@@ -124,13 +124,13 @@ tpl_surface_get_size(tpl_surface_t *surface, int *width, int *height)
 void
 tpl_surface_begin_frame(tpl_surface_t *surface)
 {
-	TRACEBEGIN("TPL:BEGINFRAME");
+	TRACE_BEGIN("TPL:BEGINFRAME");
 
 	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
-        {
-                TRACEEND();
+	{
+		TRACE_END();
 		return;
-        }
+	}
 
 	TPL_OBJECT_LOCK(surface);
 
@@ -157,16 +157,16 @@ tpl_surface_begin_frame(tpl_surface_t *surface)
 	surface->backend.begin_frame(surface);
 
 	TPL_OBJECT_UNLOCK(surface);
-	TRACEEND();
+	TRACE_END();
 }
 
 void
 tpl_surface_end_frame(tpl_surface_t *surface)
 {
-        TRACEBEGIN("TPL:ENDFRAME");
 	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
 		return;
 
+	TRACE_BEGIN("TPL:ENDFRAME");
 	TPL_OBJECT_LOCK(surface);
 
 	TPL_LOG(3, "surface->frame:%p, surface->damage:%p, surface->frame->damage:%p",
@@ -176,7 +176,7 @@ tpl_surface_end_frame(tpl_surface_t *surface)
 		__tpl_surface_enqueue_frame(surface);
 
 	TPL_OBJECT_UNLOCK(surface);
-        TRACEEND();
+	TRACE_END();
 }
 
 tpl_bool_t
@@ -184,11 +184,11 @@ tpl_surface_validate_frame(tpl_surface_t *surface)
 {
 	tpl_bool_t was_valid = TPL_TRUE;
 
-	TRACEBEGIN("TPL:VALIDATEFRAME");
+	TRACE_BEGIN("TPL:VALIDATEFRAME");
 
 	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
         {
-                TRACEEND();
+		TRACE_END();
 		return was_valid;
         }
 
@@ -199,7 +199,7 @@ tpl_surface_validate_frame(tpl_surface_t *surface)
 		was_valid = TPL_FALSE;
 
 	TPL_OBJECT_UNLOCK(surface);
-	TRACEEND();
+	TRACE_END();
 	return was_valid;
 }
 
@@ -261,7 +261,7 @@ tpl_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 {
 	tpl_buffer_t *buffer = NULL;
 
-        TRACEBEGIN("TPL:GETBUFFER");
+	TRACE_BEGIN("TPL:GETBUFFER");
 	TPL_OBJECT_LOCK(surface);
 
 	buffer = surface->backend.get_buffer(surface, reset_buffers);
@@ -277,7 +277,7 @@ tpl_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 	}
 
 	TPL_OBJECT_UNLOCK(surface);
-        TRACEEND();
+	TRACE_END();
 
 	return buffer;
 }
@@ -287,10 +287,10 @@ tpl_surface_post(tpl_surface_t *surface)
 {
 	tpl_frame_t *frame;
 
-        TRACEBEGIN("TPL:POST");
+        TRACE_BEGIN("TPL:POST");
 	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
 	{
-		TRACEEND();
+		TRACE_END();
 		return;
 	}
 
@@ -319,5 +319,5 @@ tpl_surface_post(tpl_surface_t *surface)
 
 	__tpl_frame_free(frame);
 	TPL_OBJECT_UNLOCK(surface);
-        TRACEEND();
+	TRACE_END();
 }

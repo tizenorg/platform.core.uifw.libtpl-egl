@@ -15,12 +15,19 @@
 
 #if (TTRACE_ENABLE)
 #include <ttrace.h>
-#define DDK_TAG				TTRACE_TAG_GRAPHICS
-#define TRACEBEGIN(fmt,...)		traceBegin(DDK_TAG, fmt, ##__VA_ARGS__)
-#define TRACEEND()			traceEnd(DDK_TAG)
+#define TRACE_BEGIN(name,...) traceBegin(TTRACE_TAG_GRAPHICS, name, ##__VA_ARGS__)
+#define TRACE_END() traceEnd(TTRACE_TAG_GRAPHICS)
+#define TRACE_ASYNC_BEGIN(key, name) traceAsyncBegin(TTRACE_TAG_GRAPHICS, key, name)
+#define TRACE_ASYNC_END(key, name) traceAsyncEnd(TTRACE_TAG_GRAPHICS, key, name)
+#define TRACE_COUNTER(value, name,...) traceCounter(TTRACE_TAG_GRAPHICS, value, name, ##__VA_ARGS__)
+#define TRACE_MARK(name,...) traceMark(TTRACE_TAG_GRAPHICS, name, ##__VA_ARGS__)
 #else
-#define TRACEBEGIN(fmt,...)
-#define TRACEEND()
+#define TRACE_BEGIN(name,...)
+#define TRACE_END()
+#define TRACE_ASYNC_BEGIN(key, name)
+#define TRACE_ASYNC_END(key, name)
+#define TRACE_COUNTER(value, name,...)
+#define TRACE_MARK(name,...)
 #endif
 
 #define TPL_DEBUG 1

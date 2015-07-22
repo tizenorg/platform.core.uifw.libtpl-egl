@@ -12,19 +12,22 @@ INST_DIR = $(libdir)
 CC ?= gcc
 
 CFLAGS += -Wall -fPIC -I$(SRC_DIR)
-LDFLAGS += 
+LDFLAGS +=
 
 CFLAGS += `pkg-config --cflags libdrm libtbm`
 LDFLAGS += `pkg-config --libs libdrm libtbm`
 
 ifneq ($(call is-feature-enabled,winsys_dri2),)
-	CFLAGS += -DWINSYS_DRI2
+	CFLAGS += -DTPL_WINSYS_DRI2
+	LDFLAGS += `pkg-config --libs libdri2 xext xfixes x11 x11-xcb xcb xcb-dri3 xcb-sync xcb-present xshmfence`
 endif
 ifneq ($(call is-feature-enabled,winsys_dri3),)
-	CFLAGS += -DWINSYS_DRI3
+	CFLAGS += -DTPL_WINSYS_DRI3
+	LDFLAGS += `pkg-config --libs libdri2 xext xfixes x11 x11-xcb xcb xcb-dri3 xcb-sync xcb-present xshmfence`
 endif
+
 ifneq ($(call is-feature-enabled,winsys_wl),)
-	CFLAGS += -DWINSYS_WL -DEGL_BIND_WL_DISPLAY
+	CFLAGS += -DTPL_WINSYS_WL -DEGL_BIND_WL_DISPLAY
 	CFLAGS += -I$(SRC_DIR)/wayland_module/gbm_tbm `pkg-config --cflags wayland-drm gbm`
 	LDFLAGS += `pkg-config --libs wayland-drm gbm`
 endif
@@ -59,7 +62,6 @@ ifneq ($(call is-feature-enabled,winsys_dri3),)
 TPL_HEADERS += $(SRC_DIR)/tpl_x11_internal.h
 
 TPL_SRCS += $(SRC_DIR)/tpl_x11_common.c
-TPL_SRCS += $(SRC_DIR)/tpl_x11_dri2.c
 TPL_SRCS += $(SRC_DIR)/tpl_x11_dri3.c
 endif
 

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 
-#if defined(WINSYS_DRI2) || defined(WINSYS_DRI3)
+#if defined(TPL_WINSYS_DRI2) || defined(TPL_WINSYS_DRI3)
 #include <xcb/xcb.h>
 #endif
 
@@ -119,7 +119,7 @@ struct _tpl_display
 
 	int			bufmgr_fd;
 	tpl_display_backend_t	backend;
-#if defined(WINSYS_DRI2) || defined(WINSYS_DRI3)
+#if defined(TPL_WINSYS_DRI2) || defined(TPL_WINSYS_DRI3)
 	xcb_connection_t	*xcb_connection;
 #endif
 };

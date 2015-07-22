@@ -383,78 +383,30 @@ tpl_bool_t
 __tpl_x11_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 				       int *width, int *height, tpl_format_t *format, int depth, int a_size)
 {
+	TPL_IGNORE(depth);
+	TPL_IGNORE(a_size);
 	Status x_res;
 	XWindowAttributes att;
 
 	x_res = XGetWindowAttributes((Display *)display->native_handle, (Window)window, &att);
 
-    if (x_res == BadWindow)
-        return TPL_FALSE;
-
-    if (width != NULL) *width = att.width;
-	if (height != NULL) *height = att.height;
-
-    if(format == NULL)
-        return TPL_TRUE;
-
-
-    if(display->xcb_connection == NULL)
-        return TPL_FALSE;
-
-	tpl_bool_t res;
-	int r, g, b, a;
-	int bpp = depth;
-	xcb_generic_error_t *attr_error;
-	xcb_get_window_attributes_reply_t * attr_reply;
-	xcb_get_window_attributes_cookie_t attr_cookie;
-	XVisualInfo *visual_info = NULL;
-
-
-	attr_cookie = xcb_get_window_attributes( display->xcb_connection, (xcb_window_t) window );
-	attr_reply = xcb_get_window_attributes_reply( display->xcb_connection, attr_cookie, &attr_error );
-
-	res = tpl_check_reply_for_error((Display *)display->native_handle, (xcb_generic_reply_t *)attr_reply, attr_error, "xcb_get_window_attributes");
-	if (res == TPL_FALSE)
+	if (x_res != BadWindow)
 	{
-		goto error;
+		if (format != NULL)
+		{
+			switch (att.depth)
+			{
+				case 32: *format = TPL_FORMAT_ARGB8888; break;
+				case 24: *format = TPL_FORMAT_XRGB8888; break;
+				case 16: *format = TPL_FORMAT_RGB565; break;
+				default: *format = TPL_FORMAT_INVALID; break;
+			}
+		}
+		if (width != NULL) *width = att.width;
+		if (height != NULL) *height = att.height;
+		return TPL_TRUE;
 	}
 
-	visual_info = tpl_find_visual( (Display *)display->native_handle, attr_reply->visual );
-	free( attr_reply );
-	if (visual_info == NULL)
-	{
-		goto error;
-	}
-
-	/* Find the position of each component inside the pixel: (RGB, BGR, etc) */
-	r = tpl_get_offset(visual_info->red_mask, bpp );
-	g = tpl_get_offset(visual_info->green_mask, bpp );
-	b = tpl_get_offset(visual_info->blue_mask, bpp );
-
-	/* [FIXME] Temporary fix to enforce ARGB8888 */
-	if (bpp == 32) {
-	    a_size = 8;
-	}
-
-	if( a_size != 0 )
-	{
-		/* What's its offset ? (ARGB, BGRA, etc) */
-		a = tpl_get_alpha_offset( r, g, b, bpp );
-	}
-	else
-	{
-		a = -1;
-	}
-
-	if (format)
-		*format = tpl_offsets_to_color_buffer_format( r, g, b, a, bpp );
-    return TPL_TRUE;
-
-error:
-	if (NULL != visual_info)
-	{
-		XFree(visual_info);
-	}
 	return TPL_FALSE;
 
 }

@@ -123,14 +123,20 @@ tpl_utils_ptrdict tpl_utils_ptrdict_allocate(void (*freefunc)(void *))
 
 tpl_bool_t tpl_utils_ptrdict_insert(tpl_utils_ptrdict d, void *name, void *data)
 {
-	return (tpl_bool_t) runtime->egl_funcs->ptrdict_insert(d, name, data);
+	if (runtime->egl_funcs->ptrdict_insert_utgard)
+		return (int)runtime->egl_funcs->ptrdict_insert_utgard(d, name, data);
+	else
+		return (tpl_bool_t) runtime->egl_funcs->ptrdict_insert(d, name, data);
 }
 
 
 void *tpl_utils_ptrdict_get(tpl_utils_ptrdict d, void *name)
 {
 	void *ret;
-	runtime->egl_funcs->ptrdict_lookup_key(d, name, &ret);
+	if (runtime->egl_funcs->ptrdict_lookup_key_utgard)
+		ret = runtime->egl_funcs->ptrdict_lookup_key_utgard(d, (unsigned int)name);
+	else
+		runtime->egl_funcs->ptrdict_lookup_key(d, name, &ret);
 	return ret;
 }
 
@@ -144,7 +150,10 @@ void tpl_utils_ptrdict_free(tpl_utils_ptrdict d)
 
 void tpl_utils_ptrdict_remove(tpl_utils_ptrdict d, void *name)
 {
-	runtime->egl_funcs->ptrdict_remove(d, name);
+	if (runtime->egl_funcs->ptrdict_remove_utgard)
+		runtime->egl_funcs->ptrdict_remove_utgard(d, (unsigned int)name);
+	else
+		runtime->egl_funcs->ptrdict_remove(d, name);
 }
 
 void tpl_utils_ptrdict_iterate_init(tpl_utils_ptrdict d, tpl_utils_ptrdict_iter it)
@@ -218,7 +227,10 @@ __tpl_runtime_add_display(tpl_display_t *display)
 			runtime->displays[type] = tpl_utils_ptrdict_allocate(NULL);
 
 		ret = tpl_utils_ptrdict_insert(runtime->displays[type], (void *) handle, (void *)display);
-		TPL_ASSERT(ret == TPL_TRUE);
+		if (runtime->egl_funcs->ptrdict_insert_utgard)
+			TPL_ASSERT(ret == 0);
+		else
+			TPL_ASSERT(ret == TPL_TRUE);
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);
