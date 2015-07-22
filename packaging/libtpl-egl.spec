@@ -4,30 +4,38 @@
 %define TPL_VERSION	%{TPL_VER_MAJOR}.%{TPL_VER_MINOR}
 %define TPL_VER_FULL	%{TPL_VERSION}.%{TPL_RELEASE}
 
-%define WINSYS_DRI2	0
-%define WINSYS_DRI3	0
-%define WINSYS_WL	1
-
 %define ENABLE_TTRACE	0
 
 ################################################################################
 
+%define TPL_WINSYS	WL
+
+%if "%{?tizen_version}" == "2.4"
+%define TPL_WINSYS	DRI3
+%if "%{?tizen_target_name}" == "Z130H"
+%define TPL_WINSYS	DRI2
+%endif
+%if "%{?tizen_target_name}" == "Z300H"
+%define TPL_WINSYS	DRI2
+%endif
+%endif
+
+%if "%{TPL_WINSYS}" != "DRI2" && "%{TPL_WINSYS}" != "DRI3" && "%{TPL_WINSYS}" != "WL"
+BuildRequires:		ERROR(No_window_system_designated)
+%endif
+
 Name:			libtpl-egl
-Summary:		Tizen Porting Layer for ARM Mali EGL
-%if "%{WINSYS_DRI2}" == "1"
-Version:		%{TPL_VERSION}.dri2
-%else
-%if "%{WINSYS_DRI3}" == "1"
-Version:		%{TPL_VERSION}.dri3
-%else
-%if "%{WINSYS_WL}" == "1"
-Version:		%{TPL_VERSION}.wl
-%else
-Version:		%{TPL_VERSION}.unknown
-%endif
-%endif
-%endif
+Version:		%{TPL_VERSION}
 Release:		%{TPL_RELEASE}
+%if "%{TPL_WINSYS}" == "DRI2"
+Summary:		Tizen Porting Layer for ARM Mali EGL (DRI2 backend)
+%endif
+%if "%{TPL_WINSYS}" == "DRI3"
+Summary:		Tizen Porting Layer for ARM Mali EGL (DRI3 backend)
+%endif
+%if "%{TPL_WINSYS}" == "WL"
+Summary:		Tizen Porting Layer for ARM Mali EGL (Wayland backend)
+%endif
 Group:			System/Libraries
 License:		MIT
 Source:			%{name}-%{version}.tar.gz
@@ -36,7 +44,7 @@ BuildRequires:		pkg-config
 BuildRequires:		pkgconfig(libdrm)
 BuildRequires:		pkgconfig(libtbm)
 
-%if "%{WINSYS_DRI2}" == "1" || "%{WINSYS_DRI3}" == "1"
+%if "%{TPL_WINSYS}" == "DRI2" || "%{TPL_WINSYS}" == "DRI3"
 BuildRequires:		pkgconfig(libdri2)
 BuildRequires:		pkgconfig(xext)
 BuildRequires:		pkgconfig(xfixes)
@@ -49,7 +57,7 @@ BuildRequires:		pkgconfig(xcb-present)
 BuildRequires:		pkgconfig(xshmfence)
 %endif
 
-%if "%{WINSYS_WL}" == "1"
+%if "%{TPL_WINSYS}" == "WL"
 BuildRequires:  	pkgconfig(gbm)
 BuildRequires:  	wayland-devel
 BuildRequires:  	pkgconfig(wayland-drm)
@@ -73,7 +81,7 @@ Requires:		%{name} = %{version}-%{release}
 This package contains the development libraries and header files needed by
 the DDK for ARM Mali EGL.
 
-%if "%{WINSYS_WL}" == "1"
+%if "%{TPL_WINSYS}" == "WL"
 %package -n libgbm_tbm
 Summary:		A backend of GBM using TBM
 Group:			Development/Libraries
@@ -97,17 +105,17 @@ This package contains the development libraries and header files.
 %setup -q
 
 %build
-%if "%{WINSYS_WL}" == "1"
+%if "%{TPL_WINSYS}" == "WL"
 make -C src/wayland_module/gbm_tbm all
 %endif
 
-%if "%{WINSYS_DRI2}" == "1"
+%if "%{TPL_WINSYS}" == "DRI2"
 export TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri2
 %endif
-%if "%{WINSYS_DRI3}" == "1"
+%if "%{TPL_WINSYS}" == "DRI3"
 export TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri3
 %endif
-%if "%{WINSYS_WL}" == "1"
+%if "%{TPL_WINSYS}" == "WL"
 export TPL_OPTIONS=${TPL_OPTIONS}-winsys_wl
 %endif
 
@@ -134,17 +142,9 @@ ln -sf libtpl-egl.so.%{TPL_VERSION}	%{buildroot}%{_libdir}/libtpl-egl.so.%{TPL_V
 ln -sf libtpl-egl.so.%{TPL_VER_MAJOR}	%{buildroot}%{_libdir}/libtpl-egl.so
 
 cp -a src/tpl.h				%{buildroot}%{_includedir}/
-cp -a src/tpl_internal.h		%{buildroot}%{_includedir}/
-cp -a src/tpl_utils.h			%{buildroot}%{_includedir}/
-%if "%{WINSYS_DRI2}" == "1"
-cp -a src/tpl_x11_internal.h		%{buildroot}%{_includedir}/
-%endif
-%if "%{WINSYS_DRI3}" == "1"
-cp -a src/tpl_x11_internal.h		%{buildroot}%{_includedir}/
-%endif
 cp -a pkgconfig/tpl-egl.pc		%{buildroot}%{_libdir}/pkgconfig/
 
-%if "%{WINSYS_WL}" == "1"
+%if "%{TPL_WINSYS}" == "WL"
 %makeinstall -C src/wayland_module/gbm_tbm
 %endif
 
@@ -153,6 +153,7 @@ cp -a pkgconfig/tpl-egl.pc		%{buildroot}%{_libdir}/pkgconfig/
 %postun -p /sbin/ldconfig
 
 %files
+%manifest packaging/libtpl-egl.manifest
 %defattr(-,root,root,-)
 %{_libdir}/libtpl-egl.so
 %{_libdir}/libtpl-egl.so.%{TPL_VER_MAJOR}
@@ -162,17 +163,9 @@ cp -a pkgconfig/tpl-egl.pc		%{buildroot}%{_libdir}/pkgconfig/
 %files devel
 %defattr(-,root,root,-)
 %{_includedir}/tpl.h
-%{_includedir}/tpl_internal.h
-%{_includedir}/tpl_utils.h
-%if "%{WINSYS_DRI2}" == "1"
-%{_includedir}/tpl_x11_internal.h
-%endif
-%if "%{WINSYS_DRI3}" == "1"
-%{_includedir}/tpl_x11_internal.h
-%endif
 %{_libdir}/pkgconfig/tpl-egl.pc
 
-%if "%{WINSYS_WL}" == "1"
+%if "%{TPL_WINSYS}" == "WL"
 %files -n libgbm_tbm
 %{_libdir}/gbm/gbm_tbm.so
 %{_libdir}/gbm/libgbm_tbm.so
