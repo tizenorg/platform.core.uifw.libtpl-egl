@@ -81,26 +81,6 @@ Requires:		%{name} = %{version}-%{release}
 This package contains the development libraries and header files needed by
 the DDK for ARM Mali EGL.
 
-%if "%{TPL_WINSYS}" == "WL"
-%package -n libgbm_tbm
-Summary:		A backend of GBM using TBM
-Group:			Development/Libraries
-BuildRequires:		pkgconfig(gbm)
-BuildRequires:		pkgconfig(libdrm)
-BuildRequires:		pkgconfig(wayland-drm)
-
-%description -n libgbm_tbm
-GBM backend using TBM(Tizen Buffer Manager)
-
-%package -n libgbm_tbm-devel
-Summary:		Development files for GBM using TBM
-Group:			Development/Libraries
-Requires:		libgbm_tbm = %{version}-%{release}
-
-%description -n libgbm_tbm-devel
-This package contains the development libraries and header files.
-%endif
-
 %prep
 %setup -q
 
@@ -132,11 +112,17 @@ export TPL_OPTIONS=${TPL_OPTIONS}-
 make all
 
 %install
+rm -fr %{buildroot}
+mkdir -p %{buildroot}
 mkdir -p %{buildroot}%{_libdir}
 mkdir -p %{buildroot}%{_includedir}
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
 
-cp -a libtpl-egl.so.%{TPL_VER_FULL}	%{buildroot}%{_libdir}/
+export TPL_VER_MAJOR=%{TPL_VER_MAJOR}
+export TPL_VER_MINOR=%{TPL_VER_MINOR}
+export TPL_RELEASE=%{TPL_RELEASE}
+
+make install libdir=%{buildroot}%{_libdir}
 ln -sf libtpl-egl.so.%{TPL_VER_FULL}	%{buildroot}%{_libdir}/libtpl-egl.so.%{TPL_VERSION}
 ln -sf libtpl-egl.so.%{TPL_VERSION}	%{buildroot}%{_libdir}/libtpl-egl.so.%{TPL_VER_MAJOR}
 ln -sf libtpl-egl.so.%{TPL_VER_MAJOR}	%{buildroot}%{_libdir}/libtpl-egl.so
@@ -145,7 +131,11 @@ cp -a src/tpl.h				%{buildroot}%{_includedir}/
 cp -a pkgconfig/tpl-egl.pc		%{buildroot}%{_libdir}/pkgconfig/
 
 %if "%{TPL_WINSYS}" == "WL"
-%makeinstall -C src/wayland_module/gbm_tbm
+mkdir -p %{buildroot}%{_libdir}/gbm
+
+make -C src/wayland_module/gbm_tbm install libdir=%{buildroot}%{_libdir}
+ln -sf gbm/libgbm_tbm.so		%{buildroot}%{_libdir}/libgbm_tbm.so
+ln -sf libgbm_tbm.so			%{buildroot}%{_libdir}/gbm/gbm_tbm.so
 %endif
 
 %post -p /sbin/ldconfig
@@ -159,18 +149,13 @@ cp -a pkgconfig/tpl-egl.pc		%{buildroot}%{_libdir}/pkgconfig/
 %{_libdir}/libtpl-egl.so.%{TPL_VER_MAJOR}
 %{_libdir}/libtpl-egl.so.%{TPL_VERSION}
 %{_libdir}/libtpl-egl.so.%{TPL_VER_FULL}
+%if "%{TPL_WINSYS}" == "WL"
+%{_libdir}/gbm/gbm_tbm.so
+%{_libdir}/gbm/libgbm_tbm.so
+%{_libdir}/libgbm_tbm.so
+%endif
 
 %files devel
 %defattr(-,root,root,-)
 %{_includedir}/tpl.h
 %{_libdir}/pkgconfig/tpl-egl.pc
-
-%if "%{TPL_WINSYS}" == "WL"
-%files -n libgbm_tbm
-%{_libdir}/gbm/gbm_tbm.so
-%{_libdir}/gbm/libgbm_tbm.so
-%{_libdir}/libgbm_tbm.so
-
-%files -n libgbm_tbm-devel
-%{_includedir}/gbm_tbm.h
-%endif

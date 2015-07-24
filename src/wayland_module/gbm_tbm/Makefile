@@ -1,7 +1,6 @@
 SRC_DIR = .
-BIN_NAME = gbm_tbm.so
+BIN_NAME = libgbm_tbm.so
 INST_LIBDIR = $(libdir)
-INST_INCDIR = $(includedir)
 
 CC ?= gcc
 
@@ -35,14 +34,7 @@ clean:
 	rm -vf $(BIN_NAME)
 
 install: all
-	mkdir -p $(INST_INCDIR)/gbm
-	mkdir -p $(INST_LIBDIR)/gbm
 	cp -va $(BIN_NAME) $(INST_LIBDIR)/gbm/
-	ln -sf gbm/gbm_tbm.so $(INST_LIBDIR)/libgbm_tbm.so
-	ln -sf gbm/gbm_tbm.so $(INST_LIBDIR)/gbm/libgbm_tbm.so
-	cp -va gbm_tbm.h $(INST_INCDIR)/
 
 uninstall:
 	rm -f $(INST_LIBDIR)/gbm/$(BIN_NAME)
-	rm -f $(INST_LIBDIR)/libgbm_tbm.so
-	rm -f $(INST_LIBDIR)/gbm/libgbm_tbm.so
