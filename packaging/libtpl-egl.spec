@@ -1,5 +1,5 @@
 %define TPL_VER_MAJOR	0
-%define TPL_VER_MINOR	5
+%define TPL_VER_MINOR	6
 %define TPL_RELEASE	1
 %define TPL_VERSION	%{TPL_VER_MAJOR}.%{TPL_VER_MINOR}
 %define TPL_VER_FULL	%{TPL_VERSION}.%{TPL_RELEASE}
@@ -61,7 +61,7 @@ BuildRequires:		pkgconfig(xshmfence)
 BuildRequires:  	pkgconfig(gbm)
 BuildRequires:  	wayland-devel
 BuildRequires:  	pkgconfig(wayland-drm)
-BuildRequires:		pkgconfig(wayland-egl)
+BuildRequires:		libwayland-egl-devel
 %endif
 
 %description

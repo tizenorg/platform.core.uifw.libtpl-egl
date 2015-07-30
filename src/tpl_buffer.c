@@ -15,7 +15,7 @@ __tpl_buffer_free(void *buffer)
 }
 
 tpl_buffer_t *
-__tpl_buffer_alloc(tpl_surface_t *surface, unsigned int key, int fd, int width, int height,
+__tpl_buffer_alloc(tpl_surface_t *surface, size_t key, int fd, int width, int height,
 		   int depth, int pitch)
 {
 	tpl_buffer_t *buffer;
@@ -47,7 +47,7 @@ __tpl_buffer_alloc(tpl_surface_t *surface, unsigned int key, int fd, int width, 
 		return NULL;
 	}
 
-	TPL_LOG(3, "buffer(%p) surface(%p, %p) key:%d fd:%d %dx%d", (void *) buffer, surface, surface->native_handle, key, fd, width, height);
+	TPL_LOG(3, "buffer(%p) surface(%p, %p) key:%zu fd:%d %dx%d", (void *) buffer, surface, surface->native_handle, key, fd, width, height);
 	return buffer;
 }
 
@@ -97,7 +97,7 @@ tpl_buffer_unlock(tpl_buffer_t *buffer)
 	TPL_OBJECT_UNLOCK(buffer);
 }
 
-unsigned int
+size_t
 tpl_buffer_get_key(tpl_buffer_t *buffer)
 {
 	return buffer->key;

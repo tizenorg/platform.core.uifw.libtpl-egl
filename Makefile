@@ -46,6 +46,7 @@ TPL_SRCS += $(SRC_DIR)/tpl_frame.c
 TPL_SRCS += $(SRC_DIR)/tpl_object.c
 TPL_SRCS += $(SRC_DIR)/tpl_region.c
 TPL_SRCS += $(SRC_DIR)/tpl_surface.c
+TPL_SRCS += $(SRC_DIR)/tpl_utils_hlist.c
 
 ifneq ($(call is-feature-enabled,winsys_wl),)
 TPL_SRCS += $(SRC_DIR)/tpl_wayland.c

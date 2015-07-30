@@ -1288,18 +1288,14 @@ __tpl_x11_dri3_surface_post_internal(tpl_surface_t *surface,
 		tpl_bool_t is_worker)
 {
 	Display         *display = NULL;
-	Drawable        drawable;
-	CARD64          swap_count;
 	tpl_x11_dri3_surface_t *x11_surface;
 	XRectangle      *xrects;
 	XRectangle      xrects_stack[TPL_STACK_XRECTANGLE_SIZE];
-	void            *pDrawable;
 
         TRACE_BEGIN("DDK:DRI3:SWAPBUFFERS");
 	x11_surface = (tpl_x11_dri3_surface_t *)surface->backend.data;
 
         display         = __tpl_x11_dri3_get_worker_display();
-	drawable        = (Drawable)surface->native_handle;
 
 	if (frame->interval != x11_surface->latest_post_interval)
 	{
@@ -1387,7 +1383,6 @@ __tpl_x11_dri3_surface_begin_frame(tpl_surface_t *surface)
 static tpl_bool_t
 __tpl_x11_dri3_surface_validate_frame(tpl_surface_t *surface)
 {
-	tpl_x11_dri3_surface_t *x11_surface = (tpl_x11_dri3_surface_t *)surface->backend.data;
         tpl_frame_t *prev_frame;
 	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
 		return TPL_TRUE;
@@ -1436,7 +1431,6 @@ __tpl_x11_dri3_surface_end_frame(tpl_surface_t *surface)
 static tpl_buffer_t *
 __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 {
-	Display         *display;
 	Drawable        drawable;
 	dri3_buffer     *buffer = NULL;
         tpl_buffer_t    *tpl_buffer = NULL;
@@ -1446,7 +1440,6 @@ __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 	int width, height;
 	tpl_x11_dri3_surface_t *x11_surface =
 			(tpl_x11_dri3_surface_t *)surface->backend.data;
-	void *data;
 	int cpp = 0;
 
         if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
@@ -1454,7 +1447,6 @@ __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 		attachments[0] = dri3_buffer_front;
 	}
 
-	display = (Display *)surface->display->native_handle;
 	drawable = (Drawable)surface->native_handle;
 
 	/* [BEGIN: 20141125-xing.huang] Get the current buffer via DRI3. */
@@ -1489,7 +1481,7 @@ __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 
         if (!tpl_buffer)
 	{
-		/* [BEGIN: 20141125-xuelian.bai] Remove the buffer from the cache. */
+		/* Remove the buffer from the cache. */
                 __tpl_x11_surface_buffer_cache_remove(
 				&x11_surface->buffer_cache,
 				tbm_bo_export(buffer->tbo));
@@ -1500,7 +1492,6 @@ __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 					buffer->old_bo_name);
                         buffer->old_bo_name = 0;
 		}
-		/* [END: 20141125-xuelian.bai] */
 	}
 
 	bo = buffer->tbo;
@@ -1514,7 +1505,7 @@ __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 	bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
 
 	/* Create tpl buffer. */
-	tpl_buffer = __tpl_buffer_alloc(surface, tbm_bo_export(buffer->tbo),
+	tpl_buffer = __tpl_buffer_alloc(surface, (size_t) tbm_bo_export(buffer->tbo),
 			(int)bo_handle.u32,
 			width, height, buffer->cpp * 8, buffer->pitch);
 

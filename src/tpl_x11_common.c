@@ -192,6 +192,7 @@ __tpl_x11_display_query_config(tpl_display_t *display,
 	return TPL_TRUE;
 }
 
+#if 0
 static void tpl_handle_and_free_error( Display *dpy, xcb_generic_error_t *error, const char* request_string )
 {
 	char error_txt[256];
@@ -377,7 +378,7 @@ static tpl_format_t tpl_offsets_to_color_buffer_format( int offset_r, int offset
 
 	return retval;
 }
-
+#endif
 
 tpl_bool_t
 __tpl_x11_display_get_window_info(tpl_display_t *display, tpl_handle_t window,

@@ -4,8 +4,7 @@ unsigned int tpl_log_lvl;
 
 struct _tpl_runtime
 {
-	tpl_egl_funcs_t *egl_funcs;
-	tpl_utils_ptrdict displays[TPL_BACKEND_COUNT];
+	tpl_hlist_t *displays[TPL_BACKEND_COUNT];
 };
 
 static tpl_runtime_t	*runtime = NULL;
@@ -31,7 +30,7 @@ __tpl_runtime_fini()
 		for (i = 0; i < TPL_BACKEND_COUNT; i++)
 		{
 			if (runtime->displays[i] != NULL)
-				tpl_utils_ptrdict_free(runtime->displays[i]);
+				tpl_hashlist_destroy(&(runtime->displays[i]));
 		}
 
 		free(runtime);
@@ -39,14 +38,7 @@ __tpl_runtime_fini()
 	}
 }
 
-void tpl_set_egl_funcs(tpl_egl_funcs_t *eglfuncs)
-{
-	__tpl_runtime_init();
-
-	runtime->egl_funcs = eglfuncs;
-}
-
-/* Begin: DDK dependent types and function definition */
+/* Begin: OS dependent function definition */
 void tpl_util_sys_yield(void)
 {
 	int status;
@@ -101,77 +93,7 @@ int tpl_util_atomic_dec( tpl_util_atomic_uint * const atom )
 
 	return __sync_sub_and_fetch(atom, 1);
 }
-
-tpl_utils_ptrdict tpl_utils_ptrdict_allocate(void (*freefunc)(void *))
-{
-	if (runtime->egl_funcs->ptrdict_allocate_utgard)
-	{
-		return (tpl_utils_ptrdict) runtime->egl_funcs->ptrdict_allocate_utgard();
-	}
-	else
-	{
-		tpl_utils_ptrdict d = NULL;
-
-		d = malloc(runtime->egl_funcs->ptrdict_size);
-		if (!d)
-			return NULL;
-
-		runtime->egl_funcs->ptrdict_init_midgard(d, NULL, NULL, freefunc);
-		return d;
-	}
-}
-
-tpl_bool_t tpl_utils_ptrdict_insert(tpl_utils_ptrdict d, void *name, void *data)
-{
-	if (runtime->egl_funcs->ptrdict_insert_utgard)
-		return (int)runtime->egl_funcs->ptrdict_insert_utgard(d, name, data);
-	else
-		return (tpl_bool_t) runtime->egl_funcs->ptrdict_insert(d, name, data);
-}
-
-
-void *tpl_utils_ptrdict_get(tpl_utils_ptrdict d, void *name)
-{
-	void *ret;
-	if (runtime->egl_funcs->ptrdict_lookup_key_utgard)
-		ret = runtime->egl_funcs->ptrdict_lookup_key_utgard(d, (unsigned int)name);
-	else
-		runtime->egl_funcs->ptrdict_lookup_key(d, name, &ret);
-	return ret;
-}
-
-void tpl_utils_ptrdict_free(tpl_utils_ptrdict d)
-{
-	if (runtime->egl_funcs->ptrdict_free_utgard)
-		runtime->egl_funcs->ptrdict_free_utgard(d, NULL);
-	else
-		runtime->egl_funcs->ptrdict_term_midgard(d);
-}
-
-void tpl_utils_ptrdict_remove(tpl_utils_ptrdict d, void *name)
-{
-	if (runtime->egl_funcs->ptrdict_remove_utgard)
-		runtime->egl_funcs->ptrdict_remove_utgard(d, (unsigned int)name);
-	else
-		runtime->egl_funcs->ptrdict_remove(d, name);
-}
-
-void tpl_utils_ptrdict_iterate_init(tpl_utils_ptrdict d, tpl_utils_ptrdict_iter it)
-{
-	if (runtime->egl_funcs->ptrdict_iter_init_utgard)
-		runtime->egl_funcs->ptrdict_iter_init_utgard(d, it);
-	else
-		runtime->egl_funcs->ptrdict_iter_init_midgard(it, d);
-}
-
-void *tpl_utils_ptrdict_next( tpl_utils_ptrdict_iter it, void  **value )
-{
-	if (runtime->egl_funcs->ptrdict_next_utgard)
-		return runtime->egl_funcs->ptrdict_next_utgard(value, it);
-	else
-		return runtime->egl_funcs->ptrdict_next_midgard(it, value);
-}
-/* End: DDK dependent types and function definition */
+/* End: OS dependent function definition */
 
 tpl_display_t *
 __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
@@ -187,8 +109,8 @@ __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
 	{
 		if (runtime->displays[type] != NULL)
 		{
-			display = (tpl_display_t *) tpl_utils_ptrdict_get(runtime->displays[type],
-									  (void *) native_display);
+			display = (tpl_display_t *) tpl_hashlist_lookup(runtime->displays[type],
+									(size_t) native_display);
 		}
 	}
 	else
@@ -199,8 +121,8 @@ __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
 		{
 			if (runtime->displays[i] != NULL)
 			{
-				display = (tpl_display_t *) tpl_utils_ptrdict_get(runtime->displays[i],
-										  (void *) native_display);
+				display = (tpl_display_t *) tpl_hashlist_lookup(runtime->displays[i],
+										(size_t) native_display);
 			}
 			if (display != NULL) break;
 		}
@@ -224,13 +146,10 @@ __tpl_runtime_add_display(tpl_display_t *display)
 	if (type != TPL_BACKEND_UNKNOWN)
 	{
 		if (runtime->displays[type] == NULL)
-			runtime->displays[type] = tpl_utils_ptrdict_allocate(NULL);
+			runtime->displays[type] = tpl_hashlist_create();
 
-		ret = tpl_utils_ptrdict_insert(runtime->displays[type], (void *) handle, (void *)display);
-		if (runtime->egl_funcs->ptrdict_insert_utgard)
-			TPL_ASSERT(ret == 0);
-		else
-			TPL_ASSERT(ret == TPL_TRUE);
+		ret = tpl_hashlist_insert(runtime->displays[type], (size_t) handle, (void *) display);
+		TPL_ASSERT(ret == TPL_TRUE);
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);
@@ -247,10 +166,17 @@ __tpl_runtime_remove_display(tpl_display_t *display)
 	if (type != TPL_BACKEND_UNKNOWN)
 	{
 		if (runtime != NULL && runtime->displays[type] != NULL)
-			tpl_utils_ptrdict_remove(runtime->displays[type], (void *) handle);
+			tpl_hashlist_delete(runtime->displays[type], (size_t) handle);
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);
+}
+
+void __tpl_runtime_flush_cb(void *data)
+{
+	TPL_OBJECT_LOCK(data);
+	__tpl_display_flush(data);
+	TPL_OBJECT_UNLOCK(data);
 }
 
 void
@@ -266,19 +192,8 @@ __tpl_runtime_flush_all_display()
 	for (i = 0; i < TPL_BACKEND_COUNT; i++)
 	{
 		if (runtime->displays[i] != NULL)
-		{
-			tpl_utils_ptrdict_iter iterator;
-			tpl_display_t *display;
-
-			tpl_utils_ptrdict_iterate_init(runtime->displays[i], &iterator);
-
-			while (tpl_utils_ptrdict_next( &iterator, (void **)(&display)))
-			{
-				TPL_OBJECT_LOCK(display);
-				__tpl_display_flush(display);
-				TPL_OBJECT_UNLOCK(display);
-			}
-		}
+			tpl_hashlist_do_for_all_nodes(runtime->displays[i],
+						      __tpl_runtime_flush_cb);
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);

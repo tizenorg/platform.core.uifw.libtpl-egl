@@ -88,36 +88,6 @@ typedef void * tpl_handle_t;
 #include <stdlib.h>
 
 typedef volatile unsigned int tpl_util_atomic_uint;
-typedef void * tpl_utils_ptrdict;
-typedef void * tpl_utils_ptrdict_iter;
-
-typedef struct _tpl_egl_funcs
-{
-	int			atomic_int_size;
-	int			ptrdict_size;
-	int			ptrdict_iter_size;
-
-	tpl_utils_ptrdict	(*ptrdict_allocate_utgard)();
-	void			(*ptrdict_free_utgard)(tpl_utils_ptrdict d, void (*freefunc)());
-
-	void			(*ptrdict_term_midgard)(tpl_utils_ptrdict d);
-	tpl_utils_ptrdict	(*ptrdict_init_midgard)(tpl_utils_ptrdict d, void *mem_alloc_context, void (*allocfunc)(void *, size_t), void (*freefunc)(void *));
-
-	tpl_bool_t		(*ptrdict_insert)(tpl_utils_ptrdict d, void *name, void *data);
-	int			(*ptrdict_insert_utgard)(tpl_utils_ptrdict d, void *name, void *data);
-
-	void *			(*ptrdict_lookup_key)(tpl_utils_ptrdict d, void *key, void **value);
-	void *			(*ptrdict_lookup_key_utgard)(tpl_utils_ptrdict d, unsigned int name);
-
-	void			(*ptrdict_remove)(tpl_utils_ptrdict d, void *name);
-	void			(*ptrdict_remove_utgard)(tpl_utils_ptrdict d, unsigned int name);
-
-	void			(*ptrdict_iter_init_utgard)(tpl_utils_ptrdict d, tpl_utils_ptrdict_iter *it);
-	void			(*ptrdict_iter_init_midgard)(tpl_utils_ptrdict_iter *it, tpl_utils_ptrdict d);
-
-	void *			(*ptrdict_next_utgard)(void **value, tpl_utils_ptrdict_iter *it);
-	void *			(*ptrdict_next_midgard)(tpl_utils_ptrdict_iter *it, void **value);
-} tpl_egl_funcs_t;
 
 /**
  * A structure representing generic TPL object.
@@ -265,14 +235,6 @@ typedef enum
 	TPL_BACKEND_COUNT,
 	TPL_BACKEND_UNKNOWN
 } tpl_backend_type_t;
-
-/**
- * Initialize TPL with EGL function pointers
- *
- * Must be called prior to using TPL.
- *
- */
-void tpl_set_egl_funcs(tpl_egl_funcs_t *eglfuncs);
 
 /**
  * Increase reference count of a TPL object.
@@ -780,7 +742,7 @@ void *tpl_buffer_create_native_buffer(tpl_buffer_t *buffer);
  *
  * @see tpl_buffer_get_fd()
  */
-unsigned int tpl_buffer_get_key(tpl_buffer_t *buffer);
+size_t tpl_buffer_get_key(tpl_buffer_t *buffer);
 
 /**
  * Get the low-level buffer fd of the given TPL buffer.

@@ -20,6 +20,9 @@ typedef struct _tpl_surface_backend	tpl_surface_backend_t;
 typedef struct _tpl_buffer_backend	tpl_buffer_backend_t;
 typedef struct _tpl_frame		tpl_frame_t;
 
+typedef struct tpl_hlist		tpl_hlist_t;
+
+
 typedef enum
 {
 	TPL_FRAME_STATE_INVALID,
@@ -147,7 +150,7 @@ struct _tpl_buffer
 	tpl_object_t		base;
 
 	tpl_surface_t		*surface;
-	unsigned int		key;
+	size_t			key;
 	int			fd;
 	int			age;
 
@@ -183,7 +186,7 @@ void			__tpl_surface_set_backend_data(tpl_surface_t *surface, void *data);
 void *			__tpl_surface_get_backend_data(tpl_surface_t *surface);
 
 /* Buffer functions. */
-tpl_buffer_t *		__tpl_buffer_alloc(tpl_surface_t *surface, unsigned int key, int fd, int width, int height, int depth, int pitch);
+tpl_buffer_t *		__tpl_buffer_alloc(tpl_surface_t *surface, size_t key, int fd, int width, int height, int depth, int pitch);
 void			__tpl_buffer_set_surface(tpl_buffer_t *buffer, tpl_surface_t *surface);
 
 /* Runtime functions. */
@@ -215,7 +218,7 @@ void __tpl_buffer_init_backend_wayland(tpl_buffer_backend_t *backend);
 void __tpl_buffer_init_backend_x11_dri2(tpl_buffer_backend_t *backend);
 void __tpl_buffer_init_backend_x11_dri3(tpl_buffer_backend_t *backend);
 
-/* DDK dependent functions */
+/* OS related functions */
 void tpl_util_sys_yield(void);
 int tpl_util_clz(int input);
 
@@ -224,12 +227,12 @@ void tpl_util_atomic_set(tpl_util_atomic_uint * const atom, unsigned int val);
 int tpl_util_atomic_inc(tpl_util_atomic_uint * const atom );
 int tpl_util_atomic_dec(tpl_util_atomic_uint * const atom );
 
-tpl_utils_ptrdict tpl_utils_ptrdict_allocate(void (*freefunc)(void *));
-tpl_bool_t tpl_utils_ptrdict_insert(tpl_utils_ptrdict d, void *name, void *data);
-void *tpl_utils_ptrdict_get(tpl_utils_ptrdict d, void *name);
-void tpl_utils_ptrdict_free(tpl_utils_ptrdict d);
-void tpl_utils_ptrdict_remove(tpl_utils_ptrdict d, void *name);
-void tpl_utils_ptrdict_iterate_init(tpl_utils_ptrdict d, tpl_utils_ptrdict_iter it);
-void *tpl_utils_ptrdict_next( tpl_utils_ptrdict_iter it, void  **value );
+/* Data structure functions */
+tpl_hlist_t * tpl_hashlist_create();
+void tpl_hashlist_destroy(tpl_hlist_t **list);
+tpl_bool_t tpl_hashlist_insert(tpl_hlist_t *list, size_t key, void *data);
+void tpl_hashlist_delete(tpl_hlist_t *list, size_t key);
+void tpl_hashlist_do_for_all_nodes(tpl_hlist_t *list, void (*cb_func)(void *));
+void * tpl_hashlist_lookup(tpl_hlist_t *list, size_t key);
 
 #endif /* TPL_INTERNAL_H */

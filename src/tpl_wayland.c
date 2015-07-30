@@ -107,7 +107,7 @@ __tpl_wayland_surface_buffer_cache_add(tpl_list_t *buffer_cache, tpl_buffer_t *b
 }
 
 static TPL_INLINE void
-__tpl_wayland_surface_buffer_cache_remove(tpl_list_t	 *buffer_cache, unsigned int name)
+__tpl_wayland_surface_buffer_cache_remove(tpl_list_t *buffer_cache, size_t name)
 {
 	tpl_list_node_t *node = tpl_list_get_front_node(buffer_cache);
 
@@ -119,18 +119,18 @@ __tpl_wayland_surface_buffer_cache_remove(tpl_list_t	 *buffer_cache, unsigned in
 		{
 			tpl_object_unreference(&buffer->base);
 			tpl_list_remove(node, NULL);
-			TPL_LOG(3, "name:%d buf:%10p buf->base:%10p", name, buffer, &buffer->base);
+			TPL_LOG(3, "name:%zu buf:%10p buf->base:%10p", name, buffer, &buffer->base);
 			return;
 		}
 
 		node = tpl_list_node_next(node);
 	}
 
-	TPL_LOG(3, "Buffer named %d not found in cache", name);
+	TPL_LOG(3, "Buffer named %zu not found in cache", name);
 }
 
 static TPL_INLINE tpl_buffer_t *
-__tpl_wayland_surface_buffer_cache_find(tpl_list_t	 *buffer_cache, unsigned int name)
+__tpl_wayland_surface_buffer_cache_find(tpl_list_t *buffer_cache, size_t name)
 {
 	tpl_list_node_t *node = tpl_list_get_front_node(buffer_cache);
 
@@ -140,14 +140,14 @@ __tpl_wayland_surface_buffer_cache_find(tpl_list_t	 *buffer_cache, unsigned int 
 
 		if (buffer->key == name)
 		{
-			TPL_LOG(3, "name:%d buf:%10p buf->base:%10p", name, buffer, &buffer->base);
+			TPL_LOG(3, "name:%zu buf:%10p buf->base:%10p", name, buffer, &buffer->base);
 			return buffer;
 		}
 
 		node = tpl_list_node_next(node);
 	}
 
-	TPL_LOG(3, "Buffer named %d not found in cache", name);
+	TPL_LOG(3, "Buffer named %zu not found in cache", name);
 
 	return NULL;
 }
@@ -496,7 +496,7 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 static void
 __tpl_wayland_surface_buffer_free(tpl_buffer_t *buffer)
 {
-	TPL_LOG(3, "buffer(%p) key:%d", buffer, buffer?buffer->key:-1);
+	TPL_LOG(3, "buffer(%p) key:%zu", buffer, buffer?buffer->key:-1);
 	if (buffer != NULL)
 	{
 		__tpl_buffer_set_surface(buffer, NULL);
@@ -574,7 +574,7 @@ __tpl_wayland_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 		struct wl_egl_window *wl_egl_window = NULL;
 		int i;
 
-		TPL_LOG(3, "\t buffer(%p, %p) key:%d", frame->buffer, wayland_buffer->proc.app.wl_resource, frame->buffer->key);
+		TPL_LOG(3, "\t buffer(%p, %p) key:%zu", frame->buffer, wayland_buffer->proc.app.wl_resource, frame->buffer->key);
 		wl_egl_window = (struct wl_egl_window *)surface->native_handle;
 		tpl_object_reference((tpl_object_t *)frame->buffer);
 		wl_surface_attach(wl_egl_window->surface,
@@ -738,7 +738,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
 
 	name = tbm_bo_export(bo);
-	buffer = __tpl_buffer_alloc(surface, (int)name, (int)bo_handle.u32, width, height, depth, stride);
+	buffer = __tpl_buffer_alloc(surface, (size_t) name, (int) bo_handle.u32, width, height, depth, stride);
 	TPL_CHECK_ON_NULL_RETURN_VAL(buffer, NULL);
 
 	wayland_buffer = (tpl_wayland_buffer_t *)calloc(1, sizeof(tpl_wayland_buffer_t));
@@ -833,7 +833,7 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 	/* Create tpl buffer. */
 	bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
 
-	buffer = __tpl_buffer_alloc(surface, (int)bo_handle.u32, 
+	buffer = __tpl_buffer_alloc(surface, (size_t) bo_handle.u32,
 	                  (int)bo_handle.u32, width, height, depth, stride);
 	if (buffer == NULL)
 	{
@@ -875,7 +875,7 @@ __tpl_wayland_surface_create_buffer_from_wl_drm(tpl_surface_t *surface, tpl_bool
 	tbm_bo_handle bo_handle;
 	int width = 0, height = 0, depth, stride;
 	tpl_format_t format = TPL_FORMAT_INVALID;
-	unsigned int key = 0;
+	size_t key = 0;
 
 	tpl_wayland_display_t *wayland_display = (tpl_wayland_display_t *)surface->display->backend.data;
 	struct wl_drm_buffer *drm_buffer = NULL;
@@ -885,7 +885,7 @@ __tpl_wayland_surface_create_buffer_from_wl_drm(tpl_surface_t *surface, tpl_bool
 	/* Get the allocated buffer */
 	drm_buffer = wayland_drm_buffer_get(wayland_display->wl_drm, (struct wl_resource *)surface->native_handle);
 
-	buffer = __tpl_wayland_surface_buffer_cache_find(&wayland_display->proc.comp.cached_buffers, (unsigned int) drm_buffer);
+	buffer = __tpl_wayland_surface_buffer_cache_find(&wayland_display->proc.comp.cached_buffers, (size_t) drm_buffer);
 	if (buffer != NULL)
 	{
 		__tpl_buffer_set_surface(buffer, surface);
@@ -904,9 +904,9 @@ __tpl_wayland_surface_create_buffer_from_wl_drm(tpl_surface_t *surface, tpl_bool
 
 		/* Create tpl buffer. */
 		bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
-		key = (unsigned int)drm_buffer;
-		buffer = __tpl_buffer_alloc(surface, key, 
-		                  (int)bo_handle.u32, width, height, depth, stride);
+		key = (size_t) drm_buffer;
+		buffer = __tpl_buffer_alloc(surface, key,
+		                  (int) bo_handle.u32, width, height, depth, stride);
 		if (buffer == NULL)
 		{
 			tbm_bo_unref(bo);
@@ -1032,7 +1032,7 @@ __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffe
 		}
 	}
 
-	TPL_LOG(3, "\t buffer(%p) key:%d", wayland_surface->current_rendering_buffer, wayland_surface->current_rendering_buffer->key);
+	TPL_LOG(3, "\t buffer(%p) key:%zu", wayland_surface->current_rendering_buffer, wayland_surface->current_rendering_buffer->key);
 	return wayland_surface->current_rendering_buffer;
 }
 
@@ -1047,7 +1047,7 @@ __tpl_wayland_buffer_init(tpl_buffer_t *buffer)
 static void
 __tpl_wayland_buffer_fini(tpl_buffer_t *buffer)
 {
-	TPL_LOG(3, "tpl_buffer(%p) key:%d fd:%d %dx%d", buffer, buffer->key, buffer->fd, buffer->width, buffer->height);
+	TPL_LOG(3, "tpl_buffer(%p) key:%zu fd:%d %dx%d", buffer, buffer->key, buffer->fd, buffer->width, buffer->height);
 
 	if (buffer->backend.data)
 	{
@@ -1355,7 +1355,7 @@ __cb_client_buffer_release_callback(void *data, struct wl_resource *resource)
 	tpl_buffer_t *buffer = (tpl_buffer_t *)data;
 	tpl_surface_t *surface = buffer->surface;
 
-	TPL_LOG(3, "release window(%p, %p), buffer(%p), key:%d",
+	TPL_LOG(3, "release window(%p, %p), buffer(%p), key:%zu",
             surface, surface?surface->native_handle:NULL,
             buffer, buffer->key);
 
@@ -1530,7 +1530,7 @@ __cb_server_wayland_drm_unreference_buffer(void *user_data, struct wl_drm_buffer
 	buffer->driver_buffer = NULL;
 
 	/* TODO: tpl_buffer is NULL, it's not right */
-	__tpl_wayland_surface_buffer_cache_remove(&wayland_display->proc.comp.cached_buffers, (unsigned int)buffer);
+	__tpl_wayland_surface_buffer_cache_remove(&wayland_display->proc.comp.cached_buffers, (size_t)buffer);
 }
 
 static struct wayland_drm_callbacks wl_drm_server_listener =

@@ -433,7 +433,7 @@ __tpl_x11_dri2_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 	bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
 
 	/* Create tpl buffer. */
-	buffer = __tpl_buffer_alloc(surface, dri2_buffers[0].name, (int)bo_handle.u32,
+	buffer = __tpl_buffer_alloc(surface, (size_t) dri2_buffers[0].name, (int) bo_handle.u32,
 				    width, height, dri2_buffers[0].cpp * 8, dri2_buffers[0].pitch);
 
 #if (TIZEN_FEATURES_ENABLE)
