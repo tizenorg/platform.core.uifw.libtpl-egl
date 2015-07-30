@@ -88,6 +88,11 @@ static struct gbm_bo *__cb_server_gbm_surface_lock_front_buffer(struct gbm_surfa
 static void __cb_server_gbm_surface_release_buffer(struct gbm_surface *gbm_surf, struct gbm_bo *gbm_bo);
 static int __cb_server_gbm_surface_has_free_buffers(struct gbm_surface *gbm_surf);
 
+#ifdef EGL_BIND_WL_DISPLAY
+unsigned int __tpl_wayland_display_bind_client_display(tpl_display_t  *tpl_display,  tpl_handle_t native_dpy);
+unsigned int __tpl_wayland_display_unbind_client_display(tpl_display_t  *tpl_display, tpl_handle_t native_dpy);
+#endif
+
 #define TPL_BUFFER_CACHE_MAX_ENTRIES 40
 static TPL_INLINE void
 __tpl_wayland_surface_buffer_cache_add(tpl_list_t *buffer_cache, tpl_buffer_t *buffer)
@@ -1207,9 +1212,13 @@ __tpl_display_init_backend_wayland(tpl_display_backend_t *backend)
 	backend->fini				= __tpl_wayland_display_fini;
 	backend->query_config			= __tpl_wayland_display_query_config;
 	backend->filter_config			= __tpl_wayland_display_filter_config;
-	backend->get_window_info			= __tpl_wayland_display_get_window_info;
-	backend->get_pixmap_info			= __tpl_wayland_display_get_pixmap_info;
+	backend->get_window_info		= __tpl_wayland_display_get_window_info;
+	backend->get_pixmap_info		= __tpl_wayland_display_get_pixmap_info;
 	backend->flush				= __tpl_wayland_display_flush;
+#ifdef EGL_BIND_WL_DISPLAY
+	backend->bind_client_display_handle	= __tpl_wayland_display_bind_client_display;
+	backend->unbind_client_display_handle	= __tpl_wayland_display_unbind_client_display;
+#endif
 }
 
 void
@@ -1497,7 +1506,6 @@ __cb_server_gbm_surface_has_free_buffers(struct gbm_surface *gbm_surf)
 	return 0;
 }
 
-#ifdef EGL_BIND_WL_DISPLAY
 static struct wayland_drm_callbacks wl_drm_server_listener;
 
 static int
@@ -1540,9 +1548,10 @@ static struct wayland_drm_callbacks wl_drm_server_listener =
 	__cb_server_wayland_drm_unreference_buffer
 };
 
-unsigned int __egl_platform_bind_wayland_display(void * display, struct wl_display *wayland_display)
+#ifdef EGL_BIND_WL_DISPLAY
+unsigned int __tpl_wayland_display_bind_client_display(tpl_display_t *tpl_display, tpl_handle_t native_dpy)
 {
-	tpl_display_t *tpl_display = tpl_display_get(TPL_BACKEND_WAYLAND, display);
+	struct wl_display *wayland_display = (struct wl_display *)native_dpy;
 	tpl_wayland_display_t *tpl_wayland_display = (tpl_wayland_display_t *)tpl_display->backend.data;
 	char *device_name = NULL;
 
@@ -1555,9 +1564,8 @@ unsigned int __egl_platform_bind_wayland_display(void * display, struct wl_displ
 	return TPL_TRUE;
 }
 
-unsigned int __egl_platform_unbind_wayland_display(void * display, struct wl_display *wayland_display)
+unsigned int __tpl_wayland_display_unbind_client_display(tpl_display_t *tpl_display, tpl_handle_t native_dpy)
 {
-	tpl_display_t *tpl_display = tpl_display_get(TPL_BACKEND_WAYLAND, display);
 	tpl_wayland_display_t *tpl_wayland_display = (tpl_wayland_display_t *)tpl_display->backend.data;
 
 	if (tpl_wayland_display->wl_drm == NULL)

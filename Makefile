@@ -34,6 +34,9 @@ endif
 ifneq ($(call is-feature-enabled,ttrace),)
 	CFLAGS += -DTTRACE_ENABLE
 endif
+ifneq ($(call is-feature-enabled,egl_bind_wl_display),)
+	CFLAGS += -DEGL_BIND_WL_DISPLAY
+endif
 
 TPL_HEADERS += $(SRC_DIR)/tpl.h
 TPL_HEADERS += $(SRC_DIR)/tpl_internal.h

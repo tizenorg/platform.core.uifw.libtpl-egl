@@ -1,5 +1,5 @@
 %define TPL_VER_MAJOR	0
-%define TPL_VER_MINOR	6
+%define TPL_VER_MINOR	7
 %define TPL_RELEASE	1
 %define TPL_VERSION	%{TPL_VER_MAJOR}.%{TPL_VER_MINOR}
 %define TPL_VER_FULL	%{TPL_VERSION}.%{TPL_RELEASE}
@@ -92,24 +92,27 @@ make -C src/wayland_module/gbm_tbm all
 %endif
 
 %if "%{TPL_WINSYS}" == "DRI2"
-export TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri2
+TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri2
 %endif
 %if "%{TPL_WINSYS}" == "DRI3"
-export TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri3
+TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri3
 %endif
 %if "%{TPL_WINSYS}" == "WL"
-export TPL_OPTIONS=${TPL_OPTIONS}-winsys_wl
+TPL_OPTIONS=${TPL_OPTIONS}-winsys_wl
 %endif
+
+%if "%{ENABLE_TTRACE}" == "1"
+TPL_OPTIONS=${TPL_OPTIONS}-ttrace
+%endif
+
+TPL_OPTIONS=${TPL_OPTIONS}-egl_bind_wl_display
+
+# do not change the following line
+export TPL_OPTIONS=${TPL_OPTIONS}-
 
 export TPL_VER_MAJOR=%{TPL_VER_MAJOR}
 export TPL_VER_MINOR=%{TPL_VER_MINOR}
 export TPL_RELEASE=%{TPL_RELEASE}
-
-%if "%{ENABLE_TTRACE}" == "1"
-export TPL_OPTIONS=${TPL_OPTIONS}-ttrace
-%endif
-
-export TPL_OPTIONS=${TPL_OPTIONS}-
 
 make all
 
