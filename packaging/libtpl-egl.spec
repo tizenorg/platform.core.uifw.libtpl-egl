@@ -24,44 +24,44 @@
 BuildRequires:		ERROR(No_window_system_designated)
 %endif
 
-Name:			libtpl-egl
-Version:		%{TPL_VERSION}
-Release:		%{TPL_RELEASE}
+Name:		libtpl-egl
+Version:	%{TPL_VERSION}
+Release:	%{TPL_RELEASE}
 %if "%{TPL_WINSYS}" == "DRI2"
-Summary:		Tizen Porting Layer for ARM Mali EGL (DRI2 backend)
+Summary:	Tizen Porting Layer for ARM Mali EGL (DRI2 backend)
 %endif
 %if "%{TPL_WINSYS}" == "DRI3"
-Summary:		Tizen Porting Layer for ARM Mali EGL (DRI3 backend)
+Summary:	Tizen Porting Layer for ARM Mali EGL (DRI3 backend)
 %endif
 %if "%{TPL_WINSYS}" == "WL"
-Summary:		Tizen Porting Layer for ARM Mali EGL (Wayland backend)
+Summary:	Tizen Porting Layer for ARM Mali EGL (Wayland backend)
 %endif
-Group:			System/Libraries
-License:		MIT
-Source:			%{name}-%{version}.tar.gz
+Group:		System/Libraries
+License:	MIT
+Source:		%{name}-%{version}.tar.gz
 
-BuildRequires:		pkg-config
-BuildRequires:		pkgconfig(libdrm)
-BuildRequires:		pkgconfig(libtbm)
+BuildRequires:	pkg-config
+BuildRequires:	pkgconfig(libdrm)
+BuildRequires:	pkgconfig(libtbm)
 
 %if "%{TPL_WINSYS}" == "DRI2" || "%{TPL_WINSYS}" == "DRI3"
-BuildRequires:		pkgconfig(libdri2)
-BuildRequires:		pkgconfig(xext)
-BuildRequires:		pkgconfig(xfixes)
-BuildRequires:		pkgconfig(x11)
-BuildRequires:		pkgconfig(x11-xcb)
-BuildRequires:		pkgconfig(xcb)
-BuildRequires:		pkgconfig(xcb-dri3)
-BuildRequires:		pkgconfig(xcb-sync)
-BuildRequires:		pkgconfig(xcb-present)
-BuildRequires:		pkgconfig(xshmfence)
+BuildRequires:	pkgconfig(libdri2)
+BuildRequires:	pkgconfig(xext)
+BuildRequires:	pkgconfig(xfixes)
+BuildRequires:	pkgconfig(x11)
+BuildRequires:	pkgconfig(x11-xcb)
+BuildRequires:	pkgconfig(xcb)
+BuildRequires:	pkgconfig(xcb-dri3)
+BuildRequires:	pkgconfig(xcb-sync)
+BuildRequires:	pkgconfig(xcb-present)
+BuildRequires:	pkgconfig(xshmfence)
 %endif
 
 %if "%{TPL_WINSYS}" == "WL"
-BuildRequires:  	pkgconfig(gbm)
-BuildRequires:  	wayland-devel
-BuildRequires:  	pkgconfig(wayland-drm)
-BuildRequires:		libwayland-egl-devel
+BuildRequires:	pkgconfig(gbm)
+BuildRequires:	wayland-devel
+BuildRequires:	pkgconfig(wayland-drm)
+BuildRequires:	libwayland-egl-devel
 %endif
 
 %description
@@ -73,13 +73,15 @@ The following window systems are supported:
 - Wayland
 
 %package devel
-Summary:		Development files for TPL
-Group:			System/Libraries
-Requires:		%{name} = %{version}-%{release}
+Summary:	Development files for TPL
+Group:		System/Libraries
+Requires:	%{name} = %{version}-%{release}
 
 %description devel
 This package contains the development libraries and header files needed by
 the DDK for ARM Mali EGL.
+
+################################################################################
 
 %prep
 %setup -q
@@ -141,6 +143,8 @@ ln -sf libgbm_tbm.so			%{buildroot}%{_libdir}/gbm/gbm_tbm.so
 %post -p /sbin/ldconfig
 
 %postun -p /sbin/ldconfig
+
+################################################################################
 
 %files
 %manifest packaging/libtpl-egl.manifest
