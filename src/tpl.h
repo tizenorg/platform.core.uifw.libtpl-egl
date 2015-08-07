@@ -602,7 +602,7 @@ tpl_buffer_t * tpl_surface_get_buffer(tpl_surface_t *surface,
  * @see tpl_surface_begin_frame()
  * @see tpl_surface_end_frame()
  */
-void tpl_surface_post(tpl_surface_t *surface);
+int tpl_surface_post(tpl_surface_t *surface);
 
 /**
  * Set frame interval of the given TPL surface.

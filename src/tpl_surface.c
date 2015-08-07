@@ -282,7 +282,7 @@ tpl_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 	return buffer;
 }
 
-void
+int
 tpl_surface_post(tpl_surface_t *surface)
 {
 	tpl_frame_t *frame;
@@ -291,7 +291,7 @@ tpl_surface_post(tpl_surface_t *surface)
 	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
 	{
 		TRACE_END();
-		return;
+		return TPL_FALSE;
 	}
 
 	TPL_OBJECT_LOCK(surface);
@@ -313,6 +313,15 @@ tpl_surface_post(tpl_surface_t *surface)
 	/* Dequeue a frame from the queue. */
 	frame = (tpl_frame_t *)tpl_list_pop_front(&surface->frame_queue, NULL);
 
+	if (frame->buffer == NULL)
+	{
+		__tpl_frame_free(frame);
+		TPL_OBJECT_UNLOCK(surface);
+		TRACE_END();
+
+		return TPL_FALSE;
+	}
+
 	/* Call backend post if it has not been called for the frame. */
 	if (frame->state != TPL_FRAME_STATE_POSTED)
 		surface->backend.post(surface, frame);
@@ -320,4 +329,6 @@ tpl_surface_post(tpl_surface_t *surface)
 	__tpl_frame_free(frame);
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
+
+	return TPL_TRUE;
 }
