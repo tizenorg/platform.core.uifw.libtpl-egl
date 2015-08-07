@@ -33,6 +33,8 @@ __tpl_x11_swap_str_to_swap_type(char *str, tpl_x11_swap_type_t *type)
 {
 	int swap_type;
 
+	TPL_ASSERT(type);
+
 	if (str == NULL)
 		return;
 
@@ -53,58 +55,80 @@ __tpl_x11_swap_str_to_swap_type(char *str, tpl_x11_swap_type_t *type)
 tpl_buffer_t *
 __tpl_x11_surface_buffer_cache_find(tpl_list_t	 *buffer_cache, unsigned int name)
 {
-	tpl_list_node_t *node = tpl_list_get_front_node(buffer_cache);
+	tpl_list_node_t *node;
+
+	TPL_ASSERT(buffer_cache);
+
+	node = __tpl_list_get_front_node(buffer_cache);
 
 	while (node)
 	{
-		tpl_buffer_t *buffer = (tpl_buffer_t *)tpl_list_node_get_data(node);
+		tpl_buffer_t *buffer = (tpl_buffer_t *) __tpl_list_node_get_data(node);
+
+		TPL_ASSERT(buffer);
 
 		if (buffer->key == name)
 			return buffer;
 
-		node = tpl_list_node_next(node);
+		node = __tpl_list_node_next(node);
 	}
 
 	return NULL;
 }
 
 void
-__tpl_x11_surface_buffer_cache_remove(tpl_list_t	 *buffer_cache, unsigned int name)
+__tpl_x11_surface_buffer_cache_remove(tpl_list_t *buffer_cache, unsigned int name)
 {
-	tpl_list_node_t *node = tpl_list_get_front_node(buffer_cache);
+	tpl_list_node_t *node;
+
+	TPL_ASSERT(buffer_cache);
+
+	node = __tpl_list_get_front_node(buffer_cache);
 
 	while (node)
 	{
-		tpl_buffer_t *buffer = (tpl_buffer_t *)tpl_list_node_get_data(node);
+		tpl_buffer_t *buffer = (tpl_buffer_t *) __tpl_list_node_get_data(node);
+
+		TPL_ASSERT(buffer);
 
 		if (buffer->key == name)
 		{
 			tpl_object_unreference(&buffer->base);
-			tpl_list_remove(node, NULL);
+			__tpl_list_remove(node, NULL);
 			return;
 		}
 
-		node = tpl_list_node_next(node);
+		node = __tpl_list_node_next(node);
 	}
 }
 
-void
+tpl_bool_t
 __tpl_x11_surface_buffer_cache_add(tpl_list_t *buffer_cache, tpl_buffer_t *buffer)
 {
-	if (tpl_list_get_count(buffer_cache) >= TPL_BUFFER_CACHE_MAX_ENTRIES)
+	TPL_ASSERT(buffer_cache);
+	TPL_ASSERT(buffer);
+
+	if (__tpl_list_get_count(buffer_cache) >= TPL_BUFFER_CACHE_MAX_ENTRIES)
 	{
-		tpl_buffer_t *evict = tpl_list_pop_front(buffer_cache, NULL);
+		tpl_buffer_t *evict = __tpl_list_pop_front(buffer_cache, NULL);
+
+		TPL_ASSERT(evict);
+
 		tpl_object_unreference(&evict->base);
 	}
 
-	tpl_object_reference(&buffer->base);
-	tpl_list_push_back(buffer_cache, (void *)buffer);
+	if (-1 == tpl_object_reference(&buffer->base))
+		return TPL_FALSE;
+
+	return __tpl_list_push_back(buffer_cache, (void *)buffer);
 }
 
 void
 __tpl_x11_surface_buffer_cache_clear(tpl_list_t *buffer_cache)
 {
-	tpl_list_fini(buffer_cache, (tpl_free_func_t)tpl_object_unreference);
+	TPL_ASSERT(buffer_cache);
+
+	__tpl_list_fini(buffer_cache, (tpl_free_func_t)tpl_object_unreference);
 }
 
 
@@ -116,7 +140,10 @@ __tpl_x11_display_query_config(tpl_display_t *display,
 {
 	Display *native_display;
 
-    TPL_IGNORE(alpha_size);
+	TPL_IGNORE(alpha_size);
+
+	TPL_ASSERT(display);
+	TPL_ASSERT(display->native_handle);
 
 	native_display = (Display *)display->native_handle;
 
@@ -137,9 +164,9 @@ __tpl_x11_display_query_config(tpl_display_t *display,
 				int clz[3];
 				int col_size[3];
 
-				clz[0] = tpl_util_clz(visual_formats[i].red_mask);
-				clz[1] = tpl_util_clz(visual_formats[i].green_mask);
-				clz[2] = tpl_util_clz(visual_formats[i].blue_mask);
+				clz[0] = __tpl_util_clz(visual_formats[i].red_mask);
+				clz[1] = __tpl_util_clz(visual_formats[i].green_mask);
+				clz[2] = __tpl_util_clz(visual_formats[i].blue_mask);
 
 				col_size[0] = clz[1] - clz[0];
 				col_size[1] = clz[2] - clz[1];
@@ -384,10 +411,14 @@ tpl_bool_t
 __tpl_x11_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 				       int *width, int *height, tpl_format_t *format, int depth, int a_size)
 {
-	TPL_IGNORE(depth);
-	TPL_IGNORE(a_size);
 	Status x_res;
 	XWindowAttributes att;
+
+	TPL_IGNORE(depth);
+	TPL_IGNORE(a_size);
+
+	TPL_ASSERT(display);
+	TPL_ASSERT(display->native_handle);
 
 	x_res = XGetWindowAttributes((Display *)display->native_handle, (Window)window, &att);
 
@@ -409,7 +440,6 @@ __tpl_x11_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 	}
 
 	return TPL_FALSE;
-
 }
 
 tpl_bool_t
@@ -420,6 +450,9 @@ __tpl_x11_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 	Window root = None;
 	int x, y;
 	unsigned int w, h, bw, d;
+
+	TPL_ASSERT(display);
+	TPL_ASSERT(display->native_handle);
 
 	x_res = XGetGeometry((Display *)display->native_handle, (Pixmap)pixmap, &root,
 			     &x, &y, &w, &h, &bw, &d);
@@ -449,22 +482,29 @@ __tpl_x11_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 void
 __tpl_x11_display_flush(tpl_display_t *display)
 {
-	Display *native_display = (Display *)display->native_handle;
+	Display *native_display;
+
+	TPL_ASSERT(display);
+	TPL_ASSERT(display->native_handle);
+
+	native_display = (Display *) display->native_handle;
 	XFlush(native_display);
 	XSync(native_display, False);
 }
-
 
 tpl_bool_t
 __tpl_x11_buffer_init(tpl_buffer_t *buffer)
 {
 	TPL_IGNORE(buffer);
+
 	return TPL_TRUE;
 }
 
 void
 __tpl_x11_buffer_fini(tpl_buffer_t *buffer)
 {
+	TPL_ASSERT(buffer);
+
 	if (buffer->backend.data)
 	{
 		tbm_bo_map((tbm_bo)buffer->backend.data, TBM_DEVICE_3D, TBM_OPTION_READ);
@@ -480,10 +520,12 @@ __tpl_x11_buffer_map(tpl_buffer_t *buffer, int size)
 	tbm_bo bo;
 	tbm_bo_handle handle;
 
-	bo = (tbm_bo)buffer->backend.data;
-	TPL_ASSERT(bo);
+	TPL_ASSERT(buffer);
+	TPL_ASSERT(buffer->backend.data);
 
+	bo = (tbm_bo) buffer->backend.data;
 	handle = tbm_bo_get_handle(bo, TBM_DEVICE_CPU);
+
 	return handle.ptr;
 }
 
@@ -503,8 +545,10 @@ __tpl_x11_buffer_lock(tpl_buffer_t *buffer, tpl_lock_usage_t usage)
 	tbm_bo bo;
 	tbm_bo_handle handle;
 
-	bo = (tbm_bo)buffer->backend.data;
-	TPL_ASSERT(bo);
+	TPL_ASSERT(buffer);
+	TPL_ASSERT(buffer->backend.data);
+
+	bo = (tbm_bo) buffer->backend.data;
 
 	TPL_OBJECT_UNLOCK(buffer);
 
@@ -540,8 +584,10 @@ __tpl_x11_buffer_unlock(tpl_buffer_t *buffer)
 {
 	tbm_bo bo;
 
-	bo = (tbm_bo)buffer->backend.data;
-	TPL_ASSERT(bo);
+	TPL_ASSERT(buffer);
+	TPL_ASSERT(buffer->backend.data);
+
+	bo = (tbm_bo) buffer->backend.data;
 
 	TPL_OBJECT_UNLOCK(buffer);
 	tbm_bo_unmap(bo);
@@ -550,6 +596,8 @@ __tpl_x11_buffer_unlock(tpl_buffer_t *buffer)
 
 tpl_bool_t __tpl_x11_buffer_get_reused_flag(tpl_buffer_t *buffer)
 {
+	TPL_ASSERT(buffer);
+
 	if (DRI2_BUFFER_IS_REUSED(buffer->backend.flags))
 		return TPL_TRUE;
 	else
@@ -558,14 +606,14 @@ tpl_bool_t __tpl_x11_buffer_get_reused_flag(tpl_buffer_t *buffer)
 
 void __tpl_x11_display_wait_native(tpl_display_t *display)
 {
-    Display *xlib_display = NULL;
-    xlib_display = (Display *)display->native_handle;
-    if (xlib_display != NULL)
-    {
+	Display *xlib_display;
 
+	TPL_ASSERT(display);
 
+	xlib_display = (Display *) display->native_handle;
+	if (xlib_display != NULL)
+	{
 		/* Leave events in the queue since we only care they have arrived. */
 		XSync(xlib_display, 0);
-
-    }
+	}
 }

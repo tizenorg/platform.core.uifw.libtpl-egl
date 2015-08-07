@@ -1,0 +1,44 @@
+1. Function names
+	1) all internal function names should start with '__tpl'
+	2) externally exposed function names should start with 'tpl'
+
+2. Input argument checking
+	1) internal functions should TPL_ASSERT on non-null for all pointer type
+	   argumentxs
+		Exception:
+		- NULL is valid value
+		- function is a validity checking function
+	2) internal functions should not check for non-null for pointer type
+	   arguments with conditional branching
+	   	Execption: function is a validity checking function
+	3) externally exposed functions should check for non-null for all
+	   pointer type arguments with 'if' statement
+	   	Execption: NULL is valid value
+	4) when externally exposed function is return due to error, TPL_ERR
+	   should be called with appropriate error message
+
+3. Function calling
+	1) before calling internal function, caller function *MUST* check for
+	   value validity before passing it to the callee
+	   (internal functions do not check for input validity)
+
+4. Return value
+	1) functions should return a value
+		Exception:
+		- failure is ignorable
+		- failure not possible
+	2) default return values should be TPL_TRUE on success and TPL_FALSE on
+	   failure
+	3) functions that return pointer value *MUST* return NULL on error
+	4) other functions which return values useful to other callee may return
+	   that value
+
+5. Documentation
+	1) *ALL* functions in libtpl-egl *MUST* be documented in Doxygen format
+	2) functions *MUST* have at least brief, param, and return sections
+
+6. Enumeration type
+	1) *ALL* enums *MUST* start with error code, 'xxx_ERROR' and assigned
+	   value of -1
+	2) *ALL* enums *MUST* have identifier named 'xxx_MAX' to signify the end
+	   of the enum list (i.e. 'TPL_OBJECT_MAX')

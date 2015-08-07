@@ -3,14 +3,18 @@
 static void
 __tpl_buffer_fini(tpl_buffer_t *buffer)
 {
+	TPL_ASSERT(buffer);
+	TPL_ASSERT(buffer->backend.fini);
+
 	buffer->backend.fini(buffer);
 }
 
 static void
 __tpl_buffer_free(void *buffer)
 {
-	TPL_LOG(3, "buffer(%p)", buffer);
-	__tpl_buffer_fini((tpl_buffer_t *)buffer);
+	TPL_ASSERT(buffer);
+
+	__tpl_buffer_fini((tpl_buffer_t *) buffer);
 	free(buffer);
 }
 
@@ -19,13 +23,18 @@ __tpl_buffer_alloc(tpl_surface_t *surface, size_t key, int fd, int width, int he
 		   int depth, int pitch)
 {
 	tpl_buffer_t *buffer;
+	tpl_bool_t ret;
 
-	TPL_ASSERT(surface != NULL);
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->display);
 
 	buffer = (tpl_buffer_t *)calloc(1, sizeof(tpl_buffer_t));
-	TPL_ASSERT(buffer != NULL);
+	if (NULL == buffer)
+		return NULL;
 
-	__tpl_object_init(&buffer->base, TPL_OBJECT_BUFFER, __tpl_buffer_free);
+	ret = __tpl_object_init(&buffer->base, TPL_OBJECT_BUFFER, __tpl_buffer_free);
+	if (TPL_TRUE != ret)
+		return NULL;
 
 	buffer->surface = surface;
 	buffer->key = key;
@@ -40,10 +49,9 @@ __tpl_buffer_alloc(tpl_surface_t *surface, size_t key, int fd, int width, int he
 	/* Backend initialization. */
 	__tpl_buffer_init_backend(buffer, surface->display->backend.type);
 
-	if (!buffer->backend.init(buffer))
+	if (TPL_TRUE != buffer->backend.init(buffer))
 	{
-		TPL_ERR("backend init");
-		tpl_object_unreference((tpl_object_t *)buffer);
+		tpl_object_unreference((tpl_object_t *) buffer);
 		return NULL;
 	}
 
@@ -54,6 +62,8 @@ __tpl_buffer_alloc(tpl_surface_t *surface, size_t key, int fd, int width, int he
 void
 __tpl_buffer_set_surface(tpl_buffer_t *buffer, tpl_surface_t *surface)
 {
+	TPL_ASSERT(buffer);
+
 	buffer->surface = surface;
 }
 
@@ -61,6 +71,12 @@ void *
 tpl_buffer_map(tpl_buffer_t *buffer, int size)
 {
 	void *ptr;
+
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return NULL;
+	}
 
 	TPL_OBJECT_LOCK(buffer);
 	ptr = buffer->backend.map(buffer, size);
@@ -72,6 +88,12 @@ tpl_buffer_map(tpl_buffer_t *buffer, int size)
 void
 tpl_buffer_unmap(tpl_buffer_t *buffer, void *ptr, int size)
 {
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return;
+	}
+
 	TPL_OBJECT_LOCK(buffer);
 	buffer->backend.unmap(buffer, ptr, size);
 	TPL_OBJECT_UNLOCK(buffer);
@@ -81,6 +103,12 @@ tpl_bool_t
 tpl_buffer_lock(tpl_buffer_t *buffer, tpl_lock_usage_t usage)
 {
 	tpl_bool_t result;
+
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return TPL_FALSE;
+	}
 
 	TPL_OBJECT_LOCK(buffer);
 	result = buffer->backend.lock(buffer, usage);
@@ -92,6 +120,12 @@ tpl_buffer_lock(tpl_buffer_t *buffer, tpl_lock_usage_t usage)
 void
 tpl_buffer_unlock(tpl_buffer_t *buffer)
 {
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return;
+	}
+
 	TPL_OBJECT_LOCK(buffer);
 	buffer->backend.unlock(buffer);
 	TPL_OBJECT_UNLOCK(buffer);
@@ -100,12 +134,24 @@ tpl_buffer_unlock(tpl_buffer_t *buffer)
 size_t
 tpl_buffer_get_key(tpl_buffer_t *buffer)
 {
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return -1;
+	}
+
 	return buffer->key;
 }
 
 int
 tpl_buffer_get_fd(tpl_buffer_t *buffer)
 {
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return -1;
+	}
+
 	return buffer->fd;
 }
 
@@ -114,8 +160,13 @@ tpl_buffer_get_age(tpl_buffer_t *buffer)
 {
 	int age;
 
-	TPL_OBJECT_LOCK((tpl_buffer_t *)buffer);
-	age = buffer->age;
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return -1;
+	}
+
+	TPL_OBJECT_LOCK(buffer);
 
 	/* Get buffer age from TPL */
 	if (buffer->backend.get_buffer_age != NULL)
@@ -123,7 +174,7 @@ tpl_buffer_get_age(tpl_buffer_t *buffer)
 	else
 		age = buffer->age;
 
-	TPL_OBJECT_UNLOCK((tpl_buffer_t *)buffer);
+	TPL_OBJECT_UNLOCK(buffer);
 
 	return age;
 }
@@ -131,35 +182,68 @@ tpl_buffer_get_age(tpl_buffer_t *buffer)
 tpl_surface_t *
 tpl_buffer_get_surface(tpl_buffer_t *buffer)
 {
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return NULL;
+	}
+
 	return buffer->surface;
 }
 
-void
+tpl_bool_t
 tpl_buffer_get_size(tpl_buffer_t *buffer, int *width, int *height)
 {
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return TPL_FALSE;
+	}
+
 	if (width)
 		*width = buffer->width;
 
 	if (height)
 		*height = buffer->height;
+
+	return TPL_TRUE;
 }
 
 int
 tpl_buffer_get_depth(tpl_buffer_t *buffer)
 {
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return -1;
+	}
+
 	return buffer->depth;
 }
 
 int
 tpl_buffer_get_pitch(tpl_buffer_t *buffer)
 {
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return -1;
+	}
+
 	return buffer->pitch;
 }
 
 void *
 tpl_buffer_create_native_buffer(tpl_buffer_t *buffer)
 {
-	if (buffer->backend.create_native_buffer != NULL)
-		return buffer->backend.create_native_buffer(buffer);
-	return NULL;
+	if (NULL == buffer)
+	{
+		TPL_ERR("buffer is NULL!");
+		return NULL;
+	}
+
+	if (NULL == buffer->backend.create_native_buffer)
+		return NULL;
+
+	return buffer->backend.create_native_buffer(buffer);
 }

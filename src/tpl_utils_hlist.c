@@ -127,7 +127,7 @@ tpl_hlist_node_t * __tpl_hlist_get_tail_node(tpl_hlist_t *list, size_t key)
 }
 
 /* Definitions for exposed hash list functions */
-tpl_hlist_t * tpl_hashlist_create()
+tpl_hlist_t * __tpl_hashlist_create()
 {
 	tpl_hlist_t *list;
 
@@ -147,7 +147,7 @@ tpl_hlist_t * tpl_hashlist_create()
 	return list;
 }
 
-void tpl_hashlist_destroy(tpl_hlist_t **list)
+void __tpl_hashlist_destroy(tpl_hlist_t **list)
 {
 	int i;
 	tpl_hlist_node_t *pos;
@@ -181,7 +181,7 @@ void tpl_hashlist_destroy(tpl_hlist_t **list)
 	*list = NULL;
 }
 
-tpl_bool_t tpl_hashlist_insert(tpl_hlist_t *list, size_t key, void *data)
+tpl_bool_t __tpl_hashlist_insert(tpl_hlist_t *list, size_t key, void *data)
 {
 	size_t hash;
 	tpl_hlist_node_t *prev_node;
@@ -211,7 +211,7 @@ tpl_bool_t tpl_hashlist_insert(tpl_hlist_t *list, size_t key, void *data)
 	return TPL_TRUE;
 }
 
-void tpl_hashlist_delete(tpl_hlist_t *list, size_t key)
+void __tpl_hashlist_delete(tpl_hlist_t *list, size_t key)
 {
 	tpl_hlist_node_t *node;
 
@@ -223,7 +223,7 @@ void tpl_hashlist_delete(tpl_hlist_t *list, size_t key)
 	free(node);
 }
 
-void tpl_hashlist_do_for_all_nodes(tpl_hlist_t *list, void (*cb_func)(void *))
+void __tpl_hashlist_do_for_all_nodes(tpl_hlist_t *list, void (*cb_func)(void *))
 {
 	tpl_hlist_node_t *pos;
 	size_t hidx;
@@ -240,7 +240,7 @@ void tpl_hashlist_do_for_all_nodes(tpl_hlist_t *list, void (*cb_func)(void *))
 	}
 }
 
-void * tpl_hashlist_lookup(tpl_hlist_t *list, size_t key)
+void * __tpl_hashlist_lookup(tpl_hlist_t *list, size_t key)
 {
 	tpl_hlist_node_t *node;
 

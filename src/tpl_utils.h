@@ -30,8 +30,7 @@
 #define TRACE_MARK(name,...)
 #endif
 
-#define TPL_DEBUG 1
-#if TPL_DEBUG
+#ifndef NDEBUG
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -204,7 +203,7 @@ typedef struct _tpl_list_node	tpl_list_node_t;
 typedef struct _tpl_list	tpl_list_t;
 typedef struct _tpl_region	tpl_region_t;
 
-enum _tpl_occurance
+enum _tpl_occurrence
 {
 	TPL_FIRST,
 	TPL_LAST,
@@ -244,20 +243,26 @@ struct _tpl_region
 };
 
 static TPL_INLINE int
-tpl_list_get_count(const tpl_list_t *list)
+__tpl_list_get_count(const tpl_list_t *list)
 {
+	TPL_ASSERT(list);
+
 	return list->count;
 }
 
 static TPL_INLINE tpl_bool_t
-tpl_list_is_empty(const tpl_list_t *list)
+__tpl_list_is_empty(const tpl_list_t *list)
 {
+	TPL_ASSERT(list);
+
 	return list->count == 0;
 }
 
 static TPL_INLINE void
-tpl_list_init(tpl_list_t *list)
+__tpl_list_init(tpl_list_t *list)
 {
+	TPL_ASSERT(list);
+
 	list->head.list = list;
 	list->tail.list = list;
 
@@ -270,14 +275,20 @@ tpl_list_init(tpl_list_t *list)
 }
 
 static TPL_INLINE void
-tpl_list_fini(tpl_list_t *list, tpl_free_func_t func)
+__tpl_list_fini(tpl_list_t *list, tpl_free_func_t func)
 {
-	tpl_list_node_t *node = list->head.next;
+	tpl_list_node_t *node;
+
+	TPL_ASSERT(list);
+
+	node = list->head.next;
 
 	while (node != &list->tail)
 	{
 		tpl_list_node_t *free_node = node;
 		node = node->next;
+
+		TPL_ASSERT(free_node);
 
 		if (func)
 			func(free_node->data);
@@ -285,56 +296,68 @@ tpl_list_fini(tpl_list_t *list, tpl_free_func_t func)
 		free(free_node);
 	}
 
-	tpl_list_init(list);
+	__tpl_list_init(list);
 }
 
 static TPL_INLINE tpl_list_t *
-tpl_list_alloc()
+__tpl_list_alloc()
 {
 	tpl_list_t *list;
 
-	list = (tpl_list_t *)malloc(sizeof(tpl_list_t));
-	TPL_ASSERT(list != NULL);
+	list = (tpl_list_t *) malloc(sizeof(tpl_list_t));
+	if (NULL == list)
+		return NULL;
 
-	tpl_list_init(list);
+	__tpl_list_init(list);
 
 	return list;
 }
 
 static TPL_INLINE void
-tpl_list_free(tpl_list_t *list, tpl_free_func_t func)
+__tpl_list_free(tpl_list_t *list, tpl_free_func_t func)
 {
-	tpl_list_fini(list, func);
+	TPL_ASSERT(list);
+
+	__tpl_list_fini(list, func);
 	free(list);
 }
 
 static TPL_INLINE void *
-tpl_list_node_get_data(const tpl_list_node_t *node)
+__tpl_list_node_get_data(const tpl_list_node_t *node)
 {
+	TPL_ASSERT(node);
+
 	return node->data;
 }
 
 static TPL_INLINE tpl_list_node_t *
-tpl_list_get_front_node(tpl_list_t *list)
+__tpl_list_get_front_node(tpl_list_t *list)
 {
-	if (tpl_list_is_empty(list))
+	TPL_ASSERT(list);
+
+	if (__tpl_list_is_empty(list))
 		return NULL;
 
 	return list->head.next;
 }
 
 static TPL_INLINE tpl_list_node_t *
-tpl_list_get_back_node(tpl_list_t *list)
+__tpl_list_get_back_node(tpl_list_t *list)
 {
-	if (tpl_list_is_empty(list))
+	TPL_ASSERT(list);
+
+	if (__tpl_list_is_empty(list))
 		return NULL;
 
 	return list->tail.prev;
 }
 
 static TPL_INLINE tpl_list_node_t *
-tpl_list_node_prev(tpl_list_node_t *node)
+__tpl_list_node_prev(tpl_list_node_t *node)
 {
+	TPL_ASSERT(node);
+	TPL_ASSERT(node->list);
+
 	if (node->prev != &node->list->head)
 		return (tpl_list_node_t *)node->prev;
 
@@ -342,8 +365,11 @@ tpl_list_node_prev(tpl_list_node_t *node)
 }
 
 static TPL_INLINE tpl_list_node_t *
-tpl_list_node_next(tpl_list_node_t *node)
+__tpl_list_node_next(tpl_list_node_t *node)
 {
+	TPL_ASSERT(node);
+	TPL_ASSERT(node->list);
+
 	if (node->next != &node->list->tail)
 		return node->next;
 
@@ -351,26 +377,38 @@ tpl_list_node_next(tpl_list_node_t *node)
 }
 
 static TPL_INLINE void *
-tpl_list_get_front(const tpl_list_t *list)
+__tpl_list_get_front(const tpl_list_t *list)
 {
-	if (tpl_list_is_empty(list))
+	TPL_ASSERT(list);
+
+	if (__tpl_list_is_empty(list))
 		return NULL;
+
+	TPL_ASSERT(list->head.next);
 
 	return list->head.next->data;
 }
 
 static TPL_INLINE void *
-tpl_list_get_back(const tpl_list_t *list)
+__tpl_list_get_back(const tpl_list_t *list)
 {
-	if (tpl_list_is_empty(list))
+	TPL_ASSERT(list);
+
+	if (__tpl_list_is_empty(list))
 		return NULL;
+
+	TPL_ASSERT(list->tail.prev);
 
 	return list->tail.prev->data;
 }
 
 static TPL_INLINE void
-tpl_list_remove(tpl_list_node_t *node, tpl_free_func_t func)
+__tpl_list_remove(tpl_list_node_t *node, tpl_free_func_t func)
 {
+	TPL_ASSERT(node);
+	TPL_ASSERT(node->prev);
+	TPL_ASSERT(node->next);
+
 	node->prev->next = node->next;
 	node->next->prev = node->prev;
 
@@ -381,11 +419,12 @@ tpl_list_remove(tpl_list_node_t *node, tpl_free_func_t func)
 	free(node);
 }
 
-static TPL_INLINE void
-tpl_list_insert(tpl_list_node_t *pos, void *data)
+static TPL_INLINE tpl_bool_t
+__tpl_list_insert(tpl_list_node_t *pos, void *data)
 {
 	tpl_list_node_t *node = (tpl_list_node_t *)malloc(sizeof(tpl_list_node_t));
-	TPL_ASSERT(node != NULL);
+	if (NULL == node)
+		return TPL_FALSE;
 
 	node->data = data;
 	node->list = pos->list;
@@ -397,93 +436,118 @@ tpl_list_insert(tpl_list_node_t *pos, void *data)
 	node->prev = pos;
 
 	pos->list->count++;
+
+	return TPL_TRUE;
 }
 
 static TPL_INLINE void
-tpl_list_remove_data(tpl_list_t *list, void *data, int occurance, tpl_free_func_t func)
+__tpl_list_remove_data(tpl_list_t *list, void *data, int occurrence, tpl_free_func_t func)
 {
 	tpl_list_node_t *node;
 
-	if (occurance == TPL_FIRST)
+	TPL_ASSERT(list);
+
+	if (occurrence == TPL_FIRST)
 	{
 	       node = list->head.next;
 
 	       while (node != &list->tail)
 	       {
-		       tpl_list_node_t *curr = node;
+		       tpl_list_node_t *curr;
+
+		       curr = node;
 		       node = node->next;
+
+		       TPL_ASSERT(curr);
+		       TPL_ASSERT(node);
 
 		       if (curr->data == data)
 		       {
 			       if (func)
 				       func(data);
 
-			       tpl_list_remove(curr, func);
+			       __tpl_list_remove(curr, func);
 			       return;
 		       }
 	       }
 	}
-	else if (occurance == TPL_LAST)
+	else if (occurrence == TPL_LAST)
 	{
 		node = list->tail.prev;
 
 		while (node != &list->head)
 		{
-			tpl_list_node_t *curr = node;
+			tpl_list_node_t *curr;
+
+			curr = node;
 			node = node->prev;
+
+			TPL_ASSERT(curr);
+			TPL_ASSERT(node);
 
 			if (curr->data == data)
 			{
 				if (func)
 					func(data);
 
-				tpl_list_remove(curr, func);
+				__tpl_list_remove(curr, func);
 				return;
 			}
 		}
 	}
-	else if (occurance == TPL_ALL)
+	else if (occurrence == TPL_ALL)
 	{
 	       node = list->head.next;
 
 	       while (node != &list->tail)
 	       {
-		       tpl_list_node_t *curr = node;
+		       tpl_list_node_t *curr;
+
+		       curr = node;
 		       node = node->next;
+
+		       TPL_ASSERT(curr);
+		       TPL_ASSERT(node);
 
 		       if (curr->data == data)
 		       {
 			       if (func)
 				       func(data);
 
-			       tpl_list_remove(curr, func);
+			       __tpl_list_remove(curr, func);
 		       }
 	       }
 	}
 }
 
 static TPL_INLINE void
-tpl_list_push_front(tpl_list_t *list, void *data)
+__tpl_list_push_front(tpl_list_t *list, void *data)
 {
-	tpl_list_insert(&list->head, data);
+	TPL_ASSERT(list);
+
+	__tpl_list_insert(&list->head, data);
 }
 
-static TPL_INLINE void
-tpl_list_push_back(tpl_list_t *list, void *data)
+static TPL_INLINE tpl_bool_t
+__tpl_list_push_back(tpl_list_t *list, void *data)
 {
-	tpl_list_insert(list->tail.prev, data);
+	TPL_ASSERT(list);
+
+	return __tpl_list_insert(list->tail.prev, data);
 }
 
 static TPL_INLINE void *
-tpl_list_pop_front(tpl_list_t *list, tpl_free_func_t func)
+__tpl_list_pop_front(tpl_list_t *list, tpl_free_func_t func)
 {
-	void		*data;
+	void *data;
 
-	if (tpl_list_is_empty(list))
+	TPL_ASSERT(list);
+
+	if (__tpl_list_is_empty(list))
 		return NULL;
 
 	data = list->head.next->data;
-	tpl_list_remove(list->head.next, func);
+	__tpl_list_remove(list->head.next, func);
 
 	return data;
 }
@@ -491,24 +555,17 @@ tpl_list_pop_front(tpl_list_t *list, tpl_free_func_t func)
 static TPL_INLINE void *
 tpl_list_pop_back(tpl_list_t *list, tpl_free_func_t func)
 {
-	void		*data;
+	void *data;
 
-	if (tpl_list_is_empty(list))
+	TPL_ASSERT(list);
+
+	if (__tpl_list_is_empty(list))
 		return NULL;
 
 	data = list->tail.prev->data;
-	tpl_list_remove(list->tail.prev, func);
+	__tpl_list_remove(list->tail.prev, func);
 
 	return data;
 }
-
-/* Region functions. */
-void		tpl_region_init(tpl_region_t *region);
-void		tpl_region_fini(tpl_region_t *region);
-tpl_region_t *	tpl_region_alloc();
-void		tpl_region_free(tpl_region_t **region);
-tpl_bool_t	tpl_region_is_empty(const tpl_region_t *region);
-void		tpl_region_copy(tpl_region_t *dst, const tpl_region_t *src);
-void		tpl_region_set_rects(tpl_region_t *region, int num_rects, const int *rects);
 
 #endif /* TPL_UTILS_H */

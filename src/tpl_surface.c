@@ -3,8 +3,10 @@
 static void
 __tpl_surface_fini(tpl_surface_t *surface)
 {
-	tpl_region_fini(&surface->damage);
-	tpl_list_fini(&surface->frame_queue, (tpl_free_func_t)__tpl_frame_free);
+	TPL_ASSERT(surface);
+
+	__tpl_region_fini(&surface->damage);
+	__tpl_list_fini(&surface->frame_queue, (tpl_free_func_t) __tpl_frame_free);
 
 	if (surface->frame)
 		__tpl_frame_free(surface->frame);
@@ -15,42 +17,58 @@ __tpl_surface_fini(tpl_surface_t *surface)
 static void
 __tpl_surface_free(void *data)
 {
-	__tpl_surface_fini((tpl_surface_t *)data);
+	TPL_ASSERT(data);
+
+	__tpl_surface_fini((tpl_surface_t *) data);
 	free(data);
 }
 
-static void
+static tpl_bool_t
 __tpl_surface_enqueue_frame(tpl_surface_t *surface)
 {
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->frame);
+
 	/* Set swap attributes. */
 	surface->frame->interval = surface->post_interval;
-	tpl_region_copy(&surface->frame->damage, &surface->damage);
+	if (TPL_TRUE != __tpl_region_copy(&surface->frame->damage, &surface->damage))
+		return TPL_FALSE;
 
 	/* Enqueue the frame object. */
-	tpl_list_push_back(&surface->frame_queue, surface->frame);
+	if (TPL_TRUE != __tpl_list_push_back(&surface->frame_queue, surface->frame))
+		return TPL_FALSE;
+
 	surface->frame->state = TPL_FRAME_STATE_QUEUED;
 
 	/* Reset surface frame to NULL. */
-	surface->backend.end_frame(surface);
+	if (surface->backend.end_frame)
+		surface->backend.end_frame(surface);
+
 	surface->frame = NULL;
+
+	return TPL_TRUE;
 }
 
 tpl_frame_t *
 __tpl_surface_get_latest_frame(tpl_surface_t *surface)
 {
-	if (tpl_list_is_empty(&surface->frame_queue))
+	TPL_ASSERT(surface);
+
+	if (__tpl_list_is_empty(&surface->frame_queue))
 		return NULL;
 
-	return (tpl_frame_t *)tpl_list_get_back(&surface->frame_queue);
+	return (tpl_frame_t *) __tpl_list_get_back(&surface->frame_queue);
 }
 
 void
 __tpl_surface_wait_all_frames(tpl_surface_t *surface)
 {
-	while (!tpl_list_is_empty(&surface->frame_queue))
+	TPL_ASSERT(surface);
+
+	while (!__tpl_list_is_empty(&surface->frame_queue))
 	{
 		TPL_OBJECT_UNLOCK(surface);
-		tpl_util_sys_yield();
+		__tpl_util_sys_yield();
 		TPL_OBJECT_LOCK(surface);
 	}
 }
@@ -60,15 +78,34 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type
 {
 	tpl_surface_t *surface;
 
-	TPL_ASSERT(display != NULL);
+	if (NULL == display)
+	{
+		TPL_ERR("Display is NULL!");
+		return NULL;
+	}
 
-	surface = (tpl_surface_t *)calloc(1, sizeof(tpl_surface_t));
-	TPL_ASSERT(surface != NULL);
+	if (NULL == handle)
+	{
+		TPL_ERR("Handle is NULL!");
+		return NULL;
+	}
+
+	surface = (tpl_surface_t *) calloc(1, sizeof(tpl_surface_t));
+	if (NULL == surface)
+	{
+		TPL_ERR("Failed to allocate memory for surface!");
+		return NULL;
+	}
 
 	TPL_LOG(3, "surface->damage:%p {%d, %p, %p, %d}\n", &surface->damage, surface->damage.num_rects,
 		surface->damage.rects, &surface->damage.rects_static[0], surface->damage.num_rects_allocated);
 
-	__tpl_object_init(&surface->base, TPL_OBJECT_SURFACE, __tpl_surface_free);
+	if (TPL_TRUE != __tpl_object_init(&surface->base, TPL_OBJECT_SURFACE, __tpl_surface_free))
+	{
+		TPL_ERR("Failed to initialize surface's base class!");
+		free(surface);
+		return NULL;
+	}
 
 	surface->display = display;
 	surface->native_handle = handle;
@@ -78,14 +115,15 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type
 	surface->frame = NULL;
 	surface->post_interval = 1;
 
-	tpl_region_init(&surface->damage);
-	tpl_list_init(&surface->frame_queue);
+	__tpl_region_init(&surface->damage);
+	__tpl_list_init(&surface->frame_queue);
 
 	/* Intialize backend. */
 	__tpl_surface_init_backend(surface, display->backend.type);
 
-	if (!surface->backend.init(surface))
+	if (NULL == surface->backend.init || TPL_TRUE != surface->backend.init(surface))
 	{
+		TPL_ERR("Failed to initialize surface's backend!");
 		tpl_object_unreference(&surface->base);
 		return NULL;
 	}
@@ -96,51 +134,96 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type
 tpl_display_t *
 tpl_surface_get_display(tpl_surface_t *surface)
 {
+	if (NULL == surface)
+	{
+		TPL_ERR("Surface is NULL!");
+		return NULL;
+	}
+
 	return surface->display;
 }
 
 tpl_handle_t
 tpl_surface_get_native_handle(tpl_surface_t *surface)
 {
+	if (NULL == surface)
+	{
+		TPL_ERR("Surface is NULL!");
+		return NULL;
+	}
+
 	return surface->native_handle;
 }
 
 tpl_surface_type_t
 tpl_surface_get_type(tpl_surface_t *surface)
 {
+	if (NULL == surface)
+	{
+		TPL_ERR("Surface is NULL!");
+		return TPL_SURFACE_ERROR;
+	}
+
 	return surface->type;
 }
 
-void
+tpl_bool_t
 tpl_surface_get_size(tpl_surface_t *surface, int *width, int *height)
 {
+	if (NULL == surface)
+	{
+		TPL_ERR("Surface is NULL!");
+		return TPL_FALSE;
+	}
+
 	if (width)
 		*width = surface->width;
 
 	if (height)
 		*height = surface->height;
+
+	return TPL_TRUE;
 }
 
-void
+tpl_bool_t
 tpl_surface_begin_frame(tpl_surface_t *surface)
 {
-	TRACE_BEGIN("TPL:BEGINFRAME");
-
-	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
+	if (NULL == surface)
 	{
-		TRACE_END();
-		return;
+		TPL_ERR("Surface is NULL!");
+		return TPL_FALSE;
 	}
 
+	if (TPL_SURFACE_TYPE_WINDOW != surface->type)
+	{
+		TPL_ERR("Surface is not of type window!");
+		return TPL_FALSE;
+	}
+
+	TRACE_BEGIN("TPL:BEGINFRAME");
 	TPL_OBJECT_LOCK(surface);
 
 	/* Queue previous frame if it has not been queued. */
 	if (surface->frame)
-		__tpl_surface_enqueue_frame(surface);
+	{
+		if (TPL_TRUE != __tpl_surface_enqueue_frame(surface))
+		{
+			TPL_OBJECT_UNLOCK(surface);
+			TRACE_END();
+			TPL_ERR("Failed to enqueue frame!");
+			return TPL_FALSE;
+		}
+	}
 
 	/* Allocate a new frame. */
 	surface->frame = __tpl_frame_alloc();
-	TPL_ASSERT(surface->frame != NULL);
+	if (NULL == surface->frame)
+	{
+		TPL_OBJECT_UNLOCK(surface);
+		TRACE_END();
+		TPL_ERR("Failed to allocate frame!");
+		return TPL_FALSE;
+	}
 
 	surface->frame->state = TPL_FRAME_STATE_READY;
 
@@ -154,29 +237,45 @@ tpl_surface_begin_frame(tpl_surface_t *surface)
 	 * it will be just removed from the queue. */
 
 	/* Let backend handle the new frame event. */
-	surface->backend.begin_frame(surface);
+	if (surface->backend.begin_frame)
+		surface->backend.begin_frame(surface);
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
+
+	return TPL_TRUE;
 }
 
-void
+tpl_bool_t
 tpl_surface_end_frame(tpl_surface_t *surface)
 {
-	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
-		return;
-
-	TRACE_BEGIN("TPL:ENDFRAME");
-	TPL_OBJECT_LOCK(surface);
+	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
+	{
+		TPL_ERR("Invalid surface!");
+		return TPL_FALSE;
+	}
 
 	TPL_LOG(3, "surface->frame:%p, surface->damage:%p, surface->frame->damage:%p",
 		surface->frame, &surface->damage, (surface->frame)?(&surface->frame->damage):NULL);
 
+	TRACE_BEGIN("TPL:ENDFRAME");
+	TPL_OBJECT_LOCK(surface);
+
 	if (surface->frame)
-		__tpl_surface_enqueue_frame(surface);
+	{
+		if (TPL_TRUE != __tpl_surface_enqueue_frame(surface))
+		{
+			TPL_OBJECT_UNLOCK(surface);
+			TRACE_END();
+			TPL_ERR("Failed to enqueue frame!");
+			return TPL_FALSE;
+		}
+	}
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
+
+	return TPL_TRUE;
 }
 
 tpl_bool_t
@@ -184,34 +283,50 @@ tpl_surface_validate_frame(tpl_surface_t *surface)
 {
 	tpl_bool_t was_valid = TPL_TRUE;
 
+	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
+	{
+		TPL_ERR("Invalid surface!");
+		return TPL_FALSE;
+	}
+
+	if (NULL == surface->frame)
+	{
+		TPL_ERR("Frame not registered in surface!");
+		return TPL_FALSE;
+	}
+
+	if (NULL == surface->backend.validate_frame)
+	{
+		TPL_ERR("Backend for surface has not been initialized!");
+		return TPL_FALSE;
+	}
+
 	TRACE_BEGIN("TPL:VALIDATEFRAME");
-
-	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
-        {
-		TRACE_END();
-		return was_valid;
-        }
-
 	TPL_OBJECT_LOCK(surface);
-	TPL_ASSERT(surface->frame != NULL);
 
 	if (!surface->backend.validate_frame(surface))
 		was_valid = TPL_FALSE;
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
+
 	return was_valid;
 }
 
-void
+tpl_bool_t
 tpl_surface_set_post_interval(tpl_surface_t *surface, int interval)
 {
-	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
-		return;
+	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
+	{
+		TPL_ERR("Invalid surface!");
+		return TPL_FALSE;
+	}
 
 	TPL_OBJECT_LOCK(surface);
 	surface->post_interval = interval;
 	TPL_OBJECT_UNLOCK(surface);
+
+	return TPL_TRUE;
 }
 
 int
@@ -219,8 +334,11 @@ tpl_surface_get_post_interval(tpl_surface_t *surface)
 {
 	int interval;
 
-	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
-		return 0;
+	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
+	{
+		TPL_ERR("Invalid surface!");
+		return -1;
+	}
 
 	TPL_OBJECT_LOCK(surface);
 	interval = surface->post_interval;
@@ -229,37 +347,59 @@ tpl_surface_get_post_interval(tpl_surface_t *surface)
 	return interval;
 }
 
-void
+tpl_bool_t
 tpl_surface_set_damage(tpl_surface_t *surface, int num_rects, const int *rects)
 {
-	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
-		return;
+	tpl_bool_t ret;
+
+	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
+	{
+		TPL_ERR("Invalid surface!");
+		return TPL_FALSE;
+	}
 
 	TPL_OBJECT_LOCK(surface);
-	tpl_region_set_rects(&surface->damage, num_rects, rects);
+	ret = __tpl_region_set_rects(&surface->damage, num_rects, rects);
 	TPL_OBJECT_UNLOCK(surface);
+
+	return ret;
 }
 
-void
+tpl_bool_t
 tpl_surface_get_damage(tpl_surface_t *surface, int *num_rects, const int **rects)
 {
-	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
+	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
 	{
+		TPL_ERR("Invalid surface!");
 		*num_rects = 0;
 		*rects = NULL;
-		return;
+		return TPL_FALSE;
 	}
 
 	TPL_OBJECT_LOCK(surface);
 	*num_rects = surface->damage.num_rects;
 	*rects = surface->damage.rects;
 	TPL_OBJECT_UNLOCK(surface);
+
+	return TPL_TRUE;
 }
 
 tpl_buffer_t *
 tpl_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 {
 	tpl_buffer_t *buffer = NULL;
+
+	if (NULL == surface)
+	{
+		TPL_ERR("Invalid surface!");
+		return NULL;
+	}
+
+	if (NULL == surface->backend.get_buffer)
+	{
+		TPL_ERR("TPL surface has not been initialized correctly!");
+		return NULL;
+	}
 
 	TRACE_BEGIN("TPL:GETBUFFER");
 	TPL_OBJECT_LOCK(surface);
@@ -282,48 +422,68 @@ tpl_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 	return buffer;
 }
 
-int
+tpl_bool_t
 tpl_surface_post(tpl_surface_t *surface)
 {
 	tpl_frame_t *frame;
 
-        TRACE_BEGIN("TPL:POST");
-	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
+	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
 	{
-		TRACE_END();
+		TPL_ERR("Invalid surface!");
 		return TPL_FALSE;
 	}
-
-	TPL_OBJECT_LOCK(surface);
 
 	TPL_LOG(3, "surface->frame:%p, surface->damage:%p, surface->frame->damage:%p",
 		surface->frame, &surface->damage, (surface->frame)?(&surface->frame->damage):NULL);
 
-	if (tpl_list_is_empty(&surface->frame_queue))
+	TRACE_BEGIN("TPL:POST");
+	TPL_OBJECT_LOCK(surface);
+
+	if (__tpl_list_is_empty(&surface->frame_queue))
 	{
 		/* Queue is empty and swap is called.
 		 * This means that current frame is not enqueued yet
 		 * and there's no pending frames.
 		 * So, this post is for the current frame. */
-		TPL_ASSERT(surface->frame != NULL);
+		if (NULL == surface->frame)
+		{
+			TPL_OBJECT_UNLOCK(surface);
+			TRACE_END();
+			TPL_ERR("Frame not registered in surface!");
+			return TPL_FALSE;
+		}
 
-		__tpl_surface_enqueue_frame(surface);
+		if (TPL_TRUE != __tpl_surface_enqueue_frame(surface))
+		{
+			TPL_OBJECT_UNLOCK(surface);
+			TRACE_END();
+			TPL_ERR("Failed to enqueue frame!");
+			return TPL_FALSE;
+		}
 	}
 
 	/* Dequeue a frame from the queue. */
-	frame = (tpl_frame_t *)tpl_list_pop_front(&surface->frame_queue, NULL);
+	frame = (tpl_frame_t *) __tpl_list_pop_front(&surface->frame_queue, NULL);
+
+	if (NULL == frame)
+	{
+		TPL_OBJECT_UNLOCK(surface);
+		TRACE_END();
+		TPL_ERR("Frame to post received from the queue is invalid!");
+		return TPL_FALSE;
+	}
 
 	if (frame->buffer == NULL)
 	{
 		__tpl_frame_free(frame);
 		TPL_OBJECT_UNLOCK(surface);
 		TRACE_END();
-
+		TPL_ERR("Buffer not initialized for frame!");
 		return TPL_FALSE;
 	}
 
 	/* Call backend post if it has not been called for the frame. */
-	if (frame->state != TPL_FRAME_STATE_POSTED)
+	if (TPL_FRAME_STATE_POSTED != frame->state)
 		surface->backend.post(surface, frame);
 
 	__tpl_frame_free(frame);

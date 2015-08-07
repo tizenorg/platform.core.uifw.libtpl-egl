@@ -74,6 +74,10 @@ __tpl_x11_dri2_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
 	XRectangle xrects_stack[TPL_STACK_XRECTANGLE_SIZE];
 	int interval = frame->interval;
 
+	TPL_ASSERT(frame);
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->backend.data);
+
 	x11_surface = (tpl_x11_dri2_surface_t *)surface->backend.data;
 
 	if (is_worker)
@@ -92,7 +96,7 @@ __tpl_x11_dri2_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
 		x11_surface->latest_post_interval = interval;
 	}
 
-	if (tpl_region_is_empty(&frame->damage))
+	if (__tpl_region_is_empty(&frame->damage))
 	{
 		DRI2SwapBuffers(display, drawable, 0, 0, 0, &swap_count);
 	}
@@ -102,7 +106,7 @@ __tpl_x11_dri2_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
 
 		if (frame->damage.num_rects > TPL_STACK_XRECTANGLE_SIZE)
 		{
-			xrects = (XRectangle *)malloc(sizeof(XRectangle) *
+			xrects = (XRectangle *) malloc(sizeof(XRectangle) *
 						      frame->damage.num_rects);
 		}
 		else
@@ -140,14 +144,24 @@ __tpl_x11_dri2_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
 static tpl_bool_t
 __tpl_x11_dri2_display_init(tpl_display_t *display)
 {
-	pthread_mutex_t mutex = __tpl_x11_get_global_mutex();
+	pthread_mutex_t mutex;
+
+	TPL_ASSERT(display);
+
+	mutex = __tpl_x11_get_global_mutex();
+
 	if (display->native_handle == NULL)
 	{
 		display->native_handle = XOpenDisplay(NULL);
-		TPL_ASSERT(display->native_handle != NULL);
+		if (NULL == display->native_handle)
+		{
+			TPL_ERR("XOpenDisplay failed!");
+			return TPL_FALSE;
+		}
 	}
-    display->xcb_connection = XGetXCBConnection( (Display*)display->native_handle );
-    if( NULL == display->xcb_connection )
+
+	display->xcb_connection = XGetXCBConnection( (Display*)display->native_handle );
+	if( NULL == display->xcb_connection )
 	{
 		TPL_WARN("XGetXCBConnection failed");
 	}
@@ -168,20 +182,36 @@ __tpl_x11_dri2_display_init(tpl_display_t *display)
 
 		/* Open a dummy display connection. */
 		global.worker_display = XOpenDisplay(NULL);
-		TPL_ASSERT(global.worker_display != NULL);
+		if (NULL == global.worker_display)
+		{
+			TPL_ERR("XOpenDisplay failed!");
+			return TPL_FALSE;
+		}
 
 		/* Get default root window. */
 		root = DefaultRootWindow(global.worker_display);
 
 		/* Initialize DRI2. */
 		xres = DRI2QueryExtension(global.worker_display, &event_base, &error_base);
-		TPL_ASSERT(xres == True);
+		if (True != xres)
+		{
+			TPL_ERR("DRI2QueryExtension failed!");
+			return TPL_FALSE;
+		}
 
 		xres = DRI2QueryVersion(global.worker_display, &major, &minor);
-		TPL_ASSERT(xres == True);
+		if (True != xres)
+		{
+			TPL_ERR("DRI2QueryVersion failed!");
+			return TPL_FALSE;
+		}
 
 		xres = DRI2Connect(global.worker_display, root, &drv, &dev);
-		TPL_ASSERT(xres == True);
+		if (True != xres)
+		{
+			TPL_ERR("DRI2Connect failed!");
+			return TPL_FALSE;
+		}
 
 		/* Initialize buffer manager. */
 		global.bufmgr_fd = open(dev, O_RDWR);
@@ -190,7 +220,11 @@ __tpl_x11_dri2_display_init(tpl_display_t *display)
 
 		/* DRI2 authentication. */
 		xres = DRI2Authenticate(global.worker_display, root, magic);
-		TPL_ASSERT(xres == True);
+		if (True != xres)
+		{
+			TPL_ERR("DRI2Authenciate failed!");
+			return TPL_FALSE;
+		}
 
 		/* Initialize swap type configuration. */
 		__tpl_x11_swap_str_to_swap_type(getenv(EGL_X11_WINDOW_SWAP_TYPE_ENV_NAME),
@@ -212,7 +246,9 @@ __tpl_x11_dri2_display_fini(tpl_display_t *display)
 {
 
 	pthread_mutex_t mutex = __tpl_x11_get_global_mutex();
+
 	TPL_IGNORE(display);
+
 	pthread_mutex_lock(&mutex);
 
 	if (--global.display_count == 0)
@@ -238,6 +274,8 @@ __tpl_x11_dri2_surface_init(tpl_surface_t *surface)
 	tpl_x11_dri2_surface_t *x11_surface;
 	tpl_format_t format = TPL_FORMAT_INVALID;
 
+	TPL_ASSERT(surface);
+
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW)
 	{
 		if (!__tpl_x11_display_get_window_info(surface->display, surface->native_handle,
@@ -251,11 +289,11 @@ __tpl_x11_dri2_surface_init(tpl_surface_t *surface)
 			return TPL_FALSE;
 	}
 
-	x11_surface = (tpl_x11_dri2_surface_t *)calloc(1, sizeof(tpl_x11_dri2_surface_t));
+	x11_surface = (tpl_x11_dri2_surface_t *) calloc(1, sizeof(tpl_x11_dri2_surface_t));
 
 	if (x11_surface == NULL)
 	{
-		TPL_ASSERT(TPL_FALSE);
+		TPL_ERR("Failed to allocate memory for X11 surface!");
 		return TPL_FALSE;
 	}
 
@@ -277,6 +315,10 @@ __tpl_x11_dri2_surface_fini(tpl_surface_t *surface)
 	Display *display;
 	Drawable drawable;
 	tpl_x11_dri2_surface_t *x11_surface;
+
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->display);
+	TPL_ASSERT(surface->display->native_handle);
 
 	display = (Display *)surface->display->native_handle;
 	drawable = (Drawable)surface->native_handle;
@@ -300,6 +342,9 @@ __tpl_x11_dri2_surface_fini(tpl_surface_t *surface)
 static void
 __tpl_x11_dri2_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 {
+	TPL_ASSERT(frame);
+	TPL_ASSERT(surface);
+
 	__tpl_x11_dri2_surface_post_internal(surface, frame, TPL_TRUE);
 }
 
@@ -308,8 +353,13 @@ __tpl_x11_surface_begin_frame(tpl_surface_t *surface)
 {
 	tpl_frame_t *prev_frame;
 
+	TPL_ASSERT(surface);
+
 	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
+	{
+		TPL_ERR("Surface type is not of window type!");
 		return;
+	}
 
 	prev_frame = __tpl_surface_get_latest_frame(surface);
 
@@ -328,12 +378,17 @@ __tpl_x11_surface_begin_frame(tpl_surface_t *surface)
 static tpl_bool_t
 __tpl_x11_surface_validate_frame(tpl_surface_t *surface)
 {
-	tpl_x11_dri2_surface_t *x11_surface = (tpl_x11_dri2_surface_t *)surface->backend.data;
+	tpl_x11_dri2_surface_t *x11_surface;
+
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->backend.data);
+
+	x11_surface = (tpl_x11_dri2_surface_t *) surface->backend.data;
 
 	if (surface->type != TPL_SURFACE_TYPE_WINDOW)
 		return TPL_TRUE;
 
-	if (surface->frame == NULL)
+	if (NULL == surface->frame)
 		return TPL_TRUE;
 
 	if ((DRI2_BUFFER_IS_FB(surface->frame->buffer->backend.flags) &&
@@ -354,8 +409,14 @@ __tpl_x11_surface_validate_frame(tpl_surface_t *surface)
 static void
 __tpl_x11_surface_end_frame(tpl_surface_t *surface)
 {
-	tpl_frame_t *frame = __tpl_surface_get_latest_frame(surface);
-	tpl_x11_dri2_surface_t *x11_surface = (tpl_x11_dri2_surface_t *)surface->backend.data;
+	tpl_frame_t *frame;
+	tpl_x11_dri2_surface_t *x11_surface;
+
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->backend.data);
+
+	frame = __tpl_surface_get_latest_frame(surface);
+	x11_surface = (tpl_x11_dri2_surface_t *) surface->backend.data;
 
 	if (frame)
 	{
@@ -382,7 +443,12 @@ __tpl_x11_dri2_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 	tbm_bo bo;
 	tbm_bo_handle bo_handle;
 	int width, height, num_buffers;
-	tpl_x11_dri2_surface_t *x11_surface = (tpl_x11_dri2_surface_t *)surface->backend.data;
+	tpl_x11_dri2_surface_t *x11_surface;
+
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->backend.data);
+
+	x11_surface = (tpl_x11_dri2_surface_t *)surface->backend.data;
 
 	if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
 		attachments[0] = DRI2BufferFrontLeft;
@@ -394,7 +460,10 @@ __tpl_x11_dri2_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 	dri2_buffers = DRI2GetBuffers(display, drawable,
 				      &width, &height, attachments, 1, &num_buffers);
 	if (dri2_buffers == NULL)
+	{
+		TPL_ERR("DRI2GetBuffers failed!");
 		goto err_buffer;
+	}
 
 	if (DRI2_BUFFER_IS_REUSED(dri2_buffers[0].flags))
 	{
@@ -426,7 +495,7 @@ __tpl_x11_dri2_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 
 	if (bo == NULL)
 	{
-		TPL_ASSERT(TPL_FALSE);
+		TPL_ERR("TBM bo import failed!");
 		goto done;
 	}
 
@@ -435,6 +504,11 @@ __tpl_x11_dri2_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 	/* Create tpl buffer. */
 	buffer = __tpl_buffer_alloc(surface, (size_t) dri2_buffers[0].name, (int) bo_handle.u32,
 				    width, height, dri2_buffers[0].cpp * 8, dri2_buffers[0].pitch);
+	if (NULL == buffer)
+	{
+		TPL_ERR("TPL buffer alloc failed!");
+		goto err_buffer;
+	}
 
 #if (TIZEN_FEATURES_ENABLE)
 	buffer->age = DRI2_BUFFER_GET_AGE(dri2_buffers[0].flags);
@@ -469,36 +543,42 @@ __tpl_display_choose_backend_x11_dri2(tpl_handle_t native_dpy)
 void
 __tpl_display_init_backend_x11_dri2(tpl_display_backend_t *backend)
 {
+	TPL_ASSERT(backend);
+
 	backend->type = TPL_BACKEND_X11_DRI2;
 	backend->data = NULL;
 
-	backend->init			    = __tpl_x11_dri2_display_init;
-	backend->fini			    = __tpl_x11_dri2_display_fini;
-	backend->query_config		= __tpl_x11_display_query_config;
+	backend->init		= __tpl_x11_dri2_display_init;
+	backend->fini		= __tpl_x11_dri2_display_fini;
+	backend->query_config	= __tpl_x11_display_query_config;
 	backend->get_window_info	= __tpl_x11_display_get_window_info;
 	backend->get_pixmap_info	= __tpl_x11_display_get_pixmap_info;
-	backend->flush			    = __tpl_x11_display_flush;
-    backend->wait_native        = __tpl_x11_display_wait_native;
+	backend->flush		= __tpl_x11_display_flush;
+	backend->wait_native	= __tpl_x11_display_wait_native;
 }
 
 void
 __tpl_surface_init_backend_x11_dri2(tpl_surface_backend_t *backend)
 {
+	TPL_ASSERT(backend);
+
 	backend->type = TPL_BACKEND_X11_DRI2;
 	backend->data = NULL;
 
-	backend->init		    = __tpl_x11_dri2_surface_init;
-	backend->fini		    = __tpl_x11_dri2_surface_fini;
-	backend->begin_frame    = __tpl_x11_surface_begin_frame;
-	backend->end_frame	    = __tpl_x11_surface_end_frame;
+	backend->init		= __tpl_x11_dri2_surface_init;
+	backend->fini		= __tpl_x11_dri2_surface_fini;
+	backend->begin_frame	= __tpl_x11_surface_begin_frame;
+	backend->end_frame	= __tpl_x11_surface_end_frame;
 	backend->validate_frame	= __tpl_x11_surface_validate_frame;
-	backend->get_buffer	    = __tpl_x11_dri2_surface_get_buffer;
-	backend->post		    = __tpl_x11_dri2_surface_post;
+	backend->get_buffer	= __tpl_x11_dri2_surface_get_buffer;
+	backend->post		= __tpl_x11_dri2_surface_post;
 }
 
 void
 __tpl_buffer_init_backend_x11_dri2(tpl_buffer_backend_t *backend)
 {
+	TPL_ASSERT(backend);
+
 	backend->type = TPL_BACKEND_X11_DRI2;
 	backend->data = NULL;
 

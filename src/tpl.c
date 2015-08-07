@@ -10,14 +10,17 @@ struct _tpl_runtime
 static tpl_runtime_t	*runtime = NULL;
 static pthread_mutex_t	runtime_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static void
+static tpl_bool_t
 __tpl_runtime_init()
 {
 	if (runtime == NULL)
 	{
-		runtime = (tpl_runtime_t *)calloc(1, sizeof(tpl_runtime_t));
-		TPL_ASSERT(runtime != NULL);
+		runtime = (tpl_runtime_t *) calloc(1, sizeof(tpl_runtime_t));
+		if (runtime == NULL)
+			return TPL_FALSE;
 	}
+
+	return TPL_TRUE;
 }
 
 static void __attribute__((destructor))
@@ -30,7 +33,7 @@ __tpl_runtime_fini()
 		for (i = 0; i < TPL_BACKEND_COUNT; i++)
 		{
 			if (runtime->displays[i] != NULL)
-				tpl_hashlist_destroy(&(runtime->displays[i]));
+				__tpl_hashlist_destroy(&(runtime->displays[i]));
 		}
 
 		free(runtime);
@@ -39,10 +42,12 @@ __tpl_runtime_fini()
 }
 
 /* Begin: OS dependent function definition */
-void tpl_util_sys_yield(void)
+void __tpl_util_sys_yield(void)
 {
 	int status;
+
 	status = sched_yield();
+
 	if (0 != status)
 	{
 		/* non-fatal on error, warning is enough */
@@ -50,17 +55,16 @@ void tpl_util_sys_yield(void)
 	}
 }
 
-int tpl_util_clz(int val)
+int __tpl_util_clz(int val)
 {
 	return __builtin_clz( val );
 }
 
-int tpl_util_atomic_get(const tpl_util_atomic_uint * const atom)
+int __tpl_util_atomic_get(const tpl_util_atomic_uint * const atom)
 {
 	unsigned int ret;
 
-	if (!atom)
-		abort();
+	TPL_ASSERT(atom);
 
 	TPL_DMB();
 	ret = *atom;
@@ -69,27 +73,24 @@ int tpl_util_atomic_get(const tpl_util_atomic_uint * const atom)
 	return ret;
 }
 
-void tpl_util_atomic_set(tpl_util_atomic_uint * const atom, unsigned int val)
+void __tpl_util_atomic_set(tpl_util_atomic_uint * const atom, unsigned int val)
 {
-	if (!atom)
-		abort();
+	TPL_ASSERT(atom);
 
 	TPL_DMB();
 	*atom = val;
 	TPL_DMB();
 }
 
-int tpl_util_atomic_inc(tpl_util_atomic_uint * const atom )
+unsigned int __tpl_util_atomic_inc(tpl_util_atomic_uint * const atom )
 {
-	if (!atom)
-		abort();
+	TPL_ASSERT(atom);
 
 	return __sync_add_and_fetch(atom, 1);
 }
-int tpl_util_atomic_dec( tpl_util_atomic_uint * const atom )
+unsigned int __tpl_util_atomic_dec( tpl_util_atomic_uint * const atom )
 {
-	if (!atom)
-		abort();
+	TPL_ASSERT(atom);
 
 	return __sync_sub_and_fetch(atom, 1);
 }
@@ -109,7 +110,7 @@ __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
 	{
 		if (runtime->displays[type] != NULL)
 		{
-			display = (tpl_display_t *) tpl_hashlist_lookup(runtime->displays[type],
+			display = (tpl_display_t *) __tpl_hashlist_lookup(runtime->displays[type],
 									(size_t) native_display);
 		}
 	}
@@ -121,7 +122,7 @@ __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
 		{
 			if (runtime->displays[i] != NULL)
 			{
-				display = (tpl_display_t *) tpl_hashlist_lookup(runtime->displays[i],
+				display = (tpl_display_t *) __tpl_hashlist_lookup(runtime->displays[i],
 										(size_t) native_display);
 			}
 			if (display != NULL) break;
@@ -133,26 +134,43 @@ __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
 	return display;
 }
 
-void
+tpl_bool_t
 __tpl_runtime_add_display(tpl_display_t *display)
 {
 	tpl_bool_t ret;
-	tpl_handle_t handle = display->native_handle;
-	tpl_backend_type_t type = display->backend.type;
+	tpl_handle_t handle;
+	tpl_backend_type_t type;
 
-	pthread_mutex_lock(&runtime_mutex);
-	__tpl_runtime_init();
+	TPL_ASSERT(display);
 
-	if (type != TPL_BACKEND_UNKNOWN)
+	handle = display->native_handle;
+	type = display->backend.type;
+
+	TPL_ASSERT(0 <= type && TPL_BACKEND_COUNT > type);
+
+	if (0 != pthread_mutex_lock(&runtime_mutex))
+		return TPL_FALSE;
+
+	if (TPL_TRUE != __tpl_runtime_init())
+		return TPL_FALSE;
+
+	if (NULL == runtime->displays[type])
 	{
-		if (runtime->displays[type] == NULL)
-			runtime->displays[type] = tpl_hashlist_create();
+		runtime->displays[type] = __tpl_hashlist_create();
+		if (NULL == runtime->displays[type])
+			return TPL_FALSE;
+	}
 
-		ret = tpl_hashlist_insert(runtime->displays[type], (size_t) handle, (void *) display);
-		TPL_ASSERT(ret == TPL_TRUE);
+	ret = __tpl_hashlist_insert(runtime->displays[type], (size_t) handle, (void *) display);
+	if (TPL_TRUE != ret)
+	{
+		__tpl_hashlist_destroy(&runtime->displays[type]);
+		return TPL_FALSE;
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);
+
+	return TPL_TRUE;
 }
 
 void
@@ -166,7 +184,7 @@ __tpl_runtime_remove_display(tpl_display_t *display)
 	if (type != TPL_BACKEND_UNKNOWN)
 	{
 		if (runtime != NULL && runtime->displays[type] != NULL)
-			tpl_hashlist_delete(runtime->displays[type], (size_t) handle);
+			__tpl_hashlist_delete(runtime->displays[type], (size_t) handle);
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);
@@ -192,7 +210,7 @@ __tpl_runtime_flush_all_display()
 	for (i = 0; i < TPL_BACKEND_COUNT; i++)
 	{
 		if (runtime->displays[i] != NULL)
-			tpl_hashlist_do_for_all_nodes(runtime->displays[i],
+			__tpl_hashlist_do_for_all_nodes(runtime->displays[i],
 						      __tpl_runtime_flush_cb);
 	}
 
@@ -220,6 +238,9 @@ __tpl_display_choose_backend(tpl_handle_t native_dpy)
 void
 __tpl_display_init_backend(tpl_display_t *display, tpl_backend_type_t type)
 {
+	TPL_ASSERT(display);
+	TPL_ASSERT(0 <= type && TPL_BACKEND_COUNT > type);
+
 	switch (type)
 	{
 #ifdef TPL_WINSYS_WL
@@ -239,13 +260,15 @@ __tpl_display_init_backend(tpl_display_t *display, tpl_backend_type_t type)
 #endif
 	default:
 		TPL_ASSERT(TPL_FALSE);
-		break;
 	}
 }
 
 void
 __tpl_surface_init_backend(tpl_surface_t *surface, tpl_backend_type_t type)
 {
+	TPL_ASSERT(surface);
+	TPL_ASSERT(0 <= type && TPL_BACKEND_COUNT > type);
+
 	switch (type)
 	{
 #ifdef TPL_WINSYS_WL
@@ -265,7 +288,6 @@ __tpl_surface_init_backend(tpl_surface_t *surface, tpl_backend_type_t type)
 #endif
 	default:
 		TPL_ASSERT(TPL_FALSE);
-		break;
 	}
 }
 

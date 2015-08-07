@@ -138,9 +138,11 @@ typedef void (*tpl_free_func_t)(void *data);
  */
 typedef enum
 {
+	TPL_OBJECT_ERROR = -1,
 	TPL_OBJECT_DISPLAY,
 	TPL_OBJECT_SURFACE,
-	TPL_OBJECT_BUFFER
+	TPL_OBJECT_BUFFER,
+	TPL_OBJECT_MAX
 } tpl_object_type_t;
 
 /**
@@ -155,8 +157,10 @@ typedef enum
  */
 typedef enum
 {
+	TPL_SURFACE_ERROR = -1,
 	TPL_SURFACE_TYPE_WINDOW,	/**< surface gets displayed by the display server. */
-	TPL_SURFACE_TYPE_PIXMAP		/**< surface is an offscreen pixmap. */
+	TPL_SURFACE_TYPE_PIXMAP,	/**< surface is an offscreen pixmap. */
+	TPL_SURFACE_MAX
 } tpl_surface_type_t;
 
 /**
@@ -229,11 +233,13 @@ typedef enum
  */
 typedef enum
 {
+	TPL_BACKEND_ERROR = -1,
 	TPL_BACKEND_WAYLAND,
 	TPL_BACKEND_X11_DRI2,
 	TPL_BACKEND_X11_DRI3,
 	TPL_BACKEND_COUNT,
-	TPL_BACKEND_UNKNOWN
+	TPL_BACKEND_UNKNOWN,
+	TPL_BACKEND_MAX
 } tpl_backend_type_t;
 
 /**
@@ -243,7 +249,7 @@ typedef enum
  * creatation. When the reference count drops to 0, the object will be freed.
  *
  * @param object object which will be referenced.
- * @return reference count after reference.
+ * @return reference count after reference on success, -1 on error.
  *
  * @see tpl_object_unreference()
  * @see tpl_object_get_reference()
@@ -254,7 +260,7 @@ int tpl_object_reference(tpl_object_t *object);
  * Decrease reference count of a TPL object.
  *
  * @param object object which will be unreferenced.
- * @return reference count after unreference.
+ * @return reference count after unreference on success, -1 on error.
  *
  * @see tpl_object_reference()
  * @see tpl_object_get_reference()
@@ -265,7 +271,7 @@ int tpl_object_unreference(tpl_object_t *object);
  * Get reference count of a TPL object.
  *
  * @oaram object object to get reference count.
- * @return reference count.
+ * @return reference count on success, -1 on error.
  *
  * @see tpl_object_reference()
  * @see tpl_object_get_reference()
@@ -276,7 +282,7 @@ int tpl_object_get_reference(tpl_object_t *object);
  * Get the type of a TPL object.
  *
  * @param object object to get type.
- * @return type of the given object. one of tpl_object_type_t
+ * @return actual type of the object on success, TPL_OBJECT_ERROR on error.
  */
 tpl_object_type_t tpl_object_get_type(tpl_object_t *object);
 
@@ -290,10 +296,11 @@ tpl_object_type_t tpl_object_get_type(tpl_object_t *object);
  * @param object object to set user data to.
  * @param data pointer to the user data.
  * @param free_func free function which is used for freeing the user data when the object is destroyed.
+ * @return TPL_TRUE on success, TPL_FALSE on error.
  *
  * @see tpl_object_get_user_data()
  */
-void tpl_object_set_user_data(tpl_object_t *object,
+tpl_bool_t tpl_object_set_user_data(tpl_object_t *object,
 			      void *data,
 			      tpl_free_func_t free_func);
 
@@ -301,7 +308,7 @@ void tpl_object_set_user_data(tpl_object_t *object,
  * Get registered user data of a TPL object.
  *
  * @param object object to get user data.
- * @return pointer to the registered user data.
+ * @return pointer to the registered user data on success, NULL on error.
  *
  * @see tpl_object_set_user_data()
  */
@@ -496,7 +503,7 @@ tpl_surface_type_t tpl_surface_get_type(tpl_surface_t *surface);
  * @param width pointer to receive width value.
  * @param height pointer to receive height value.
  */
-void tpl_surface_get_size(tpl_surface_t *surface,
+tpl_bool_t tpl_surface_get_size(tpl_surface_t *surface,
 			  int *width,
 			  int *height);
 
@@ -521,7 +528,7 @@ void tpl_surface_get_size(tpl_surface_t *surface,
  * @see tpl_surface_post()
  * @see tpl_surface_get_buffer()
  */
-void tpl_surface_begin_frame(tpl_surface_t *surface);
+tpl_bool_t tpl_surface_begin_frame(tpl_surface_t *surface);
 
 /**
  * End the current frame of the given TPL surface.
@@ -539,7 +546,7 @@ void tpl_surface_begin_frame(tpl_surface_t *surface);
  * @see tpl_surface_set_post_interval()
  * @see tpl_surface_set_damage()
  */
-void tpl_surface_end_frame(tpl_surface_t *surface);
+tpl_bool_t tpl_surface_end_frame(tpl_surface_t *surface);
 
 /**
  * Validate current frame of the given TPL surface.
@@ -602,7 +609,7 @@ tpl_buffer_t * tpl_surface_get_buffer(tpl_surface_t *surface,
  * @see tpl_surface_begin_frame()
  * @see tpl_surface_end_frame()
  */
-int tpl_surface_post(tpl_surface_t *surface);
+tpl_bool_t tpl_surface_post(tpl_surface_t *surface);
 
 /**
  * Set frame interval of the given TPL surface.
@@ -616,7 +623,7 @@ int tpl_surface_post(tpl_surface_t *surface);
  *
  * @see tpl_surface_get_post_interval()
  */
-void tpl_surface_set_post_interval(tpl_surface_t *surface,
+tpl_bool_t tpl_surface_set_post_interval(tpl_surface_t *surface,
 				   int interval);
 
 /**
@@ -643,7 +650,7 @@ int tpl_surface_get_post_interval(tpl_surface_t *surface);
  *
  * @see tpl_surface_get_damage()
  */
-void tpl_surface_set_damage(tpl_surface_t *surface,
+tpl_bool_t tpl_surface_set_damage(tpl_surface_t *surface,
 			    int num_rects,
 			    const int *rects);
 
@@ -656,7 +663,7 @@ void tpl_surface_set_damage(tpl_surface_t *surface,
  *
  * @see tpl_surface_set_damage()
  */
-void tpl_surface_get_damage(tpl_surface_t *surface,
+tpl_bool_t tpl_surface_get_damage(tpl_surface_t *surface,
 			    int *num_rects,
 			    const int **rects);
 
@@ -786,8 +793,9 @@ tpl_surface_t * tpl_buffer_get_surface(tpl_buffer_t *buffer);
  * @param buffer buffer to get the size.
  * @param width pointer to receive the width value.
  * @param height pointer to receive the height value.
+ * @return TPL_TRUE on success, TPL_FALSE on error.
  */
-void tpl_buffer_get_size(tpl_buffer_t *buffer,
+tpl_bool_t tpl_buffer_get_size(tpl_buffer_t *buffer,
 			 int *width,
 			 int *height);
 
@@ -849,6 +857,6 @@ tpl_bool_t tpl_get_native_pixmap_info(tpl_display_t *display,
 				      int *height,
 				      tpl_format_t *format);
 
-void tpl_display_wait_native(tpl_display_t *dpy);
+void tpl_display_wait_native(tpl_display_t *display);
 
 #endif /* TPL_H */

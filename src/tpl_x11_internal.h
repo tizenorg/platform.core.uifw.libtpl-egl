@@ -31,9 +31,11 @@ typedef struct _tpl_x11_global	tpl_x11_global_t;
 
 typedef enum
 {
+	TPL_X11_SWAP_TYPE_ERROR = -1,
 	TPL_X11_SWAP_TYPE_SYNC = 0,
 	TPL_X11_SWAP_TYPE_ASYNC,
 	TPL_X11_SWAP_TYPE_LAZY,
+	TPL_X11_SWAP_TYPE_MAX
 } tpl_x11_swap_type_t;
 
 struct _tpl_x11_global
@@ -58,7 +60,7 @@ tpl_buffer_t *
 __tpl_x11_surface_buffer_cache_find(tpl_list_t	 *buffer_cache, unsigned int name);
 void
 __tpl_x11_surface_buffer_cache_remove(tpl_list_t 	*buffer_cache, unsigned int name);
-void
+tpl_bool_t
 __tpl_x11_surface_buffer_cache_add(tpl_list_t	*buffer_cache, tpl_buffer_t *buffer);
 void
 __tpl_x11_surface_buffer_cache_clear(tpl_list_t	*buffer_cache);
