@@ -827,6 +827,46 @@ __tpl_wayland_surface_end_frame(tpl_surface_t *surface)
 	return TPL_TRUE;
 }
 
+static int
+__tpl_wayland_get_depth_from_format(tpl_format_t format)
+{
+	int depth = 0;
+
+	switch(format)
+	{
+		case TPL_FORMAT_BGR565:
+		case TPL_FORMAT_RGB565:
+		case TPL_FORMAT_ABGR4444:
+		case TPL_FORMAT_ARGB4444:
+		case TPL_FORMAT_BGRA4444:
+		case TPL_FORMAT_RGBA4444:
+		case TPL_FORMAT_ABGR1555:
+		case TPL_FORMAT_ARGB1555:
+		case TPL_FORMAT_BGRA5551:
+		case TPL_FORMAT_RGBA5551:
+			depth = 16;
+			break;
+		case TPL_FORMAT_ABGR8888:
+		case TPL_FORMAT_ARGB8888:
+		case TPL_FORMAT_BGRA8888:
+		case TPL_FORMAT_RGBA8888:
+		case TPL_FORMAT_XBGR8888:
+		case TPL_FORMAT_XRGB8888:
+		case TPL_FORMAT_BGRX8888:
+		case TPL_FORMAT_RGBX8888:
+			depth = 32;
+			break;
+		case TPL_FORMAT_BGR888:
+		case TPL_FORMAT_RGB888:
+			depth = 24;
+			break;
+		default:
+			depth = 32;
+	}
+
+	return depth;
+}
+
 static tpl_buffer_t *
 __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 {
@@ -856,8 +896,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 		return NULL;
 	}
 
-	depth = 32; /*TPL_FORMAT_GET_DEPTH(format); */
-
+	depth = __tpl_wayland_get_depth_from_format(format);
 	stride = ALIGN_TO_64BYTE(width * depth / 8);
 
 	/* Allocate a buffer */
@@ -975,8 +1014,7 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 		return NULL;
 	}
 
-	depth = 32; /* TPL_FORMAT_GET_DEPTH(format); */
-
+	depth = __tpl_wayland_get_depth_from_format(format);
 	stride = ALIGN_TO_64BYTE(width * depth / 8);
 
 	/* gbm does not support stride so we must ensure the width is same as stride. */
