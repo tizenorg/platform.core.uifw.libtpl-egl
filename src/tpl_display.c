@@ -29,6 +29,12 @@ __tpl_display_free(void *display)
 	free(display);
 }
 
+tpl_backend_type_t
+tpl_display_choose_backend_type(tpl_handle_t native_dpy)
+{
+	return __tpl_display_choose_backend(native_dpy);
+}
+
 tpl_display_t *
 tpl_display_get(tpl_backend_type_t type, tpl_handle_t native_dpy)
 {

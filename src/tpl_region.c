@@ -82,7 +82,6 @@ tpl_bool_t
 __tpl_region_set_rects(tpl_region_t *region, int num_rects, const int *rects)
 {
 	TPL_ASSERT(region);
-	TPL_ASSERT(rects);
 	TPL_ASSERT(num_rects >= 0);
 
 	TPL_LOG(3, "region:%p {%d, %p, %p, %d}, num_rects:%d, rects:%p\n", region,

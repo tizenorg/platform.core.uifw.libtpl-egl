@@ -317,6 +317,7 @@ tpl_bool_t tpl_object_set_user_data(tpl_object_t *object,
  */
 void * tpl_object_get_user_data(tpl_object_t *object);
 
+tpl_backend_type_t tpl_display_choose_backend_type(tpl_handle_t native_dpy);
 /**
  * Create or get TPL display object for the given native display.
  *
