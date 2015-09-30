@@ -182,10 +182,24 @@ __tpl_wayland_display_is_wl_display(tpl_handle_t native_dpy)
 {
 	TPL_ASSERT(native_dpy);
 
+	if (*(void **)native_dpy == gbm_create_device)
+		return TPL_FALSE;
+
+	{
+		struct wl_interface *wl_egl_native_dpy = *(void **) native_dpy;
+
 	/* MAGIC CHECK: A native display handle is a wl_display if the de-referenced first value
 	   is a memory address pointing the structure of wl_display_interface. */
-	if (*(void **)native_dpy == &wl_display_interface)
-		return TPL_TRUE;
+		if ( wl_egl_native_dpy == &wl_display_interface )
+		{
+			return TPL_TRUE;
+		}
+
+		if(strncmp(wl_egl_native_dpy->name, wl_display_interface.name, strlen(wl_display_interface.name)) == 0)
+		{
+			return TPL_TRUE;
+		}
+	}
 
 	return TPL_FALSE;
 }
@@ -194,6 +208,9 @@ static TPL_INLINE tpl_bool_t
 __tpl_wayland_display_is_gbm_device(tpl_handle_t native_dpy)
 {
 	TPL_ASSERT(native_dpy);
+
+	if (*(void **)native_dpy == &wl_display_interface)
+		return TPL_FALSE;
 
 	/* MAGIC CHECK: A native display handle is a gbm_device if the de-referenced first value
 	   is a memory address pointing gbm_create_surface(). */
