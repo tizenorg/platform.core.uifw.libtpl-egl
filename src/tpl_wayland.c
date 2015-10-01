@@ -1807,12 +1807,14 @@ __cb_server_gbm_surface_lock_front_buffer(struct gbm_surface *gbm_surf)
 	}
 
 	bo_handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_MM, TBM_OPTION_READ | TBM_OPTION_WRITE);
+#if 0 /* Temporary fix. Keep this until evas corrects lock buffer & release buffer */
 	if (NULL == bo_handle.ptr)
 	{
 		TPL_ERR("TBM bo map failed!");
 		TPL_OBJECT_UNLOCK(surface);
 		return NULL;
 	}
+#endif
 
 	TPL_OBJECT_UNLOCK(surface);
 
