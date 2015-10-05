@@ -34,7 +34,7 @@ __tpl_surface_enqueue_frame(tpl_surface_t *surface)
 	if (TPL_TRUE != __tpl_region_copy(&surface->frame->damage, &surface->damage))
 		return TPL_FALSE;
 
-	/* Enqueue the frame object. */
+	/* Enqueue the frame object.*/
 	if (TPL_TRUE != __tpl_list_push_back(&surface->frame_queue, surface->frame))
 		return TPL_FALSE;
 
@@ -97,7 +97,7 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type
 		return NULL;
 	}
 
-	TPL_LOG(3, "surface->damage:%p {%d, %p, %p, %d}\n", &surface->damage, surface->damage.num_rects,
+	TPL_LOG(5, "surface->damage:%p {%d, %p, %p, %d}", &surface->damage, surface->damage.num_rects,
 		surface->damage.rects, &surface->damage.rects_static[0], surface->damage.num_rects_allocated);
 
 	if (TPL_TRUE != __tpl_object_init(&surface->base, TPL_OBJECT_SURFACE, __tpl_surface_free))
@@ -227,6 +227,8 @@ tpl_surface_begin_frame(tpl_surface_t *surface)
 
 	surface->frame->state = TPL_FRAME_STATE_READY;
 
+	TPL_LOG(5, "surface->frame:%p, surface->damage:%p, surface->frame->damage:%p",
+		surface->frame, &surface->damage, (surface->frame)?(&surface->frame->damage):NULL);
 	/* There might be some frames which is enqueued but not posted. Some backend requires native
 	 * surface to be posted to be able to get the next output buffer (i.e. x11_dri2). Runtime
 	 * just request buffer for the frame and it is totally upto backend if it calls post
@@ -255,7 +257,7 @@ tpl_surface_end_frame(tpl_surface_t *surface)
 		return TPL_FALSE;
 	}
 
-	TPL_LOG(3, "surface->frame:%p, surface->damage:%p, surface->frame->damage:%p",
+	TPL_LOG(5, "surface->frame:%p, surface->damage:%p, surface->frame->damage:%p",
 		surface->frame, &surface->damage, (surface->frame)?(&surface->frame->damage):NULL);
 
 	TRACE_BEGIN("TPL:ENDFRAME");
@@ -306,6 +308,10 @@ tpl_surface_validate_frame(tpl_surface_t *surface)
 
 	if (!surface->backend.validate_frame(surface))
 		was_valid = TPL_FALSE;
+
+	TPL_LOG(5, "surface->frame:%p, surface->damage:%p, %s",
+			surface->frame, &surface->damage,
+			was_valid?"VALID_FRAME":"INVALID_FRAME");
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
@@ -433,7 +439,7 @@ tpl_surface_post(tpl_surface_t *surface)
 		return TPL_FALSE;
 	}
 
-	TPL_LOG(3, "surface->frame:%p, surface->damage:%p, surface->frame->damage:%p",
+	TPL_LOG(5, "surface->frame:%p, surface->damage:%p, surface->frame->damage:%p",
 		surface->frame, &surface->damage, (surface->frame)?(&surface->frame->damage):NULL);
 
 	TRACE_BEGIN("TPL:POST");

@@ -37,13 +37,20 @@
 #include <sys/types.h>
 #include <signal.h>
 
+#define LOG_TAG "TPL"
+#include <dlog.h>
+
 /* 0:uninitialized, 1:initialized,no log, 2:user log */
 extern unsigned int tpl_log_lvl;
 
+#ifdef DLOG_DEFAULT_ENABLE
+#define TPL_LOG(lvl, f, x...) TPL_LOG_PRINT(f, ##x)
+#else
 #define TPL_LOG(lvl, f, x...)								\
 	{										\
 		if (tpl_log_lvl == 1)							\
-		{}									\
+		{									\
+		}									\
 		else if (tpl_log_lvl > 1)						\
 		{									\
 			if (tpl_log_lvl <= lvl)						\
@@ -61,26 +68,20 @@ extern unsigned int tpl_log_lvl;
 				TPL_LOG_PRINT(f, ##x)					\
 		}									\
 	}
-
+#endif
 #define TPL_LOG_PRINT(fmt, args...)							\
 	{										\
-		printf("[\x1b[36mTPL\x1b[0m|%d:%d|\x1b[36m%s\x1b[0m|%d] " fmt "\n",	\
-			getpid(), (int) syscall(SYS_gettid), __func__, __LINE__,	\
-			##args);							\
+		LOGE("[\x1b[36mTPL\x1b[0m] \x1b[36m" fmt "\x1b[0m\n", ##args);		\
 	}
 
 #define TPL_ERR(f, x...)								\
 	{										\
-		printf("[\x1b[31mTPL_ERR %d:%d|%s|%d\x1b[0m] " f "\n",			\
-			getpid(), (int) syscall(SYS_gettid), __func__,			\
-			__LINE__, ##x);							\
+		LOGE("[\x1b[31mTPL_ERR\x1b[0m] \x1b[31m" f "\x1b[0m\n", ##x);		\
 	}
 
 #define TPL_WARN(f, x...)								\
 	{										\
-		printf("[\x1b[33mTPL_WARN %d:%d|%s|%d\x1b[0m] " f "\n",			\
-			getpid(), (int) syscall(SYS_gettid), __func__,			\
-			__LINE__, ##x);							\
+		LOGW("[\x1b[33mTPL_WARN\x1b[0m] \x1b[33m" f "\x1b[0m\n", ##x);		\
 	}
 
 #else

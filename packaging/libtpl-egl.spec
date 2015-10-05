@@ -5,7 +5,7 @@
 %define TPL_VER_FULL	%{TPL_VERSION}.%{TPL_RELEASE}
 
 %define ENABLE_TTRACE	0
-
+%define ENABLE_DLOG	0
 ################################################################################
 
 %define TPL_WINSYS	WL
@@ -43,6 +43,7 @@ Source:		%{name}-%{version}.tar.gz
 BuildRequires:	pkg-config
 BuildRequires:	pkgconfig(libdrm)
 BuildRequires:	pkgconfig(libtbm)
+BuildRequires:	pkgconfig(dlog)
 
 %if "%{TPL_WINSYS}" == "DRI2" || "%{TPL_WINSYS}" == "DRI3"
 BuildRequires:	pkgconfig(libdri2)
@@ -103,6 +104,10 @@ TPL_OPTIONS=${TPL_OPTIONS}-winsys_wl
 
 %if "%{ENABLE_TTRACE}" == "1"
 TPL_OPTIONS=${TPL_OPTIONS}-ttrace
+%endif
+
+%if "%{ENABLE_DLOG}" == "1"
+TPL_OPTIONS=${TPL_OPTIONS}-dlog
 %endif
 
 TPL_OPTIONS=${TPL_OPTIONS}-egl_bind_wl_display

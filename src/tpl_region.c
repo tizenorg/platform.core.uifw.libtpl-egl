@@ -63,7 +63,7 @@ __tpl_region_is_empty(const tpl_region_t *region)
 {
 	TPL_ASSERT(region);
 
-	TPL_LOG(3, "region:%p {%d, %p, %p, %d}\n", region, region->num_rects,
+	TPL_LOG(3, "region:%p {%d, %p, %p, %d}", region, region->num_rects,
 		region->rects, &region->rects_static[0], region->num_rects_allocated);
 
 	return (region->num_rects == 0);
@@ -84,7 +84,7 @@ __tpl_region_set_rects(tpl_region_t *region, int num_rects, const int *rects)
 	TPL_ASSERT(region);
 	TPL_ASSERT(num_rects >= 0);
 
-	TPL_LOG(3, "region:%p {%d, %p, %p, %d}, num_rects:%d, rects:%p\n", region,
+	TPL_LOG(3, "region:%p {%d, %p, %p, %d}, num_rects:%d, rects:%p", region,
 		region->num_rects, region->rects, &region->rects_static[0],
 		region->num_rects_allocated, num_rects, rects);
 

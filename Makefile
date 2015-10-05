@@ -14,8 +14,8 @@ CC ?= gcc
 CFLAGS += -Wall -fPIC -I$(SRC_DIR)
 LDFLAGS +=
 
-CFLAGS += `pkg-config --cflags libdrm libtbm`
-LDFLAGS += `pkg-config --libs libdrm libtbm`
+CFLAGS += `pkg-config --cflags libdrm libtbm dlog`
+LDFLAGS += `pkg-config --libs libdrm libtbm dlog`
 
 ifneq ($(call is-feature-enabled,winsys_dri2),)
 	CFLAGS += -DTPL_WINSYS_DRI2
@@ -33,6 +33,9 @@ ifneq ($(call is-feature-enabled,winsys_wl),)
 endif
 ifneq ($(call is-feature-enabled,ttrace),)
 	CFLAGS += -DTTRACE_ENABLE
+endif
+ifneq ($(call is-feature-enabled,dlog),)
+	CFLAGS += -DDLOG_DEFAULT_ENABLE
 endif
 ifneq ($(call is-feature-enabled,egl_bind_wl_display),)
 	CFLAGS += -DEGL_BIND_WL_DISPLAY
