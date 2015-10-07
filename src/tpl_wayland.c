@@ -28,12 +28,24 @@
 #define TPL_BUFFER_ALLOC_PITCH_ALIGNMENT        64
 #define ALIGN_TO_64BYTE(byte) (((byte) + TPL_BUFFER_ALLOC_PITCH_ALIGNMENT - 1) & ~(TPL_BUFFER_ALLOC_PITCH_ALIGNMENT - 1))
 
+#ifndef TPL_USING_WAYLAND_TBM
+#define TPL_USING_WAYLAND_TBM
+#include <tbm_surface.h>
+#include <tbm_surface_internal.h>
+#include <wayland-tbm-client.h>
+#include <wayland-tbm-server.h>
+#endif
+
 typedef struct _tpl_wayland_display       tpl_wayland_display_t;
 typedef struct _tpl_wayland_surface       tpl_wayland_surface_t;
 typedef struct _tpl_wayland_buffer        tpl_wayland_buffer_t;
 
 struct _tpl_wayland_display
 {
+#ifdef TPL_USING_WAYLAND_TBM
+	struct wayland_tbm_client	*wl_tbm_client;
+        struct wayland_tbm_server	*wl_tbm_server;
+#else
 	struct wl_drm     *wl_drm;
 	tbm_bufmgr         bufmgr;
 
@@ -50,6 +62,7 @@ struct _tpl_wayland_display
 			tpl_list_t               cached_buffers;
 		} comp;
 	} proc;
+#endif
 };
 
 struct _tpl_wayland_surface
@@ -62,14 +75,22 @@ struct _tpl_wayland_surface
 struct _tpl_wayland_buffer
 {
 	tpl_display_t             *display;
+#ifdef TPL_USING_WAYLAND_TBM
+	tbm_surface_h		   tbm_surface;
+#else
 	tbm_bo                     bo;
+#endif
 	int			   reused;
 
 	union
 	{
 		struct
 		{
+#ifdef TPL_USING_WAYLAND_TBM
+			struct wl_buffer	*wl_buffer;
+#else
 			struct wl_resource      *wl_resource;
+#endif
 			tpl_bool_t               resized;
 		} app;
 		struct
@@ -270,6 +291,16 @@ __tpl_wayland_display_init(tpl_display_t *display)
 	{
 		struct wl_display *wl_dpy = (struct wl_display *)display->native_handle;
 
+#ifdef TPL_USING_WAYLAND_TBM
+		wayland_display->wl_tbm_client = wayland_tbm_client_init((struct wl_display *) wl_dpy);
+
+		if (tpl_wayland_display->wl_tbm_client == NULL)
+		{
+			TPL_ERR("Wayland TBM initialization failed!");
+			goto free_wl_display;
+		}
+
+#else
 		wayland_display->proc.app.wl_queue = wl_display_create_queue(wl_dpy);
 		if (NULL == wayland_display->proc.app.wl_queue)
 			goto free_wl_display;
@@ -293,6 +324,7 @@ __tpl_wayland_display_init(tpl_display_t *display)
 		wayland_display->bufmgr = tbm_bufmgr_init(display->bufmgr_fd);
 		if (NULL == wayland_display->bufmgr)
 			goto reset_queue;
+#endif
 	}
 	else if (__tpl_wayland_display_is_gbm_device(display->native_handle))
 	{
@@ -901,8 +933,14 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	tpl_format_t format;
 
 	tpl_wayland_display_t *wayland_display;
-	struct wl_resource *wl_resource = NULL;
-	unsigned int name = -1;
+
+#ifdef TPL_USING_WAYLAND_TBM
+        tbm_surface_h           tbm_surface = NULL;
+	struct wl_buffer        *wl_buffer = NULL;
+#else
+	struct wl_resource      *wl_resource = NULL;
+#endif
+        unsigned int name = -1;
 	uint32_t wl_format = 0;
 
 	TPL_ASSERT(surface);
@@ -922,14 +960,77 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	depth = __tpl_wayland_get_depth_from_format(format);
 	stride = ALIGN_TO_64BYTE(width * depth / 8);
 
+#ifdef TPL_USING_WAYLAND_TBM
+	/* why it is only support ARGB8888? */
+	surface->format = TPL_FORMAT_ARGB8888;
+
+	switch (surface->format)
+	{
+		case TPL_FORMAT_ARGB8888:
+			wl_format = TBM_FORMAT_ARGB8888;
+			break;
+		case TPL_FORMAT_XRGB8888:
+			wl_format = TBM_FORMAT_XRGB8888;
+			break;
+		case TPL_FORMAT_RGB565:
+			wl_format = TBM_FORMAT_RGB565;
+			break;
+		default:
+			TPL_ERR("Unsupported format found in surface!");
+			tbm_bo_unref(bo);
+			tpl_object_unreference((tpl_object_t *)buffer);
+			free(wayland_buffer);
+			return NULL;
+	}
+
+	/* Create tbm_surface_h */
+	tbm_surface = tbm_surface_create(width, height, wl_format);
+
+	if (NULL == tbm_surface)
+	{
+		TPL_ERR("TBM SURFACE create failed!");
+		return NULL;
+	}
+
+	/* Get tbm_bo from tbm_surface_h */
+	bo = tbm_surface_internal_get_bo(tbm_surface, 0);
+
+	/* Create tpl buffer. */
+	bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
+	if (bo_handle.ptr == NULL)
+	{
+		TPL_ERR("TBM bo get handle failed!");
+		tbm_surface_destroy(tbm_surface);
+		return NULL;
+	}
+
+	name = tbm_bo_export(bo);
+
+	buffer = __tpl_buffer_alloc(surface, (size_t) name, (int) bo_handle.u32, width, height, depth, stride);
+	if (NULL == buffer)
+	{
+		TPL_ERR("TPL buffer alloc failed!");
+		tbm_surface_destroy(tbm_surface);
+		return NULL;
+	}
+
+	wayland_buffer = (tpl_wayland_buffer_t *) calloc(1, sizeof(tpl_wayland_buffer_t));
+	if (wayland_buffer == NULL)
+	{
+		TPL_ERR("Mem alloc for wayland_buffer failed!");
+		tbm_surface_destroy(tbm_surface);
+		tpl_object_unreference((tpl_object_t *) buffer);
+		return NULL;
+	}
+#else
 	/* Allocate a buffer */
 	bo = tbm_bo_alloc(wayland_display->bufmgr, stride * height, TBM_BO_DEFAULT);
+
 	if (NULL == bo)
 	{
 		TPL_ERR("TBM bo alloc failed!");
 		return NULL;
 	}
-
 	/* Create tpl buffer. */
 	bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
 	if (bo_handle.ptr == NULL)
@@ -940,6 +1041,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	}
 
 	name = tbm_bo_export(bo);
+
 	buffer = __tpl_buffer_alloc(surface, (size_t) name, (int) bo_handle.u32, width, height, depth, stride);
 	if (NULL == buffer)
 	{
@@ -978,9 +1080,24 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 			free(wayland_buffer);
 			return NULL;
 	}
+#endif
 
-	wl_resource = (struct wl_resource *) wl_drm_create_buffer(wayland_display->wl_drm, (uint32_t)name, width, height,
-										stride, wl_format);
+#ifdef TPL_USING_WAYLAND_TBM
+	wl_buffer = wayland_tbm_client_create_buffer(wayland_display->wl_tbm_client,
+			tbm_surface);
+
+	if (wl_buffer == NULL)
+	{
+		TPL_ERR("Failed to create TBM client buffer!");
+		tbm_surface_destroy(tbm_surface);
+		tpl_object_unreference((tpl_object_t *)buffer);
+		free(wayland_buffer);
+		return NULL;
+	}
+#else
+	wl_resource = (struct wl_resource *) wl_drm_create_buffer(wayland_display->wl_drm,
+			(uint32_t)name, width, height, stride, wl_format);
+
 	if (wl_resource == NULL)
 	{
 		TPL_ERR("Failed to create DRM buffer!");
@@ -992,18 +1109,29 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 
 	wl_proxy_set_queue((struct wl_proxy *)wl_resource, wayland_display->proc.app.wl_queue);
 	wl_buffer_add_listener((void *)wl_resource, &buffer_release_listener, buffer);
+#endif
+	wl_buffer_add_listener((void *)wl_buffer, &buffer_release_listener, buffer);
 
 	wl_display_flush((struct wl_display *)surface->display->native_handle);
 
 	wayland_buffer->display = surface->display;
+#ifdef TPL_USING_WAYLAND_TBM
+	wayland_buffer->tbm_surface = tbm_surface;
+	wayland_buffer->proc.app.wl_buffer = wl_buffer;
+#else
 	wayland_buffer->bo = bo;
 	wayland_buffer->proc.app.wl_resource = wl_resource;
+#endif
 	wayland_buffer->proc.app.resized = TPL_FALSE;
 
 	if (reset_buffers != NULL)
 		*reset_buffers = TPL_FALSE;
 
+#ifdef TPL_USING_WAYLAND_TBM
+	TPL_LOG(3, "buffer(%p,%p) name:%d, %dx%d", buffer, wl_buffer, name, width, height);
+#else
 	TPL_LOG(3, "buffer(%p,%p) name:%d, %dx%d", buffer, wl_resource, name, width, height);
+#endif
 	return buffer;
 }
 
@@ -1978,6 +2106,17 @@ unsigned int __tpl_wayland_display_unbind_client_display(tpl_display_t *tpl_disp
 
 	tpl_wayland_display = (tpl_wayland_display_t *) tpl_display->backend.data;
 
+#ifdef TPL_USING_WAYLAND_TBM
+	if (tpl_wayland_display->wl_tbm_client == NULL)
+	{
+		TPL_ERR("Wayland TBM is NULL! unbind failed!");
+		return TPL_FALSE;
+	}
+
+	wayland_tbm_client_deinit(tpl_wayland_display->wl_tbm_client);
+
+	return TPL_TRUE;
+#else
 	if (tpl_wayland_display->wl_drm == NULL)
 	{
 		TPL_ERR("Wayland DRM is NULL!");
@@ -1987,7 +2126,7 @@ unsigned int __tpl_wayland_display_unbind_client_display(tpl_display_t *tpl_disp
 	wayland_drm_uninit(tpl_wayland_display->wl_drm);
 	tbm_bufmgr_deinit(tpl_wayland_display->bufmgr);
 	close(tpl_display->bufmgr_fd);
-
+#endif
 	return TPL_TRUE;
 }
 #endif
