@@ -5,7 +5,7 @@
 %define TPL_VER_FULL	%{TPL_VERSION}.%{TPL_RELEASE}
 
 %define ENABLE_TTRACE	0
-%define ENABLE_DLOG	0
+%define ENABLE_DLOG	1
 ################################################################################
 
 %define TPL_WINSYS	WL
@@ -62,6 +62,8 @@ BuildRequires:	pkgconfig(xshmfence)
 BuildRequires:	pkgconfig(gbm)
 BuildRequires:	wayland-devel
 BuildRequires:	pkgconfig(wayland-drm)
+BuildRequires:	pkgconfig(wayland-tbm-client)
+BuildRequires:	pkgconfig(wayland-tbm-server)
 BuildRequires:	libwayland-egl-devel
 %endif
 
