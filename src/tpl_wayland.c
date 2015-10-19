@@ -36,9 +36,22 @@
 #include <wayland-tbm-server.h>
 #endif
 
+
+#ifndef USING_BUFFER
+#define USING_BUFFER
+#endif
+
 typedef struct _tpl_wayland_display       tpl_wayland_display_t;
 typedef struct _tpl_wayland_surface       tpl_wayland_surface_t;
 typedef struct _tpl_wayland_buffer        tpl_wayland_buffer_t;
+
+enum wayland_buffer_status
+{
+	IDLE = 0,
+	BUSY = 1,
+        READY = 2, /* redering done */
+	POSTED = 3 /* gbm locked */
+};
 
 struct _tpl_wayland_display
 {
@@ -66,9 +79,17 @@ struct _tpl_wayland_display
 
 struct _tpl_wayland_surface
 {
-	tpl_list_t        able_rendering_queue;
-	tpl_buffer_t     *current_rendering_buffer;
-	tpl_list_t        done_rendering_queue;
+	tpl_list_t	able_rendering_queue;
+	tpl_buffer_t	*current_rendering_buffer;
+	tpl_list_t	done_rendering_queue;
+#ifdef USING_BUFFER
+        int		current_back_idx;
+	union
+	{
+		tpl_buffer_t*	server_buffers[TPL_BUFFER_ALLOC_SIZE_COMPOSITOR];
+		tpl_buffer_t	client_buffers[TPL_BUFFER_ALLOC_SIZE_APP];
+        }
+#endif
 };
 
 struct _tpl_wayland_buffer
@@ -78,6 +99,7 @@ struct _tpl_wayland_buffer
 	tbm_bo                     bo;
 	int			   reused;
 
+	enum wayland_buffer_status status;
 	union
 	{
 		struct
@@ -583,6 +605,7 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 		return TPL_FALSE;
 
 	surface->backend.data = (void *)wayland_surface;
+	wayland_surface->current_back_idx = 0;
 
 	__tpl_list_init(&wayland_surface->able_rendering_queue);
 	__tpl_list_init(&wayland_surface->done_rendering_queue);
@@ -610,8 +633,14 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 			/* Create renderable buffer queue. Fill with empty(=NULL) buffers. */
 			for (i = 0; i < TPL_BUFFER_ALLOC_SIZE_COMPOSITOR; i++)
 			{
+#ifdef USING_BUFFER
+				/* USING_BUFFER */
+				wayland_surface->server_buffers[i] = NULL;
+				/* USING_BUFFER */
+#else
 				if (TPL_TRUE != __tpl_list_push_back(&wayland_surface->able_rendering_queue, NULL))
 					goto error;
+#endif
 			}
 		}
 
@@ -650,6 +679,57 @@ __tpl_wayland_surface_buffer_free(tpl_buffer_t *buffer)
 }
 
 static void
+__tpl_wayland_surface_render_buffers_free(tpl_wayland_surface_t *wayland_surface, int num_buffers)
+{
+	TPL_ASSERT(wayland_surface);
+	int i;
+
+	for (i = 0; i < num_buffers; i++)
+	{
+		if ( wayland_surface->server_buffers[i] != NULL )
+			__tpl_wayland_surface_buffer_free(wayland_surface->server_buffers[i]);
+		wayland_surface->server_buffers[i] = NULL;
+	}
+}
+
+static int
+__tpl_wayland_surface_get_idle_buffer_idx(tpl_wayland_surface_t *wayland_surface, int num_buffers)
+{
+	TPL_ASSERT(wayland_surface);
+
+	int i;
+	int ret_id = -1;
+	int current_id = wayland_surface->current_back_idx;
+
+	for(i = current_id + 1; i < current_id + num_buffers + 1; i++)
+	{
+#if 0
+		int id = (i + (wayland_surface->current_back_idx + 1)) % num_buffers;
+#else
+		int id = i % num_buffers;
+#endif
+		tpl_buffer_t *tpl_buffer = wayland_surface->server_buffers[id];
+		tpl_wayland_buffer_t *wayland_buffer = NULL;
+
+		if ( tpl_buffer == NULL )
+		{
+			wayland_surface->current_back_idx = id;
+			return id;
+		}
+
+		wayland_buffer = (tpl_wayland_buffer_t*)tpl_buffer->backend.data;
+
+		if ( wayland_buffer && wayland_buffer->status == IDLE )
+		{
+			wayland_surface->current_back_idx = id;
+			return id;
+		}
+	}
+
+	return ret_id;
+}
+
+static void
 __tpl_wayland_surface_fini(tpl_surface_t *surface)
 {
 	tpl_wayland_surface_t *wayland_surface;
@@ -673,6 +753,8 @@ __tpl_wayland_surface_fini(tpl_surface_t *surface)
 			__tpl_list_get_count(&wayland_surface->done_rendering_queue));
 
 	__tpl_list_fini(&wayland_surface->able_rendering_queue, (tpl_free_func_t)__tpl_wayland_surface_buffer_free);
+
+
 	if (wayland_surface->current_rendering_buffer)
 		__tpl_wayland_surface_buffer_free(wayland_surface->current_rendering_buffer);
 	__tpl_list_fini(&wayland_surface->done_rendering_queue, (tpl_free_func_t)__tpl_wayland_surface_buffer_free);
@@ -705,7 +787,11 @@ __tpl_wayland_surface_fini(tpl_surface_t *surface)
 		{
 			struct gbm_surface *gbm_surface = surface->native_handle;
 			struct gbm_tbm_surface *gbm_tbm_surface = (struct gbm_tbm_surface *)gbm_surface;
-
+#ifdef USING_BUFFER
+			/* USING_BUFFER */
+			__tpl_wayland_surface_render_buffers_free(wayland_surface, TPL_BUFFER_ALLOC_SIZE_COMPOSITOR);
+#endif
+			/* USING_BUFFER */
 			gbm_tbm_surface_set_user_data(gbm_tbm_surface, NULL);
 		}
 	}
@@ -778,12 +864,14 @@ __tpl_wayland_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 
 		wl_display_flush(surface->display->native_handle);
 	}
+#ifndef USING_BUFFER
 	if (__tpl_wayland_display_is_gbm_device(surface->display->native_handle))
 	{
 		tpl_wayland_buffer_t *wayland_buffer = (tpl_wayland_buffer_t *)frame->buffer->backend.data;
 
 		wayland_buffer->proc.comp.posted = TPL_TRUE;
 	}
+#endif
 }
 
 static tpl_bool_t
@@ -797,6 +885,8 @@ __tpl_wayland_surface_begin_frame(tpl_surface_t *surface)
 
 	wayland_display = (tpl_wayland_display_t *) surface->display->backend.data;
 	wayland_surface = (tpl_wayland_surface_t *) surface->backend.data;
+
+	tpl_bool_t is_gbm_device = TPL_FALSE;
 
 	TPL_ASSERT(wayland_surface->current_rendering_buffer == NULL);
 
@@ -822,8 +912,34 @@ __tpl_wayland_surface_begin_frame(tpl_surface_t *surface)
 	}
 	if (__tpl_wayland_display_is_gbm_device(surface->display->native_handle))
 	{
+		is_gbm_device = TPL_TRUE;
 		while (1)
 		{
+#ifdef USING_BUFFER
+			int idx = __tpl_wayland_surface_get_idle_buffer_idx(wayland_surface, TPL_BUFFER_ALLOC_SIZE_COMPOSITOR);
+
+			TPL_LOG(6, "IDLE IDX : %d", idx);
+
+			if (idx >= 0)
+			{
+				tpl_buffer_t *buffer = wayland_surface->server_buffers[idx];
+				tpl_wayland_buffer_t *wayland_buffer = NULL;
+
+				if (!buffer)
+				{
+					break;
+				}
+
+				wayland_buffer = (tpl_wayland_buffer_t*)buffer->backend.data;
+
+				if (wayland_buffer)
+				{
+					wayland_buffer->status = BUSY;
+					break;
+				}
+
+			}
+#else
 			if (!__tpl_list_is_empty(&wayland_surface->able_rendering_queue))
 			{
 				tpl_buffer_t *buffer = NULL;
@@ -837,14 +953,31 @@ __tpl_wayland_surface_begin_frame(tpl_surface_t *surface)
 				if (wayland_buffer->proc.comp.posted)
 					break;
 			}
+#endif
 			/* Compositor over-drawed all buffers, but no buffer has done yet. Wait for frame post. */
 			TPL_OBJECT_UNLOCK(surface);
 			__tpl_util_sys_yield();
 			TPL_OBJECT_LOCK(surface);
 		}
 	}
+
+#ifdef USING_BUFFER
+	if (is_gbm_device == TPL_TRUE)
+	{
+		tpl_wayland_buffer_t *wayland_buffer = NULL;
+		wayland_surface->current_rendering_buffer = wayland_surface->server_buffers[wayland_surface->current_back_idx];
+
+		if ( wayland_surface->current_rendering_buffer )
+		{
+			wayland_buffer = (tpl_wayland_buffer_t*)wayland_surface->current_rendering_buffer->backend.data;
+			TPL_LOG(6, "DONE QUEUE:%d | current_rendering_buffer BO:%d", __tpl_list_get_count(&wayland_surface->done_rendering_queue), tbm_bo_export(wayland_buffer->bo));
+		}
+	}
+	else
+#endif
 	/* MOVE BUFFER : [able queue] --> (current buffer) */
 	wayland_surface->current_rendering_buffer = __tpl_list_pop_front(&wayland_surface->able_rendering_queue, NULL);
+
 	TPL_LOG(3, "set current buffer(%p)", wayland_surface->current_rendering_buffer);
 
 	return TPL_TRUE;
@@ -873,21 +1006,27 @@ __tpl_wayland_surface_end_frame(tpl_surface_t *surface)
 	if (__tpl_wayland_display_is_gbm_device(surface->display->native_handle))
 	{
 		tpl_wayland_buffer_t *wayland_buffer = (tpl_wayland_buffer_t *) wayland_surface->current_rendering_buffer->backend.data;
-
+		TPL_LOG(6, "DONE QUEUE:%d | current_rendering_buffer BO:%d", __tpl_list_get_count(&wayland_surface->done_rendering_queue), tbm_bo_export(wayland_buffer->bo));
 		TPL_LOG(3, "wayland_buffer : %p", wayland_buffer);
 		/* Current GBM front buffer is moved to back when calling eglSwapBuffers()=end_frame(). */
+#ifndef USING_BUFFER
 		if (!__tpl_list_is_empty(&wayland_surface->done_rendering_queue))
 		{
-			void *buf;
+			tpl_buffer_t *buf = NULL;
 
 			/* MOVE BUFFER : [done queue] --> [able queue] */
 			buf = __tpl_list_pop_front(&wayland_surface->done_rendering_queue, NULL);
+#if 0
 			if (TPL_TRUE != __tpl_list_push_back(&wayland_surface->able_rendering_queue, buf))
 				return TPL_FALSE;
+#endif
 		}
 
 		/* Prepare to check post for current GBM back buffer. */
 		wayland_buffer->proc.comp.posted = TPL_FALSE;
+#endif
+                wayland_buffer->status = READY;
+
 	}
 
 	/* MOVE BUFFER : (current buffer) --> [done queue] */
@@ -1286,7 +1425,10 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 	tbm_bo_handle bo_handle;
 	int width, height, depth, stride;
 	tpl_format_t format;
-
+#ifdef USING_BUFFER
+	int back_buffer_idx = -1;
+	tpl_wayland_surface_t *wayland_surface;
+#endif
 	struct gbm_device *gbm;
 	struct gbm_tbm_surface *gbm_tbm_surface;
 	struct gbm_bo *gbm_bo = NULL;
@@ -1354,6 +1496,14 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 
 	buffer->backend.data = (void *)wayland_buffer;
 
+#ifdef USING_BUFFER
+        wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
+        if (wayland_surface)
+        {
+                wayland_surface->server_buffers[wayland_surface->current_back_idx] = buffer;
+                wayland_buffer->status = BUSY;
+        }
+#endif
 	/* Post process */
 	wayland_buffer->display = surface->display;
 	wayland_buffer->bo = bo;
@@ -1472,6 +1622,32 @@ __tpl_wayland_surface_create_buffer_from_wl_drm(tpl_surface_t *surface, tpl_bool
 }
 #endif
 
+static tpl_buffer_t *
+__tpl_wayland_surface_get_buffer_from_tbm_bo(tpl_surface_t *surface, tbm_bo bo, int num_max_back_buf)
+{
+	tpl_wayland_surface_t *wayland_surface = NULL;
+	tpl_buffer_t *tpl_buffer = NULL;
+	tpl_wayland_buffer_t *wayland_buffer = NULL;
+	int i = 0;
+
+	TPL_ASSERT(surface);
+	TPL_ASSERT(bo);
+
+	wayland_surface = (tpl_wayland_buffer_t*) surface->backend.data;
+
+	for (i = 0; i < num_max_back_buf; i++)
+	{
+		tpl_buffer = wayland_surface->server_buffers[i];
+		if (tpl_buffer)
+		{
+			wayland_buffer = (tpl_wayland_buffer_t*)tpl_buffer->backend.data;
+			if (tbm_bo_export(bo) == tbm_bo_export(wayland_buffer->bo))
+				return tpl_buffer;
+		}
+	}
+	return NULL;
+
+}
 static tpl_buffer_t *
 __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 {
@@ -2089,13 +2265,19 @@ __cb_server_gbm_surface_lock_front_buffer(struct gbm_surface *gbm_surf)
 		/* Wait for posted to prevent locking not-rendered buffer. */
 		if (!__tpl_list_is_empty(&wayland_surface->done_rendering_queue))
 		{
-			buffer = __tpl_list_get_front(&wayland_surface->done_rendering_queue);
+			buffer = __tpl_list_pop_front(&wayland_surface->done_rendering_queue, NULL);
 
 			TPL_ASSERT(buffer);
 
 			wayland_buffer = (tpl_wayland_buffer_t *) buffer->backend.data;
+
+#ifdef USING_BUFFER
+			if (wayland_buffer && wayland_buffer->status == READY)
+				break;
+#else
 			if (wayland_buffer->proc.comp.posted)
 				break;
+#endif
 		}
 		TPL_OBJECT_UNLOCK(surface);
 		__tpl_util_sys_yield();
@@ -2104,6 +2286,7 @@ __cb_server_gbm_surface_lock_front_buffer(struct gbm_surface *gbm_surf)
 
 	TPL_ASSERT(buffer != NULL);
 
+	/* why?? */
 	wayland_buffer = (tpl_wayland_buffer_t *)buffer->backend.data;
 	if (NULL == wayland_buffer)
 	{
@@ -2111,6 +2294,21 @@ __cb_server_gbm_surface_lock_front_buffer(struct gbm_surface *gbm_surf)
 		TPL_OBJECT_UNLOCK(surface);
 		return NULL;
 	}
+
+	TPL_LOG(6, "DONE QUEUE:%d | [LOCK] BO:%d", __tpl_list_get_count(&wayland_surface->done_rendering_queue), tbm_bo_export(wayland_buffer->bo));
+#ifdef USING_BUFFER
+	wayland_buffer->status = POSTED;
+#endif
+
+	bo_handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_MM, TBM_OPTION_READ | TBM_OPTION_WRITE);
+#if 1 /* Temporary fix. Keep this until evas corrects lock buffer & release buffer */
+	if (NULL == bo_handle.ptr)
+	{
+		TPL_ERR("TBM bo map failed!");
+		TPL_OBJECT_UNLOCK(surface);
+		return NULL;
+	}
+#endif
 
 	TPL_OBJECT_UNLOCK(surface);
 
@@ -2120,17 +2318,52 @@ __cb_server_gbm_surface_lock_front_buffer(struct gbm_surface *gbm_surf)
 static void
 __cb_server_gbm_surface_release_buffer(struct gbm_surface *gbm_surf, struct gbm_bo *gbm_bo)
 {
+#ifdef USING_BUFFER
+	struct gbm_tbm_surface *gbm_tbm_surf;
+	tpl_surface_t *surface;
+	tpl_wayland_surface_t *wayland_surface = NULL;
+	tpl_buffer_t *buffer = NULL;
+	tpl_wayland_buffer_t *wayland_buffer = NULL;
+#endif
 	struct gbm_tbm_bo *gbm_tbm_bo;
 	tbm_bo bo;
 
 	TPL_ASSERT(gbm_bo);
-
+#ifdef USING_BUFFER
+	TPL_ASSERT(gbm_surf);
+#else
 	TPL_IGNORE(gbm_surf);
+#endif
 
 	gbm_tbm_bo = (struct gbm_tbm_bo *) gbm_bo;
 
 	bo = gbm_tbm_bo_get_tbm_bo(gbm_tbm_bo);
 	TPL_ASSERT(bo);
+
+	tbm_bo_unmap(bo);
+
+#ifdef USING_BUFFER
+	gbm_tbm_surf = (struct gbm_tbm_surface *) gbm_surf;
+
+	surface = (tpl_surface_t *) gbm_tbm_surface_get_user_data(gbm_tbm_surf);
+
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->backend.data);
+
+	TPL_OBJECT_LOCK(surface);
+
+	buffer = __tpl_wayland_surface_get_buffer_from_tbm_bo(surface, bo, TPL_BUFFER_ALLOC_SIZE_COMPOSITOR);
+	if (buffer)
+	{
+		wayland_buffer = (tpl_wayland_buffer_t*) buffer->backend.data;
+		wayland_buffer->status = IDLE;
+	}
+
+	wayland_surface = (tpl_wayland_surface_t*) surface->backend.data;
+	TPL_LOG(6, "DONE QUEUE:%d | [UNLOCK] BO:%d", __tpl_list_get_count(&wayland_surface->done_rendering_queue), tbm_bo_export(bo));
+
+	TPL_OBJECT_UNLOCK(surface);
+#endif
 }
 
 static int
@@ -2162,11 +2395,17 @@ __cb_server_gbm_surface_has_free_buffers(struct gbm_surface *gbm_surf)
 	buffer = __tpl_list_get_front(&wayland_surface->done_rendering_queue);
 	wayland_buffer = (tpl_wayland_buffer_t *)buffer->backend.data;
 
+#ifdef USING_BUFFER
+	if (wayland_buffer->status == POSTED) {
+		TPL_OBJECT_UNLOCK(surface);
+		return 1;
+	}
+#else
 	if (wayland_buffer->proc.comp.posted) {
 		TPL_OBJECT_UNLOCK(surface);
 		return 1;
 	}
-
+#endif
 	TPL_OBJECT_UNLOCK(surface);
 
 	return 0;
@@ -2257,10 +2496,11 @@ unsigned int __tpl_wayland_display_bind_client_display(tpl_display_t *tpl_displa
 	tpl_wayland_display->wl_tbm_server = wayland_tbm_server_init(wayland_display,
 			device_name, tpl_display->bufmgr_fd, 0);
 
+#ifndef TPL_USING_WAYLAND_TBM
 	struct gbm_device *gbm = (struct gbm_device *)tpl_display->native_handle;
 	struct gbm_tbm_device *gbm_tbm = (struct gbm_tbm_device *)gbm;
 	gbm_tbm->wl_drm = tpl_wayland_display->wl_drm;
-
+#endif
 	return TPL_TRUE;
 }
 

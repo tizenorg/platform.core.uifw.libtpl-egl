@@ -48,19 +48,26 @@ extern unsigned int tpl_log_lvl;
 #else
 #define TPL_LOG(lvl, f, x...)								\
 	{										\
-		if (tpl_log_lvl == 1)							\
+		tpl_log_lvl = 6;							\
+		if (tpl_log_lvl == lvl)							\
 		{									\
+			TPL_LOG_PRINT(f, ##x)						\
 		}									\
-		else if (tpl_log_lvl > 1)						\
+		else if (tpl_log_lvl > 1 && tpl_log_lvl <=5 )				\
 		{									\
 			if (tpl_log_lvl <= lvl)						\
+				TPL_LOG_PRINT(f, ##x)					\
+		}									\
+		else if (tpl_log_lvl > 5)						\
+		{									\
+			if (tpl_log_lvl == lvl)						\
 				TPL_LOG_PRINT(f, ##x)					\
 		}									\
 		else									\
 		{									\
 			char *env = getenv("TPL_LOG_LEVEL");				\
 			if (env == NULL)						\
-				tpl_log_lvl = 1;					\
+				tpl_log_lvl = 6;					\
 			else								\
 				tpl_log_lvl = atoi(env);				\
 											\

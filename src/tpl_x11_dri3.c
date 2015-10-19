@@ -1631,7 +1631,7 @@ __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buff
 			/* [END:20150119-leiba.sun] */
 
 			if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
-                        	tbm_bo_unref (buffer->tbo);
+				tbm_bo_unref (buffer->tbo);
 
 			goto done;
 		}
