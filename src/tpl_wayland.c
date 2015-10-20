@@ -1401,10 +1401,10 @@ __tpl_wayland_buffer_lock(tpl_buffer_t *buffer, tpl_lock_usage_t usage)
 	switch (usage)
 	{
 		case TPL_LOCK_USAGE_GPU_READ:
-			handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_MM, TBM_OPTION_READ);
+			handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_3D, TBM_OPTION_READ);
 			break;
 		case TPL_LOCK_USAGE_GPU_WRITE:
-			handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_MM, TBM_OPTION_WRITE);
+			handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_3D, TBM_OPTION_WRITE);
 			break;
 		case TPL_LOCK_USAGE_CPU_READ:
 			handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_CPU, TBM_OPTION_READ);
@@ -1807,7 +1807,7 @@ __cb_server_gbm_surface_lock_front_buffer(struct gbm_surface *gbm_surf)
 		return NULL;
 	}
 
-	bo_handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_MM, TBM_OPTION_READ | TBM_OPTION_WRITE);
+	bo_handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_3D, TBM_OPTION_READ | TBM_OPTION_WRITE);
 #if 0 /* Temporary fix. Keep this until evas corrects lock buffer & release buffer */
 	if (NULL == bo_handle.ptr)
 	{
