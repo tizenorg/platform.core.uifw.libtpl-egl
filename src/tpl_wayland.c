@@ -2326,7 +2326,7 @@ __cb_server_gbm_surface_lock_front_buffer(struct gbm_surface *gbm_surf)
 	wayland_buffer->status = POSTED;
 #endif
 
-	bo_handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_MM, TBM_OPTION_READ | TBM_OPTION_WRITE);
+	bo_handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_3D, TBM_OPTION_READ | TBM_OPTION_WRITE);
 #if 1 /* Temporary fix. Keep this until evas corrects lock buffer & release buffer */
 	if (NULL == bo_handle.ptr)
 	{
