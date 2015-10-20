@@ -45,6 +45,12 @@ typedef struct _tpl_wayland_display       tpl_wayland_display_t;
 typedef struct _tpl_wayland_surface       tpl_wayland_surface_t;
 typedef struct _tpl_wayland_buffer        tpl_wayland_buffer_t;
 
+enum wayland_display_type
+{
+	SERVER,
+	CLIENT
+};
+
 enum wayland_buffer_status
 {
 	IDLE = 0,
@@ -62,6 +68,7 @@ struct _tpl_wayland_display
 	struct wl_drm     *wl_drm;
 	tbm_bufmgr         bufmgr;
 #endif
+	enum wayland_display_type	type;
 	union
 	{
 		struct
@@ -310,6 +317,7 @@ __tpl_wayland_display_init(tpl_display_t *display)
 	{
 		struct wl_display *wl_dpy = (struct wl_display *)display->native_handle;
 
+		wayland_display->type = CLIENT;
 #ifdef TPL_USING_WAYLAND_TBM
 		wayland_display->wl_tbm_client = wayland_tbm_client_init((struct wl_display *) wl_dpy);
 
@@ -352,6 +360,8 @@ __tpl_wayland_display_init(tpl_display_t *display)
 		struct gbm_device *gbm = (struct gbm_device *)display->native_handle;
 		struct gbm_tbm_device *gbm_tbm = (struct gbm_tbm_device *)gbm;
 
+		wayland_display->type = SERVER;
+
 		/* Hook gbm backend callbacks. If the compositor calls gbm APIs to get a buffer,
 		   then we return a suitable buffer to the compositor instead of gbm does. */
 		gbm_tbm_device_set_callback_surface_has_free_buffers(gbm_tbm, __cb_server_gbm_surface_has_free_buffers);
@@ -388,7 +398,7 @@ __tpl_wayland_display_fini(tpl_display_t *display)
 	wayland_display = (tpl_wayland_display_t *)display->backend.data;
 	if (wayland_display != NULL)
 	{
-		if (__tpl_wayland_display_is_wl_display(display->native_handle))
+		if (wayland_display->type == CLIENT)
 		{
 #ifdef TPL_USING_WAYLAND_TBM
 			wayland_tbm_client_deinit(wayland_display->wl_tbm_client);
@@ -397,7 +407,7 @@ __tpl_wayland_display_fini(tpl_display_t *display)
 			close(display->bufmgr_fd);
 #endif
 		}
-		if (__tpl_wayland_display_is_gbm_device(display->native_handle))
+		if (wayland_display->type == SERVER)
 		{
 			struct gbm_device *gbm = (struct gbm_device *)display->native_handle;
 			struct gbm_tbm_device *gbm_tbm = (struct gbm_tbm_device *)gbm;
@@ -421,6 +431,8 @@ __tpl_wayland_display_query_config(tpl_display_t *display, tpl_surface_type_t su
 {
 	TPL_ASSERT(display);
 
+	tpl_wayland_display_t* wayland_display = (tpl_wayland_display_t*)display->backend.data;
+
 	if (surface_type == TPL_SURFACE_TYPE_WINDOW &&
 		red_size == 8 &&
 		green_size == 8 &&
@@ -429,11 +441,11 @@ __tpl_wayland_display_query_config(tpl_display_t *display, tpl_surface_type_t su
 	{
 		if (alpha_size == 8)
 		{
-			if (__tpl_wayland_display_is_wl_display(display->native_handle))
+			if (wayland_display->type == CLIENT)
 			{
 				if (native_visual_id != NULL) *native_visual_id = WL_DRM_FORMAT_ARGB8888;
 			}
-			else if (__tpl_wayland_display_is_gbm_device(display->native_handle) &&
+			else if (wayland_display->type == SERVER &&
 				 gbm_device_is_format_supported((struct gbm_device *)display->native_handle,
 								GBM_FORMAT_ARGB8888,
 								GBM_BO_USE_RENDERING) == 1)
@@ -448,11 +460,11 @@ __tpl_wayland_display_query_config(tpl_display_t *display, tpl_surface_type_t su
 		}
 		if (alpha_size == 0)
 		{
-			if (__tpl_wayland_display_is_wl_display(display->native_handle))
+			if (wayland_display->type == CLIENT)
 			{
 				if (native_visual_id != NULL) *native_visual_id = WL_DRM_FORMAT_XRGB8888;
 			}
-			else if (__tpl_wayland_display_is_gbm_device(display->native_handle) &&
+			else if (wayland_display->type == SERVER &&
 				 gbm_device_is_format_supported((struct gbm_device *)display->native_handle,
 								GBM_FORMAT_XRGB8888,
 								GBM_BO_USE_RENDERING) == 1)
@@ -492,7 +504,9 @@ __tpl_wayland_display_get_window_info(tpl_display_t *display, tpl_handle_t windo
 	TPL_ASSERT(display);
 	TPL_ASSERT(window);
 
-	if (__tpl_wayland_display_is_wl_display(display->native_handle))
+	tpl_wayland_display_t* wayland_display = (tpl_wayland_display_t*)display->backend.data;
+
+	if (wayland_display->type == CLIENT)
 	{
 		struct wl_egl_window *wl_egl_window = (struct wl_egl_window *)window;
 
@@ -517,7 +531,7 @@ __tpl_wayland_display_get_window_info(tpl_display_t *display, tpl_handle_t windo
 
 		return TPL_TRUE;
 	}
-	else if (__tpl_wayland_display_is_gbm_device(display->native_handle) == TPL_TRUE)
+	else if (wayland_display->type == SERVER)
 	{
 		struct gbm_surface *gbm_surface = (struct gbm_surface *)window;
 		struct gbm_tbm_surface *gbm_tbm_surface = (struct gbm_tbm_surface *)gbm_surface;
@@ -596,6 +610,7 @@ static tpl_bool_t
 __tpl_wayland_surface_init(tpl_surface_t *surface)
 {
 	tpl_wayland_surface_t *wayland_surface = NULL;
+	tpl_wayland_display_t *wayland_display = NULL;
 	int i;
 
 	TPL_ASSERT(surface);
@@ -610,9 +625,11 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 	__tpl_list_init(&wayland_surface->able_rendering_queue);
 	__tpl_list_init(&wayland_surface->done_rendering_queue);
 
+	wayland_display = (tpl_wayland_display_t*)surface->display->backend.data;
+
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW)
 	{
-		if (__tpl_wayland_display_is_wl_display(surface->display->native_handle))
+		if (wayland_display->type == CLIENT)
 		{
 			struct wl_egl_window *wl_egl_window = (struct wl_egl_window *)surface->native_handle;
 			wl_egl_window->private = surface;
@@ -624,7 +641,7 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 					goto error;
 			}
 		}
-		if (__tpl_wayland_display_is_gbm_device(surface->display->native_handle))
+		if (wayland_display->type == SERVER)
 		{
 			struct gbm_surface *gbm_surface = surface->native_handle;
 			struct gbm_tbm_surface *gbm_tbm_surface = (struct gbm_tbm_surface *)gbm_surface;
@@ -732,7 +749,8 @@ __tpl_wayland_surface_get_idle_buffer_idx(tpl_wayland_surface_t *wayland_surface
 static void
 __tpl_wayland_surface_fini(tpl_surface_t *surface)
 {
-	tpl_wayland_surface_t *wayland_surface;
+	tpl_wayland_surface_t *wayland_surface = NULL;
+	tpl_wayland_display_t *wayland_display = NULL;
 
 	TPL_ASSERT(surface);
 
@@ -740,13 +758,16 @@ __tpl_wayland_surface_fini(tpl_surface_t *surface)
 	if (NULL == wayland_surface)
 		return;
 
+	wayland_display = (tpl_wayland_display_t *) surface->display->backend.data;
+
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
+	/*
 	while (!__tpl_list_is_empty(&surface->frame_queue))
 	{
 		__tpl_util_sys_yield();
 	}
-
+	*/
 	TPL_LOG(3, "free buffers able(%d), current:%d, done:%d",
 			__tpl_list_get_count(&wayland_surface->able_rendering_queue),
 			wayland_surface->current_rendering_buffer?1:0,
@@ -761,7 +782,7 @@ __tpl_wayland_surface_fini(tpl_surface_t *surface)
 
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW)
 	{
-		if (__tpl_wayland_display_is_wl_display(surface->display->native_handle))
+		if (wayland_display->type == CLIENT)
 		{
 			struct wl_egl_window *wl_egl_window = (struct wl_egl_window *)surface->native_handle;
 
@@ -783,7 +804,7 @@ __tpl_wayland_surface_fini(tpl_surface_t *surface)
 			__tpl_wayland_display_roundtrip(surface->display);
 		}
 
-		if (__tpl_wayland_display_is_gbm_device(surface->display->native_handle))
+		if (wayland_display->type == SERVER)
 		{
 			struct gbm_surface *gbm_surface = surface->native_handle;
 			struct gbm_tbm_surface *gbm_tbm_surface = (struct gbm_tbm_surface *)gbm_surface;
@@ -809,9 +830,11 @@ __tpl_wayland_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 	TPL_ASSERT(frame);
 	TPL_ASSERT(frame->buffer);
 
+	tpl_wayland_display_t *wayland_display = (tpl_wayland_display_t*) surface->display->backend.data;
+
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
-	if (__tpl_wayland_display_is_wl_display(surface->display->native_handle))
+	if (wayland_display->type == CLIENT)
 	{
 		tpl_wayland_display_t *wayland_display = (tpl_wayland_display_t *)surface->display->backend.data;
 		tpl_wayland_buffer_t *wayland_buffer = (tpl_wayland_buffer_t *)frame->buffer->backend.data;
@@ -865,7 +888,7 @@ __tpl_wayland_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 		wl_display_flush(surface->display->native_handle);
 	}
 #ifndef USING_BUFFER
-	if (__tpl_wayland_display_is_gbm_device(surface->display->native_handle))
+	if (wayland_display->type == SERVER)
 	{
 		tpl_wayland_buffer_t *wayland_buffer = (tpl_wayland_buffer_t *)frame->buffer->backend.data;
 
@@ -892,7 +915,7 @@ __tpl_wayland_surface_begin_frame(tpl_surface_t *surface)
 
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
-	if (__tpl_wayland_display_is_wl_display(surface->display->native_handle))
+	if (wayland_display->type == CLIENT)
 	{
 		TPL_OBJECT_UNLOCK(surface);
 
@@ -910,7 +933,7 @@ __tpl_wayland_surface_begin_frame(tpl_surface_t *surface)
 
 		TPL_OBJECT_LOCK(surface);
 	}
-	if (__tpl_wayland_display_is_gbm_device(surface->display->native_handle))
+	if (wayland_display->type == SERVER)
 	{
 		is_gbm_device = TPL_TRUE;
 		while (1)
@@ -995,15 +1018,16 @@ static tpl_bool_t
 __tpl_wayland_surface_end_frame(tpl_surface_t *surface)
 {
 	tpl_wayland_surface_t *wayland_surface;
-
+	tpl_wayland_display_t *wayland_display;
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
 
 	wayland_surface = (tpl_wayland_surface_t *) surface->backend.data;
+	wayland_display = (tpl_wayland_display_t *) surface->display->backend.data;
 
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
-	if (__tpl_wayland_display_is_gbm_device(surface->display->native_handle))
+	if (wayland_display->type == SERVER)
 	{
 		tpl_wayland_buffer_t *wayland_buffer = (tpl_wayland_buffer_t *) wayland_surface->current_rendering_buffer->backend.data;
 		TPL_LOG(6, "DONE QUEUE:%d | current_rendering_buffer BO:%d", __tpl_list_get_count(&wayland_surface->done_rendering_queue), tbm_bo_export(wayland_buffer->bo));
@@ -1633,7 +1657,7 @@ __tpl_wayland_surface_get_buffer_from_tbm_bo(tpl_surface_t *surface, tbm_bo bo, 
 	TPL_ASSERT(surface);
 	TPL_ASSERT(bo);
 
-	wayland_surface = (tpl_wayland_buffer_t*) surface->backend.data;
+	wayland_surface = (tpl_wayland_surface_t*) surface->backend.data;
 
 	for (i = 0; i < num_max_back_buf; i++)
 	{
@@ -1653,11 +1677,13 @@ __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffe
 {
 	int i;
 	tpl_wayland_surface_t *wayland_surface;
+	tpl_wayland_display_t *wayland_display;
 
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->backend.data);
 
 	wayland_surface = (tpl_wayland_surface_t *)surface->backend.data;
+	wayland_display = (tpl_wayland_display_t *)surface->display->backend.data;
 
 	if (reset_buffers != NULL)
 		*reset_buffers = TPL_FALSE;
@@ -1669,12 +1695,12 @@ __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffe
 	{
 		if (surface->type == TPL_SURFACE_TYPE_WINDOW)
 		{
-			if (__tpl_wayland_display_is_wl_display(surface->display->native_handle))
+			if (wayland_display->type == CLIENT)
 			{
 				wayland_surface->current_rendering_buffer =
 					__tpl_wayland_surface_create_buffer_from_wl_egl(surface, reset_buffers);
 			}
-			if (__tpl_wayland_display_is_gbm_device(surface->display->native_handle))
+			if (wayland_display->type == SERVER)
 			{
 				wayland_surface->current_rendering_buffer =
 					__tpl_wayland_surface_create_buffer_from_gbm_surface(surface, reset_buffers);
@@ -1693,7 +1719,7 @@ __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffe
 		int reused = 1;
 
 		if (surface->type == TPL_SURFACE_TYPE_WINDOW &&
-			__tpl_wayland_display_is_wl_display(surface->display->native_handle))
+			wayland_display->type == CLIENT)
 		{
 			int width, height;
 
@@ -1800,7 +1826,7 @@ __tpl_wayland_buffer_fini(tpl_buffer_t *buffer)
 			wayland_buffer->tbm_surface = NULL;
 		}
 
-		if (__tpl_wayland_display_is_wl_display(wayland_buffer->display->native_handle))
+		if (wayland_display->type == CLIENT)
 		{
 			wl_display_flush((struct wl_display *)wayland_buffer->display->native_handle);
 
@@ -1812,7 +1838,7 @@ __tpl_wayland_buffer_fini(tpl_buffer_t *buffer)
 				wl_buffer_destroy((void *)wayland_buffer->proc.app.wl_resource);
 #endif
 		}
-		if (__tpl_wayland_display_is_gbm_device(wayland_buffer->display->native_handle))
+		if (wayland_display->type == SERVER)
 		{
 			if (wayland_buffer->proc.comp.gbm_bo != NULL)
 			{
