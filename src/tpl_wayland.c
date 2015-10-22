@@ -24,7 +24,7 @@
 /* In wayland, application and compositor create its own drawing buffers. Recommend size is more than 2. */
 #define TPL_BUFFER_ALLOC_SIZE_APP               3
 #define TPL_BUFFER_ALLOC_SIZE_COMPOSITOR        4
-
+#define TPL_BUFFER_ALLOC_SIZE_MAX		(((TPL_BUFFER_ALLOC_SIZE_APP) > (TPL_BUFFER_ALLOC_SIZE_COMPOSITOR))?(TPL_BUFFER_ALLOC_SIZE_APP):(TPL_BUFFER_ALLOC_SIZE_COMPOSITOR))
 #define TPL_BUFFER_ALLOC_PITCH_ALIGNMENT        64
 #define ALIGN_TO_64BYTE(byte) (((byte) + TPL_BUFFER_ALLOC_PITCH_ALIGNMENT - 1) & ~(TPL_BUFFER_ALLOC_PITCH_ALIGNMENT - 1))
 
@@ -91,11 +91,14 @@ struct _tpl_wayland_surface
 	tpl_list_t	done_rendering_queue;
 #ifdef USING_BUFFER
         int		current_back_idx;
+	tpl_buffer_t	*back_buffers[TPL_BUFFER_ALLOC_SIZE_MAX];
+#if 0
 	union
 	{
-		tpl_buffer_t*	server_buffers[TPL_BUFFER_ALLOC_SIZE_COMPOSITOR];
-		tpl_buffer_t	client_buffers[TPL_BUFFER_ALLOC_SIZE_APP];
+		tpl_buffer_t	*server_buffers[TPL_BUFFER_ALLOC_SIZE_COMPOSITOR];
+		tpl_buffer_t	*client_buffers[TPL_BUFFER_ALLOC_SIZE_APP];
         }
+#endif
 #endif
 };
 
@@ -443,7 +446,11 @@ __tpl_wayland_display_query_config(tpl_display_t *display, tpl_surface_type_t su
 		{
 			if (wayland_display->type == CLIENT)
 			{
+#ifdef TPL_USING_WAYLAND_TBM
+				if (native_visual_id != NULL) *native_visual_id = TBM_FORMAT_ARGB8888;
+#else
 				if (native_visual_id != NULL) *native_visual_id = WL_DRM_FORMAT_ARGB8888;
+#endif
 			}
 			else if (wayland_display->type == SERVER &&
 				 gbm_device_is_format_supported((struct gbm_device *)display->native_handle,
@@ -462,7 +469,11 @@ __tpl_wayland_display_query_config(tpl_display_t *display, tpl_surface_type_t su
 		{
 			if (wayland_display->type == CLIENT)
 			{
+#ifdef TPL_USING_WAYLAND_TBM
+				if (native_visual_id != NULL) *native_visual_id = TBM_FORMAT_XRGB8888;
+#else
 				if (native_visual_id != NULL) *native_visual_id = WL_DRM_FORMAT_XRGB8888;
+#endif
 			}
 			else if (wayland_display->type == SERVER &&
 				 gbm_device_is_format_supported((struct gbm_device *)display->native_handle,
@@ -637,8 +648,12 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 			/* Create renderable buffer queue. Fill with empty(=NULL) buffers. */
 			for (i = 0; i < TPL_BUFFER_ALLOC_SIZE_APP; i++)
 			{
+#ifdef USING_BUFFER
+				wayland_surface->back_buffers[i] = NULL;
+#else
 				if (TPL_TRUE != __tpl_list_push_back(&wayland_surface->able_rendering_queue, NULL))
 					goto error;
+#endif
 			}
 		}
 		if (wayland_display->type == SERVER)
@@ -652,7 +667,7 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 			{
 #ifdef USING_BUFFER
 				/* USING_BUFFER */
-				wayland_surface->server_buffers[i] = NULL;
+				wayland_surface->back_buffers[i] = NULL;
 				/* USING_BUFFER */
 #else
 				if (TPL_TRUE != __tpl_list_push_back(&wayland_surface->able_rendering_queue, NULL))
@@ -703,9 +718,9 @@ __tpl_wayland_surface_render_buffers_free(tpl_wayland_surface_t *wayland_surface
 
 	for (i = 0; i < num_buffers; i++)
 	{
-		if ( wayland_surface->server_buffers[i] != NULL )
-			__tpl_wayland_surface_buffer_free(wayland_surface->server_buffers[i]);
-		wayland_surface->server_buffers[i] = NULL;
+		if ( wayland_surface->back_buffers[i] != NULL )
+			__tpl_wayland_surface_buffer_free(wayland_surface->back_buffers[i]);
+		wayland_surface->back_buffers[i] = NULL;
 	}
 }
 
@@ -725,7 +740,7 @@ __tpl_wayland_surface_get_idle_buffer_idx(tpl_wayland_surface_t *wayland_surface
 #else
 		int id = i % num_buffers;
 #endif
-		tpl_buffer_t *tpl_buffer = wayland_surface->server_buffers[id];
+		tpl_buffer_t *tpl_buffer = wayland_surface->back_buffers[id];
 		tpl_wayland_buffer_t *wayland_buffer = NULL;
 
 		if ( tpl_buffer == NULL )
@@ -945,7 +960,7 @@ __tpl_wayland_surface_begin_frame(tpl_surface_t *surface)
 
 			if (idx >= 0)
 			{
-				tpl_buffer_t *buffer = wayland_surface->server_buffers[idx];
+				tpl_buffer_t *buffer = wayland_surface->back_buffers[idx];
 				tpl_wayland_buffer_t *wayland_buffer = NULL;
 
 				if (!buffer)
@@ -988,7 +1003,7 @@ __tpl_wayland_surface_begin_frame(tpl_surface_t *surface)
 	if (is_gbm_device == TPL_TRUE)
 	{
 		tpl_wayland_buffer_t *wayland_buffer = NULL;
-		wayland_surface->current_rendering_buffer = wayland_surface->server_buffers[wayland_surface->current_back_idx];
+		wayland_surface->current_rendering_buffer = wayland_surface->back_buffers[wayland_surface->current_back_idx];
 
 		if ( wayland_surface->current_rendering_buffer )
 		{
@@ -1524,7 +1539,7 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
         wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
         if (wayland_surface)
         {
-                wayland_surface->server_buffers[wayland_surface->current_back_idx] = buffer;
+                wayland_surface->back_buffers[wayland_surface->current_back_idx] = buffer;
                 wayland_buffer->status = BUSY;
         }
 #endif
@@ -1661,7 +1676,7 @@ __tpl_wayland_surface_get_buffer_from_tbm_bo(tpl_surface_t *surface, tbm_bo bo, 
 
 	for (i = 0; i < num_max_back_buf; i++)
 	{
-		tpl_buffer = wayland_surface->server_buffers[i];
+		tpl_buffer = wayland_surface->back_buffers[i];
 		if (tpl_buffer)
 		{
 			wayland_buffer = (tpl_wayland_buffer_t*)tpl_buffer->backend.data;
