@@ -233,7 +233,7 @@ __gbm_tbm_bo_import(struct gbm_device *gbm, uint32_t type,
    bo->format = format;
    bo->usage = usage;
 
-   bo->bo = tbo;
+   bo->bo = tbm_bo_ref(tbo);
    handle = tbm_bo_get_handle(bo->bo, TBM_DEVICE_DEFAULT);
 
    bo->base.base.handle.u64 = handle.u64;

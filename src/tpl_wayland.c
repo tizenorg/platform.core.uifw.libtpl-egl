@@ -10,6 +10,7 @@
 #include <tbm_bufmgr.h>
 #include <gbm.h>
 #include <gbm_tbm.h>
+#include <gbm_tbmint.h>
 #include <xf86drm.h>
 
 #undef inline
@@ -1968,6 +1969,10 @@ unsigned int __tpl_wayland_display_bind_client_display(tpl_display_t *tpl_displa
 		TPL_ERR("Wayland DRM initialization failed!");
 		return TPL_FALSE;
 	}
+
+	struct gbm_device *gbm = (struct gbm_device *)tpl_display->native_handle;
+	struct gbm_tbm_device *gbm_tbm = (struct gbm_tbm_device *)gbm;
+	gbm_tbm->wl_drm = tpl_wayland_display->wl_drm;
 
 	return TPL_TRUE;
 }
