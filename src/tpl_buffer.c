@@ -46,6 +46,7 @@ __tpl_buffer_alloc(tpl_surface_t *surface, size_t key, int fd, int width, int he
 	buffer->depth = depth;
 	buffer->pitch = pitch;
 
+	buffer->map_cnt = 0;
 	/* Backend initialization. */
 	__tpl_buffer_init_backend(buffer, surface->display->backend.type);
 
@@ -112,6 +113,7 @@ tpl_buffer_lock(tpl_buffer_t *buffer, tpl_lock_usage_t usage)
 
 	TPL_OBJECT_LOCK(buffer);
 	result = buffer->backend.lock(buffer, usage);
+	buffer->map_cnt++;
 	TPL_OBJECT_UNLOCK(buffer);
 
 	return result;
@@ -128,6 +130,7 @@ tpl_buffer_unlock(tpl_buffer_t *buffer)
 
 	TPL_OBJECT_LOCK(buffer);
 	buffer->backend.unlock(buffer);
+	buffer->map_cnt--;
 	TPL_OBJECT_UNLOCK(buffer);
 }
 
@@ -233,6 +236,11 @@ tpl_buffer_get_pitch(tpl_buffer_t *buffer)
 	return buffer->pitch;
 }
 
+int
+tpl_buffer_get_map_cnt(tpl_buffer_t *buffer)
+{
+	return buffer->map_cnt;
+}
 void *
 tpl_buffer_create_native_buffer(tpl_buffer_t *buffer)
 {

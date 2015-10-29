@@ -827,6 +827,9 @@ int tpl_buffer_get_pitch(tpl_buffer_t *buffer);
  */
 unsigned int tpl_buffer_get_id(tpl_buffer_t *buffer);
 
+
+int tpl_buffer_get_map_cnt(tpl_buffer_t *buffer);
+
 /**
  * Query information on the given native window.
  *
