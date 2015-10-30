@@ -216,7 +216,6 @@ __tpl_x11_dri2_display_init(tpl_display_t *display)
 		/* Initialize buffer manager. */
 		global.bufmgr_fd = open(dev, O_RDWR);
 		drmGetMagic(global.bufmgr_fd, &magic);
-		global.bufmgr = tbm_bufmgr_init(global.bufmgr_fd);
 
 		/* DRI2 authentication. */
 		xres = DRI2Authenticate(global.worker_display, root, magic);
@@ -225,6 +224,8 @@ __tpl_x11_dri2_display_init(tpl_display_t *display)
 			TPL_ERR("DRI2Authenciate failed!");
 			return TPL_FALSE;
 		}
+
+		global.bufmgr = tbm_bufmgr_init(global.bufmgr_fd);
 
 		/* Initialize swap type configuration. */
 		__tpl_x11_swap_str_to_swap_type(getenv(EGL_X11_WINDOW_SWAP_TYPE_ENV_NAME),
@@ -298,7 +299,7 @@ __tpl_x11_dri2_surface_init(tpl_surface_t *surface)
 	}
 
 	x11_surface->latest_post_interval = -1;
-	tpl_list_init(&x11_surface->buffer_cache);
+	__tpl_list_init(&x11_surface->buffer_cache);
 
 	display = (Display *)surface->display->native_handle;
 	drawable = (Drawable)surface->native_handle;
