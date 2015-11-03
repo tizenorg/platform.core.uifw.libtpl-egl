@@ -448,7 +448,12 @@ __tpl_wayland_display_get_window_info(tpl_display_t *display, tpl_handle_t windo
 			if (surface != NULL)
 				*format = surface->format;
 			else
-				*format = TPL_FORMAT_ARGB8888;
+			{
+				if (a_size == 8)
+					*format = TPL_FORMAT_ARGB8888;
+				else if (a_size == 0)
+					*format = TPL_FORMAT_XRGB8888;
+			}
 		}
 		if (width != NULL) *width = wl_egl_window->width;
 		if (height != NULL) *height = wl_egl_window->height;
@@ -953,7 +958,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	}
 
 	buffer->backend.data = (void *) wayland_buffer;
-	surface->format = TPL_FORMAT_ARGB8888;
+	surface->format = format;
 	/* Post process : Create a wl_drm_buffer and notify the buffer to the server. */
 	switch (surface->format)
 	{
