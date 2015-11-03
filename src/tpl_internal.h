@@ -144,6 +144,7 @@ struct _tpl_surface
 	tpl_region_t			damage;
 	tpl_list_t			frame_queue;
 
+	int				dump_count;
 	tpl_surface_backend_t		backend;
 };
 

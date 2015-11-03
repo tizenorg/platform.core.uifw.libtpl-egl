@@ -115,6 +115,7 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type
 	surface->frame = NULL;
 	surface->post_interval = 1;
 
+        surface->dump_count = 0;
 	__tpl_region_init(&surface->damage);
 	__tpl_list_init(&surface->frame_queue);
 

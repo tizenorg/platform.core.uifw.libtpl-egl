@@ -48,7 +48,6 @@ extern unsigned int tpl_log_lvl;
 #else
 #define TPL_LOG(lvl, f, x...)								\
 	{										\
-		tpl_log_lvl = 6;							\
 		if (tpl_log_lvl == lvl)							\
 		{									\
 			TPL_LOG_PRINT(f, ##x)						\
@@ -206,6 +205,137 @@ extern unsigned int tpl_log_lvl;
 		}									\
 	}										\
 	while (0)
+
+#define TPL_DUMP_BMP(data, width, height, num)						\
+	{										\
+		if (tpl_log_lvl == 1)							\
+		{									\
+			__tpl_util_dump2bmp(__func__, data, width, height, num);	\
+		}									\
+		else									\
+		{									\
+			char *env = getenv("TPL_DUMP_LEVEL");				\
+			if (env == NULL)						\
+				tpl_log_lvl = 0;					\
+			else								\
+				tpl_log_lvl = atoi(env);				\
+											\
+			if (tpl_log_lvl == 1)						\
+				__tpl_util_dump2bmp(__func__, data, width, height, num);\
+		}									\
+	}
+
+static int
+secUtilDumpBmp (const char * file, const void * data, int width, int height)
+{
+        int i;
+
+        struct
+        {
+                unsigned char magic[2];
+        } bmpfile_magic = { {'B', 'M'} };
+
+        struct
+        {
+                unsigned int filesz;
+                unsigned short creator1;
+                unsigned short creator2;
+                unsigned int bmp_offset;
+        } bmpfile_header = { 0, 0, 0, 0x36 };
+
+        struct
+        {
+                unsigned int header_sz;
+                unsigned int width;
+                unsigned int height;
+                unsigned short nplanes;
+                unsigned short bitspp;
+                unsigned int compress_type;
+                unsigned int bmp_bytesz;
+                unsigned int hres;
+                unsigned int vres;
+                unsigned int ncolors;
+                unsigned int nimpcolors;
+        } bmp_dib_v3_header_t = { 0x28, 0, 0, 1, 24, 0, 0, 0, 0, 0, 0 };
+        unsigned int * blocks;
+
+        if ( data == NULL )
+                return -1;
+
+        if ( width <= 0 || height <= 0)
+                return -1;
+
+        FILE * fp = NULL;
+        if ((fp = fopen (file, "wb")) == NULL)
+        {
+                printf("FILE ERROR:%s\t",strerror(errno));
+
+                return -2;
+        }
+        else
+        {
+                bmpfile_header.filesz = sizeof (bmpfile_magic) + sizeof (bmpfile_header) +
+                                  sizeof (bmp_dib_v3_header_t) + width * height * 3;
+                bmp_dib_v3_header_t.header_sz = sizeof (bmp_dib_v3_header_t);
+                bmp_dib_v3_header_t.width = width;
+                bmp_dib_v3_header_t.height = -height;
+                bmp_dib_v3_header_t.nplanes = 1;
+                bmp_dib_v3_header_t.bmp_bytesz = width * height * 3;
+
+                if ( fwrite (&bmpfile_magic, sizeof (bmpfile_magic), 1, fp) < 0 )
+                {
+                        fclose (fp);
+                        return -1;
+                }
+                if ( fwrite (&bmpfile_header, sizeof (bmpfile_header), 1, fp) < 0)
+                {
+                        fclose (fp);
+                        return -1;
+                }
+                if ( fwrite (&bmp_dib_v3_header_t, sizeof (bmp_dib_v3_header_t), 1, fp) < 0)
+                {
+                        fclose (fp);
+                        return -1;
+                }
+
+                blocks = (unsigned int*)data;
+                for (i=0; i<height * width; i++)
+                {
+                        if( fwrite (&blocks[i], 3, 1, fp) < 0 )
+                        {
+                                fclose(fp);
+                                return -1;
+                        }
+                }
+
+                fclose (fp);
+        }
+
+        return 0;
+}
+
+static void
+__tpl_util_dump2bmp(const char * func, const void * data, int width, int height, int num)
+{
+        char name[200];
+
+        snprintf(name, sizeof(name),"/home/dump/[%d][%s][%d][%d][%04d].bmp", getpid(), func, width, height, num);
+
+        /*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
+        switch(secUtilDumpBmp(name, data, width, height))
+        {
+        case 0:
+                TPL_LOG(6,"%s file is dumped\n", name);
+                break;
+        case -1:
+                TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n", data, width, height);
+                break;
+        case -2:
+                TPL_LOG(6, "Dump failed..file pointer error\n");
+                break;
+        }
+}
+
 
 typedef struct _tpl_list_node	tpl_list_node_t;
 typedef struct _tpl_list	tpl_list_t;
