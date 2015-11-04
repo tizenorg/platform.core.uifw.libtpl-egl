@@ -1812,16 +1812,6 @@ __cb_server_gbm_surface_lock_front_buffer(struct gbm_surface *gbm_surf)
 		return NULL;
 	}
 
-	bo_handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_3D, TBM_OPTION_READ | TBM_OPTION_WRITE);
-#if 0 /* Temporary fix. Keep this until evas corrects lock buffer & release buffer */
-	if (NULL == bo_handle.ptr)
-	{
-		TPL_ERR("TBM bo map failed!");
-		TPL_OBJECT_UNLOCK(surface);
-		return NULL;
-	}
-#endif
-
 	TPL_OBJECT_UNLOCK(surface);
 
 	return wayland_buffer->proc.comp.gbm_bo;
@@ -1841,8 +1831,6 @@ __cb_server_gbm_surface_release_buffer(struct gbm_surface *gbm_surf, struct gbm_
 
 	bo = gbm_tbm_bo_get_tbm_bo(gbm_tbm_bo);
 	TPL_ASSERT(bo);
-
-	tbm_bo_unmap(bo);
 }
 
 static int
