@@ -1,6 +1,7 @@
 #include "tpl_internal.h"
 
 unsigned int tpl_log_lvl;
+unsigned int tpl_dump_lvl;
 
 struct _tpl_runtime
 {

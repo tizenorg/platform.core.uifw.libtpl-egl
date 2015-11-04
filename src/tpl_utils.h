@@ -35,13 +35,19 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <signal.h>
 
 #define LOG_TAG "TPL"
 #include <dlog.h>
 
+#ifdef PNG_DUMP_ENABLE
+#include <png.h>
+#endif
+
 /* 0:uninitialized, 1:initialized,no log, 2:user log */
 extern unsigned int tpl_log_lvl;
+extern unsigned int tpl_dump_lvl;
 
 #ifdef DLOG_DEFAULT_ENABLE
 #define TPL_LOG(lvl, f, x...) TPL_LOG_PRINT(f, ##x)
@@ -206,22 +212,22 @@ extern unsigned int tpl_log_lvl;
 	}										\
 	while (0)
 
-#define TPL_DUMP_BMP(data, width, height, num)						\
+#define TPL_IMAGE_DUMP(data, width, height, num)					\
 	{										\
-		if (tpl_log_lvl == 1)							\
+		if (tpl_dump_lvl != 0)							\
 		{									\
-			__tpl_util_dump2bmp(__func__, data, width, height, num);	\
+			__tpl_util_image_dump(__func__, data, tpl_dump_lvl, width, height, num);	\
 		}									\
 		else									\
 		{									\
 			char *env = getenv("TPL_DUMP_LEVEL");				\
 			if (env == NULL)						\
-				tpl_log_lvl = 0;					\
+				tpl_dump_lvl = 0;					\
 			else								\
-				tpl_log_lvl = atoi(env);				\
+				tpl_dump_lvl = atoi(env);				\
 											\
-			if (tpl_log_lvl == 1)						\
-				__tpl_util_dump2bmp(__func__, data, width, height, num);\
+			if (tpl_dump_lvl != 0)						\
+				__tpl_util_image_dump(__func__, data, tpl_dump_lvl, width, height, num);\
 		}									\
 	}
 
@@ -314,26 +320,153 @@ secUtilDumpBmp (const char * file, const void * data, int width, int height)
         return 0;
 }
 
+#ifdef PNG_DUMP_ENABLE
+#define PNG_DEPTH 8
+static int
+secUtilDumpPng(const char *file, const void *data, int width, int height)
+{
+	TPL_CHECK_ON_FALSE_RETURN_VAL(data != NULL, -1);
+	TPL_CHECK_ON_FALSE_RETURN_VAL(width > 0, -1);
+	TPL_CHECK_ON_FALSE_RETURN_VAL(height > 0, -1);
+
+	FILE *fp = fopen(file, "wb");
+	int res = -2;
+
+	if (fp)
+	{
+		res = -1;
+		png_structp pPngStruct =
+			png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+		if (pPngStruct)
+		{
+			png_infop pPngInfo = png_create_info_struct(pPngStruct);
+
+			if (pPngInfo)
+			{
+				png_init_io(pPngStruct, fp);
+				png_set_IHDR(pPngStruct,
+				pPngInfo,
+				width,
+				height,
+				PNG_DEPTH,
+				PNG_COLOR_TYPE_RGBA,
+				PNG_INTERLACE_NONE,
+				PNG_COMPRESSION_TYPE_DEFAULT,
+				PNG_FILTER_TYPE_DEFAULT);
+
+				png_set_bgr(pPngStruct);
+				png_write_info(pPngStruct, pPngInfo);
+
+				const int pixel_size = 4;       // RGBA
+				png_bytep *row_pointers =
+					png_malloc(pPngStruct, height * sizeof(png_byte *));
+				if (!row_pointers)
+				{
+					fclose(fp);
+					return res;
+				}
+
+				unsigned int *blocks = (unsigned int *) data;
+				int y = 0;
+				int x = 0;
+
+				for (; y < height; ++y)
+				{
+					png_bytep row = png_malloc(pPngStruct,
+							sizeof(png_byte) * width *
+							pixel_size);
+					if (!row)
+					{
+						fclose(fp);
+						return res;
+					}
+
+					row_pointers[y] = (png_bytep) row;
+
+					for (x = 0; x < width; ++x)
+					{
+						unsigned int curBlock = blocks[y * width + x];
+
+						row[x * pixel_size] = (curBlock & 0xFF);
+						row[1 + x * pixel_size] = (curBlock >> 8) & 0xFF;
+						row[2 + x * pixel_size] = (curBlock >> 16) & 0xFF;
+						row[3 + x * pixel_size] = (curBlock >> 24) & 0xFF;
+					}
+				}
+
+				png_write_image(pPngStruct, row_pointers);
+				png_write_end(pPngStruct, pPngInfo);
+
+				for (y = 0; y < height; y++) {
+					png_free(pPngStruct, row_pointers[y]);
+				}
+				png_free(pPngStruct, row_pointers);
+
+				png_destroy_write_struct(&pPngStruct, &pPngInfo);
+
+				res = 0;
+			}
+		}
+		fclose(fp);
+	}
+
+	return res;
+}
+#endif
+
 static void
-__tpl_util_dump2bmp(const char * func, const void * data, int width, int height, int num)
+__tpl_util_image_dump(const char * func, const void * data, int type, int width, int height, int num)
 {
         char name[200];
+        char path_name[20] = "/tmp/tpl_dump";
 
-        snprintf(name, sizeof(name),"/home/dump/[%d][%s][%d][%d][%04d].bmp", getpid(), func, width, height, num);
+	if(mkdir (path_name, 0755) == -1)
+	{
+		if (errno != EEXIST)
+		{
+			TPL_LOG(3,"Directory creation error!");
+			return;
+		}
+	}
 
-        /*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
-        switch(secUtilDumpBmp(name, data, width, height))
-        {
-        case 0:
-                TPL_LOG(6,"%s file is dumped\n", name);
-                break;
-        case -1:
-                TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n", data, width, height);
-                break;
-        case -2:
-                TPL_LOG(6, "Dump failed..file pointer error\n");
-                break;
-        }
+        if (type == 1)
+	{
+		snprintf(name, sizeof(name),"%s/[%d][%s][%d][%d][%04d].bmp", path_name, getpid(), func, width, height, num);
+
+		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
+		switch(secUtilDumpBmp(name, data, width, height))
+		{
+		case 0:
+			TPL_LOG(6,"%s file is dumped\n", name);
+			break;
+		case -1:
+			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n", data, width, height);
+			break;
+		case -2:
+			TPL_LOG(6, "Dump failed..file pointer error\n");
+			break;
+		}
+	}
+#ifdef PNG_DUMP_ENABLE
+	else
+	{
+		snprintf(name, sizeof(name),"%s/[%d][%s][%d][%d][%04d].png", path_name, getpid(), func, width, height, num);
+
+		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
+		switch(secUtilDumpPng(name, data, width, height))
+		{
+		case 0:
+			TPL_LOG(6,"%s file is dumped\n", name);
+			break;
+		case -1:
+			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n", data, width, height);
+			break;
+		case -2:
+			TPL_LOG(6, "Dump failed..file pointer error\n");
+			break;
+		}
+	}
+#endif
 }
 
 

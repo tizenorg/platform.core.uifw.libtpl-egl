@@ -6,6 +6,7 @@
 
 %define ENABLE_TTRACE	0
 %define ENABLE_DLOG	0
+%define ENABLE_PNG_DUMP 1
 ################################################################################
 
 %define TPL_WINSYS	WL
@@ -44,6 +45,9 @@ BuildRequires:	pkg-config
 BuildRequires:	pkgconfig(libdrm)
 BuildRequires:	pkgconfig(libtbm)
 BuildRequires:	pkgconfig(dlog)
+%if "%{ENABLE_PNG_DUMP}" == "1"
+BuildRequires:	pkgconfig(libpng)
+%endif
 
 %if "%{TPL_WINSYS}" == "DRI2" || "%{TPL_WINSYS}" == "DRI3"
 BuildRequires:	pkgconfig(libdri2)
@@ -63,7 +67,6 @@ BuildRequires:	pkgconfig(gbm)
 BuildRequires:	wayland-devel
 BuildRequires:	pkgconfig(wayland-drm)
 BuildRequires:	pkgconfig(wayland-tbm-client)
-BuildRequires:	pkgconfig(wayland-tbm-server)
 BuildRequires:	libwayland-egl-devel
 %endif
 
@@ -110,6 +113,10 @@ TPL_OPTIONS=${TPL_OPTIONS}-ttrace
 
 %if "%{ENABLE_DLOG}" == "1"
 TPL_OPTIONS=${TPL_OPTIONS}-dlog
+%endif
+
+%if "%{ENABLE_PNG_DUMP}" == "1"
+TPL_OPTIONS=${TPL_OPTIONS}-pngdump
 %endif
 
 TPL_OPTIONS=${TPL_OPTIONS}-egl_bind_wl_display

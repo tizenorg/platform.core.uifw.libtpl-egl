@@ -29,7 +29,7 @@
 #define ALIGN_TO_64BYTE(byte) (((byte) + TPL_BUFFER_ALLOC_PITCH_ALIGNMENT - 1) & ~(TPL_BUFFER_ALLOC_PITCH_ALIGNMENT - 1))
 
 #ifndef TPL_USING_WAYLAND_TBM
-#if 1
+#if 0
 #define TPL_USING_WAYLAND_TBM
 #include <tbm_surface.h>
 #include <tbm_surface_internal.h>
@@ -818,7 +818,9 @@ __tpl_wayland_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 		int height = frame->buffer->height;
 		struct wl_egl_window *wl_egl_window = NULL;
 		int i;
-
+		tbm_bo_handle bo_handle = tbm_bo_get_handle(wayland_buffer->bo , TBM_DEVICE_CPU);
+                if (bo_handle.ptr != NULL)
+                        TPL_IMAGE_DUMP(bo_handle.ptr, surface->width, surface->height, surface->dump_count++);
 		TPL_LOG(3, "\t buffer(%p, %p) key:%zu", frame->buffer, wayland_buffer->proc.app.wl_proxy, frame->buffer->key);
 
 		wl_egl_window = (struct wl_egl_window *)surface->native_handle;
@@ -2022,17 +2024,12 @@ __cb_server_gbm_surface_lock_front_buffer(struct gbm_surface *gbm_surf)
 	}
 
 	TPL_LOG(6, "DONE QUEUE:%d | [LOCK] BO:%d", __tpl_list_get_count(&wayland_surface->done_rendering_queue), tbm_bo_export(wayland_buffer->bo));
+
 	wayland_buffer->status = POSTED;
 
-	bo_handle = tbm_bo_map(wayland_buffer->bo, TBM_DEVICE_3D, TBM_OPTION_READ | TBM_OPTION_WRITE);
-#if 1 /* Temporary fix. Keep this until evas corrects lock buffer & release buffer */
-	if (NULL == bo_handle.ptr)
-	{
-		TPL_ERR("TBM bo map failed!");
-		TPL_OBJECT_UNLOCK(surface);
-		return NULL;
-	}
-#endif
+	bo_handle = tbm_bo_get_handle(wayland_buffer->bo, TBM_DEVICE_CPU);
+	if (bo_handle.ptr != NULL)
+		TPL_IMAGE_DUMP(bo_handle.ptr, surface->width, surface->height, surface->dump_count++);
 
 	TPL_OBJECT_UNLOCK(surface);
 
@@ -2058,8 +2055,6 @@ __cb_server_gbm_surface_release_buffer(struct gbm_surface *gbm_surf, struct gbm_
 
 	bo = gbm_tbm_bo_get_tbm_bo(gbm_tbm_bo);
 	TPL_ASSERT(bo);
-
-	tbm_bo_unmap(bo);
 
 	gbm_tbm_surf = (struct gbm_tbm_surface *) gbm_surf;
 
@@ -2193,6 +2188,7 @@ unsigned int __tpl_wayland_display_bind_client_display(tpl_display_t *tpl_displa
 {
 	struct wl_display *wayland_display;
 	tpl_wayland_display_t *tpl_wayland_display;
+	char* device_name = NULL;
 
 	TPL_ASSERT(tpl_display);
 	TPL_ASSERT(native_dpy);

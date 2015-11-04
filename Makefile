@@ -40,6 +40,10 @@ endif
 ifneq ($(call is-feature-enabled,egl_bind_wl_display),)
 	CFLAGS += -DEGL_BIND_WL_DISPLAY
 endif
+ifneq ($(call is-feature-enabled,pngdump),)
+	CFLAGS += -DPNG_DUMP_ENABLE
+	LDFLAGS += `pkg-config libpng`
+endif
 
 TPL_HEADERS += $(SRC_DIR)/tpl.h
 TPL_HEADERS += $(SRC_DIR)/tpl_internal.h

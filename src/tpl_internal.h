@@ -163,7 +163,6 @@ struct _tpl_buffer
 	int			pitch;
 
 	int			map_cnt;
-
 	tpl_buffer_backend_t	backend;
 };
 
