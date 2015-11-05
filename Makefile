@@ -28,8 +28,14 @@ endif
 
 ifneq ($(call is-feature-enabled,winsys_wl),)
 	CFLAGS += -DTPL_WINSYS_WL -DEGL_BIND_WL_DISPLAY
-	CFLAGS += -I$(SRC_DIR)/wayland_module/gbm_tbm `pkg-config --cflags wayland-drm gbm`
-	LDFLAGS += -L$(SRC_DIR)/wayland_module/gbm_tbm -lgbm_tbm `pkg-config --libs wayland-drm gbm wayland-tbm-client wayland-tbm-server`
+	CFLAGS += -I$(SRC_DIR)/wayland_module/gbm_tbm `pkg-config --cflags gbm`
+	LDFLAGS += -L$(SRC_DIR)/wayland_module/gbm_tbm -lgbm_tbm `pkg-config --libs gbm`
+ifneq ($(call is-feature-enabled,wl_tbm),)
+	LDFLAGS += `pkg-config --libs wayland-tbm-client`
+	CFLAGS += -DTPL_USING_WAYLAND_TBM
+else
+	LDFLAGS += `pkg-config --libs wayland-drm`
+endif
 endif
 ifneq ($(call is-feature-enabled,ttrace),)
 	CFLAGS += -DTTRACE_ENABLE

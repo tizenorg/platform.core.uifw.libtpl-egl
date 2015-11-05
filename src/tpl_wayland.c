@@ -28,14 +28,11 @@
 #define TPL_BUFFER_ALLOC_PITCH_ALIGNMENT        64
 #define ALIGN_TO_64BYTE(byte) (((byte) + TPL_BUFFER_ALLOC_PITCH_ALIGNMENT - 1) & ~(TPL_BUFFER_ALLOC_PITCH_ALIGNMENT - 1))
 
-#ifndef TPL_USING_WAYLAND_TBM
-#if 0
-#define TPL_USING_WAYLAND_TBM
+#ifdef TPL_USING_WAYLAND_TBM
 #include <tbm_surface.h>
 #include <tbm_surface_internal.h>
 #include <wayland-tbm-client.h>
 #include <wayland-tbm-server.h>
-#endif
 #endif
 
 typedef struct _tpl_wayland_display       tpl_wayland_display_t;

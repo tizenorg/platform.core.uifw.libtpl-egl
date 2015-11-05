@@ -1,12 +1,13 @@
 %define TPL_VER_MAJOR	0
 %define TPL_VER_MINOR	8
-%define TPL_RELEASE	8
+%define TPL_RELEASE	9
 %define TPL_VERSION	%{TPL_VER_MAJOR}.%{TPL_VER_MINOR}
 %define TPL_VER_FULL	%{TPL_VERSION}.%{TPL_RELEASE}
 
 %define ENABLE_TTRACE	0
 %define ENABLE_DLOG	0
 %define ENABLE_PNG_DUMP 1
+%define ENABLE_WL_TBM	0
 ################################################################################
 
 %define TPL_WINSYS	WL
@@ -65,8 +66,11 @@ BuildRequires:	pkgconfig(xshmfence)
 %if "%{TPL_WINSYS}" == "WL"
 BuildRequires:	pkgconfig(gbm)
 BuildRequires:	wayland-devel
-BuildRequires:	pkgconfig(wayland-drm)
+%if "%{ENABLE_WL_TBM}" == "1"
 BuildRequires:	pkgconfig(wayland-tbm-client)
+%else
+BuildRequires:	pkgconfig(wayland-drm)
+%endif
 BuildRequires:	libwayland-egl-devel
 %endif
 
@@ -105,6 +109,9 @@ TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri3
 %endif
 %if "%{TPL_WINSYS}" == "WL"
 TPL_OPTIONS=${TPL_OPTIONS}-winsys_wl
+%if "%{ENABLE_WL_TBM}" == "1"
+TPL_OPTIONS=${TPL_OPTIONS}-wl_tbm
+%endif
 %endif
 
 %if "%{ENABLE_TTRACE}" == "1"
