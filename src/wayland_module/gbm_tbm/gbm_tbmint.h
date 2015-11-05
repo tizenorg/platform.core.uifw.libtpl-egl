@@ -34,6 +34,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <gbm/common_drm.h>
 
 #include <tbm_bufmgr.h>
+#include <tbm_surface.h>
 
 struct gbm_tbm_device {
    struct gbm_drm_device base;

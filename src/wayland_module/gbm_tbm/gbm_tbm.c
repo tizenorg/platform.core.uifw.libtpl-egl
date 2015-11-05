@@ -247,9 +247,11 @@ __gbm_tbm_bo_create(struct gbm_device *gbm,
 {
    struct gbm_tbm_device *dri = gbm_tbm_device(gbm);
    struct gbm_tbm_bo *bo;
-   unsigned int size, stride;
+   uint32_t size, offset, pitch;
    int flags = TBM_BO_DEFAULT;
+   int surface_format;
    tbm_bo_handle handle;
+   tbm_surface_h surface;
 
    bo = calloc(1, sizeof *bo);
    if (bo == NULL)
@@ -266,14 +268,16 @@ __gbm_tbm_bo_create(struct gbm_device *gbm,
    switch (format)
    {
    case GBM_FORMAT_RGB565:
-       stride = width * 2;
+       surface_format = TBM_FORMAT_BGR565;
        break;
    case GBM_FORMAT_XRGB8888:
    case GBM_BO_FORMAT_XRGB8888:
+       surface_format = TBM_FORMAT_XRGB8888;
+       break;
    case GBM_FORMAT_ARGB8888:
    case GBM_BO_FORMAT_ARGB8888:
    case GBM_FORMAT_ABGR8888:
-       stride = width * 4;
+       surface_format = TBM_FORMAT_ABGR8888;
        break;
    default:
        free(bo);
@@ -285,9 +289,25 @@ __gbm_tbm_bo_create(struct gbm_device *gbm,
        flags |= TBM_BO_SCANOUT;
    }
 
-   size = stride * height;
-   bo->bo = tbm_bo_alloc(dri->bufmgr, size, flags);
-   bo->base.base.stride = stride;
+   surface = tbm_surface_internal_create_with_flags(width, height, surface_format, flags);
+   if (!surface)
+   {
+      free(bo);
+      return NULL;
+   }
+
+   bo->bo = tbm_surface_internal_get_bo(surface, 0);
+   tbm_bo_ref(bo->bo);
+
+   if (!tbm_surface_internal_get_plane_data(surface, 0, &size, &offset, &pitch))
+   {
+      free(bo);
+      return NULL;
+   }
+
+   tbm_surface_internal_destroy(surface);
+
+   bo->base.base.stride = pitch;
    handle = tbm_bo_get_handle(bo->bo, TBM_DEVICE_DEFAULT);
 
    bo->base.base.handle.ptr = handle.ptr;
