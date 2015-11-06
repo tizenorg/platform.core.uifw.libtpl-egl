@@ -6,7 +6,7 @@
 
 %define ENABLE_TTRACE	0
 %define ENABLE_DLOG	0
-%define ENABLE_PNG_DUMP 1
+%define ENABLE_PNG_DUMP 0
 %define ENABLE_WL_TBM	0
 ################################################################################
 

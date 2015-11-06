@@ -732,6 +732,15 @@ __tpl_wayland_surface_get_idle_buffer_idx(tpl_wayland_surface_t *wayland_surface
 			wayland_surface->current_back_idx = id;
 			return id;
 		}
+
+		/* [HOT-FIX] 20151106 joonbum.ko */
+		/* It will be useful when kernel didn't send event page-flip done */
+		if ( wayland_buffer && wayland_buffer->status == POSTED )
+		{
+			wayland_buffer->status = IDLE;
+			wayland_surface->current_back_idx = id;
+			return id;
+		}
 	}
 
 	TPL_LOG(6, "There is no IDLE index : %d", ret_id);
