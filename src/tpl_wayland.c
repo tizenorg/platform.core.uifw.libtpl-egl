@@ -563,10 +563,34 @@ __tpl_wayland_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixma
 				      int *width, int *height, tpl_format_t *format)
 {
 #ifdef TPL_USING_WAYLAND_TBM
+	tbm_surface_h	tbm_surface = NULL;
+	int		tbm_format = -1;
+
+	tbm_surface = wayland_tbm_server_get_surface(NULL, (struct wl_resource*)pixmap);
+	if (tbm_surface == NULL)
+		return TPL_FALSE;
+
+	if (width) *width = tbm_surface_get_width(tbm_surface);
+	if (height) *height = tbm_surface_get_height(tbm_surface);
+	if (format)
+	{
+		tbm_format = tbm_surface_get_format(tbm_surface);
+		switch(tbm_format)
+		{
+			case TBM_FORMAT_ARGB8888: *format = TPL_FORMAT_ARGB8888; break;
+			case TBM_FORMAT_XRGB8888: *format = TPL_FORMAT_XRGB8888; break;
+			case TBM_FORMAT_RGB565: *format = TPL_FORMAT_RGB565; break;
+			default:
+				*format = TPL_FORMAT_INVALID;
+				return TPL_FALSE;
+		}
+	}
+
+	return TPL_TRUE;
+
 #else
 	tpl_wayland_display_t *wayland_display;
 	struct wl_drm_buffer *drm_buffer = NULL;
-	int ret = -1;
 
 	TPL_ASSERT(display);
 	TPL_ASSERT(display->backend.data);
@@ -582,17 +606,13 @@ __tpl_wayland_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixma
 	{
 		if (format != NULL)
 		{
-
 			switch (drm_buffer->format)
 			{
-
 				case WL_DRM_FORMAT_ARGB8888: *format = TPL_FORMAT_ARGB8888; break;
 				case WL_DRM_FORMAT_XRGB8888: *format = TPL_FORMAT_XRGB8888; break;
 				case WL_DRM_FORMAT_RGB565: *format = TPL_FORMAT_RGB565; break;
 				default: *format = TPL_FORMAT_INVALID; break;
-
 			}
-
 		}
 		if (width != NULL) *width = drm_buffer->width;
 		if (height != NULL) *height = drm_buffer->height;
@@ -1045,8 +1065,8 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	stride = ALIGN_TO_64BYTE(width * depth / 8);
 
 #ifdef TPL_USING_WAYLAND_TBM
-	/* why it is only support ARGB8888? */
-	surface->format = TPL_FORMAT_ARGB8888;
+	if (surface->format == TPL_FORMAT_INVALID)
+		surface->format = format;
 
 	switch (surface->format)
 	{
@@ -1439,6 +1459,119 @@ __tpl_wayland_surface_create_buffer_from_wl_drm(tpl_surface_t *surface, tpl_bool
 
 	return buffer;
 }
+#else
+static tpl_buffer_t *
+__tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
+{
+	tpl_buffer_t *buffer = NULL;
+	tpl_wayland_buffer_t *wayland_buffer = NULL;
+	tbm_surface_h tbm_surface = NULL;
+	tbm_surface_info_s tbm_surf_info;
+        tbm_bo bo;
+	tbm_bo_handle bo_handle;
+
+	int width = 0, height = 0, depth, stride;
+	tpl_format_t format = TPL_FORMAT_INVALID;
+	size_t key = 0;
+
+	tpl_wayland_display_t *wayland_display;
+
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->display);
+	TPL_ASSERT(surface->native_handle);
+
+	wayland_display = (tpl_wayland_display_t *) surface->display->backend.data;
+
+	tbm_surface = wayland_tbm_server_get_surface(NULL, (struct wl_resource*)surface->native_handle);
+	if (tbm_surface == NULL)
+	{
+		TPL_ERR("Failed to get tbm surface!");
+		return NULL;
+	}
+
+	bo = tbm_surface_internal_get_bo(tbm_surface, 0);
+	key = tbm_bo_export(bo);
+
+	buffer = __tpl_wayland_surface_buffer_cache_find(&wayland_display->proc.comp.cached_buffers, key);
+	if (buffer != NULL)
+	{
+		__tpl_buffer_set_surface(buffer, surface);
+		tpl_object_reference((tpl_object_t *) buffer);
+	}
+	else
+	{
+		if (TPL_TRUE != __tpl_wayland_display_get_pixmap_info(surface->display, surface->native_handle,
+					&width, &height, &format))
+		{
+			TPL_ERR("Failed to get pixmap info!");
+			return NULL;
+		}
+
+		if (tbm_surface_get_info(tbm_surface, &tbm_surf_info) != 0)
+                {
+			TPL_ERR("Failed to get stride info!");
+			return NULL;
+		}
+
+		depth = __tpl_wayland_get_depth_from_format(format);
+		stride = tbm_surf_info.planes[0].stride;
+
+		bo = tbm_bo_ref(bo);
+		if (NULL == bo)
+		{
+			TPL_ERR("Failed to reference bo!");
+			return NULL;
+		}
+
+		/* Create tpl buffer. */
+		bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
+		if (NULL == bo_handle.ptr)
+		{
+			TPL_ERR("Failed to get bo handle!");
+			tbm_bo_unref(bo);
+			return NULL;
+		}
+
+		buffer = __tpl_buffer_alloc(surface, key,
+		                  (int) bo_handle.u32, width, height, depth, stride);
+		if (buffer == NULL)
+		{
+			TPL_ERR("Failed to alloc TPL buffer!");
+			tbm_bo_unref(bo);
+			return NULL;
+		}
+
+		wayland_buffer = (tpl_wayland_buffer_t *) calloc(1, sizeof(tpl_wayland_buffer_t));
+		if (wayland_buffer == NULL)
+		{
+			TPL_ERR("Mem alloc failed for wayland buffer!");
+			tbm_bo_unref(bo);
+			tpl_object_unreference((tpl_object_t *) buffer);
+			return NULL;
+		}
+
+		wayland_buffer->display = surface->display;
+		wayland_buffer->bo = bo;
+		wayland_buffer->tbm_surface = tbm_surface;
+
+		buffer->backend.data = (void *)wayland_buffer;
+		buffer->key = key;
+
+		if (TPL_TRUE != __tpl_wayland_surface_buffer_cache_add(&wayland_display->proc.comp.cached_buffers, buffer))
+		{
+			TPL_ERR("Adding surface to buffer cache failed!");
+			tbm_bo_unref(bo);
+			tpl_object_unreference((tpl_object_t *) buffer);
+			free(wayland_buffer);
+			return NULL;
+		}
+	}
+
+	if (reset_buffers != NULL)
+		*reset_buffers = TPL_FALSE;
+
+	return buffer;
+}
 #endif
 
 static tpl_buffer_t *
@@ -1526,6 +1659,8 @@ __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffe
 		if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
 		{
 #ifdef TPL_USING_WAYLAND_TBM
+                        wayland_surface->current_rendering_buffer =
+				__tpl_wayland_surface_create_buffer_from_wl_tbm(surface, reset_buffers);
 #else
                         wayland_surface->current_rendering_buffer =
 				__tpl_wayland_surface_create_buffer_from_wl_drm(surface, reset_buffers);
