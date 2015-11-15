@@ -55,11 +55,11 @@ enum wayland_buffer_status
 
 struct _tpl_wayland_display
 {
+	tbm_bufmgr         bufmgr;
 #ifdef TPL_USING_WAYLAND_TBM
 	struct wayland_tbm_client	*wl_tbm_client;
 #else
 	struct wl_drm     *wl_drm;
-	tbm_bufmgr         bufmgr;
 #endif
 	enum wayland_display_type	type;
 	union
@@ -840,8 +840,6 @@ __tpl_wayland_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 	if (wayland_display->type == CLIENT)
 	{
 		tpl_wayland_buffer_t *wayland_buffer = (tpl_wayland_buffer_t *)frame->buffer->backend.data;
-		int width = frame->buffer->width;
-		int height = frame->buffer->height;
 		struct wl_egl_window *wl_egl_window = NULL;
 		int i;
 		tbm_bo_handle bo_handle = tbm_bo_get_handle(wayland_buffer->bo , TBM_DEVICE_CPU);
@@ -2258,6 +2256,7 @@ __cb_server_gbm_surface_has_free_buffers(struct gbm_surface *gbm_surf)
 	return 0;
 }
 
+#ifndef TPL_USING_WAYLAND_TBM
 static struct wayland_drm_callbacks wl_drm_server_listener;
 
 static int
@@ -2285,10 +2284,7 @@ __cb_server_wayland_drm_reference_buffer(void *user_data, uint32_t name, int fd,
 
 	TPL_IGNORE(fd);
 
-#ifdef TPL_USING_WAYLAND_TBM
-#else
 	buffer->driver_buffer = tbm_bo_import(wayland_display->bufmgr, name);
-#endif
 	if (NULL == buffer->driver_buffer)
 	{
 		TPL_ERR("TBM bo import failed!");
@@ -2315,7 +2311,6 @@ __cb_server_wayland_drm_unreference_buffer(void *user_data, struct wl_drm_buffer
 	__tpl_wayland_surface_buffer_cache_remove(&wayland_display->proc.comp.cached_buffers, (size_t)buffer);
 }
 
-#ifndef TPL_USING_WAYLAND_TBM
 static struct wayland_drm_callbacks wl_drm_server_listener =
 {
 	__cb_server_wayland_drm_display_authenticate,
@@ -2329,7 +2324,9 @@ unsigned int __tpl_wayland_display_bind_client_display(tpl_display_t *tpl_displa
 {
 	struct wl_display *wayland_display;
 	tpl_wayland_display_t *tpl_wayland_display;
-	char* device_name = NULL;
+#ifndef TPL_USING_WAYLAND_TBM /* USING WAYLAND_DRM */
+    char *device_name = NULL;
+#endif
 
 	TPL_ASSERT(tpl_display);
 	TPL_ASSERT(native_dpy);
@@ -2337,15 +2334,15 @@ unsigned int __tpl_wayland_display_bind_client_display(tpl_display_t *tpl_displa
 	wayland_display = (struct wl_display *) native_dpy;
 	tpl_wayland_display = (tpl_wayland_display_t *) tpl_display->backend.data;
 
-#ifdef TPL_USING_WAYLAND_TBM
-#else
-        tpl_display->bufmgr_fd = dup(gbm_device_get_fd(tpl_display->native_handle));
-        tpl_wayland_display->bufmgr = tbm_bufmgr_init(tpl_display->bufmgr_fd);
-        if (NULL == tpl_wayland_display->bufmgr)
-        {
-                TPL_ERR("TBM buffer manager initialization failed!");
-                return TPL_FALSE;
-        }
+	tpl_display->bufmgr_fd = dup(gbm_device_get_fd(tpl_display->native_handle));
+	tpl_wayland_display->bufmgr = tbm_bufmgr_init(tpl_display->bufmgr_fd);
+	if (tpl_wayland_display->bufmgr == NULL)
+	{
+		TPL_ERR("TBM buffer manager initialization failed!");
+		return TPL_FALSE;
+	}
+
+#ifndef TPL_USING_WAYLAND_TBM /* USING WAYLAND_DRM */
 	device_name = drmGetDeviceNameFromFd(tpl_display->bufmgr_fd);
 	tpl_wayland_display->wl_drm = wayland_drm_init((struct wl_display *) wayland_display, device_name, &wl_drm_server_listener, tpl_display, 0);
 	if (NULL == tpl_wayland_display->wl_drm)
@@ -2353,12 +2350,6 @@ unsigned int __tpl_wayland_display_bind_client_display(tpl_display_t *tpl_displa
 		TPL_ERR("Wayland DRM initialization failed!");
 		return TPL_FALSE;
 	}
-#endif
-
-#ifndef TPL_USING_WAYLAND_TBM
-	struct gbm_device *gbm = (struct gbm_device *)tpl_display->native_handle;
-	struct gbm_tbm_device *gbm_tbm = (struct gbm_tbm_device *)gbm;
-	gbm_tbm->wl_drm = tpl_wayland_display->wl_drm;
 #endif
 	return TPL_TRUE;
 }
@@ -2371,8 +2362,7 @@ unsigned int __tpl_wayland_display_unbind_client_display(tpl_display_t *tpl_disp
 
 	tpl_wayland_display = (tpl_wayland_display_t *) tpl_display->backend.data;
 
-#ifdef TPL_USING_WAYLAND_TBM
-#else
+#ifndef TPL_USING_WAYLAND_TBM /* USING WAYLAND_DRM */
 	if (tpl_wayland_display->wl_drm == NULL)
 	{
 		TPL_ERR("Wayland DRM is NULL!");
@@ -2380,9 +2370,9 @@ unsigned int __tpl_wayland_display_unbind_client_display(tpl_display_t *tpl_disp
 	}
 
 	wayland_drm_uninit(tpl_wayland_display->wl_drm);
+#endif
 	tbm_bufmgr_deinit(tpl_wayland_display->bufmgr);
  	close(tpl_display->bufmgr_fd);
-#endif
 	return TPL_TRUE;
 }
 #endif
