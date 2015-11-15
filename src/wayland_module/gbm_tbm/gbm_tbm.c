@@ -204,7 +204,10 @@ __gbm_tbm_bo_import(struct gbm_device *gbm, uint32_t type,
    switch (type)
    {
       case GBM_BO_IMPORT_WL_BUFFER:
-#ifndef TPL_USING_WAYLAND_TBM
+#ifdef TPL_USING_WAYLAND_TBM
+         tbm_surf = wayland_tbm_server_get_surface(NULL, (struct wl_resource*)buffer);
+         tbo = tbm_surface_internal_get_bo(tbm_surf, 0);
+#else
          drm_buffer = wayland_drm_buffer_get(NULL, (struct wl_resource *)buffer);
 		 if (drm_buffer)
 		 {
