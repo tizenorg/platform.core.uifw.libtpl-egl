@@ -31,29 +31,23 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "gbm_tbm.h"
 #include <gbm/gbmint.h>
-#include <gbm/common_drm.h>
-
 #include <tbm_bufmgr.h>
 #include <tbm_surface.h>
 
 struct gbm_tbm_device {
-   struct gbm_drm_device base;
-
+   struct gbm_device base;
    tbm_bufmgr bufmgr;
-   void* wl_drm;	/*strcut wl_drm*/
+   char *driver_name;
 };
 
 struct gbm_tbm_bo {
-   struct gbm_drm_bo base;
-
-   uint32_t format;
+   struct gbm_bo base;
+   tbm_surface_h tbm_surf;
    uint32_t usage;
-   tbm_bo bo;
 };
 
 struct gbm_tbm_surface {
    struct gbm_surface base;
-
    void *tbm_private;
 };
 
