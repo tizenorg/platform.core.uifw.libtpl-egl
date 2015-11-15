@@ -1039,10 +1039,10 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	tpl_wayland_display_t *wayland_display;
 
 #ifdef TPL_USING_WAYLAND_TBM
-        tbm_surface_h           tbm_surface = NULL;
+    tbm_surface_h           tbm_surface = NULL;
 #endif
 	struct wl_proxy		*wl_proxy = NULL;
-        unsigned int name = -1;
+    unsigned int name = -1;
 	uint32_t wl_format = 0;
 
 	TPL_ASSERT(surface);
@@ -1079,15 +1079,11 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 			break;
 		default:
 			TPL_ERR("Unsupported format found in surface!");
-			tbm_bo_unref(bo);
-			tpl_object_unreference((tpl_object_t *)buffer);
-			free(wayland_buffer);
 			return NULL;
 	}
 
 	/* Create tbm_surface_h */
 	tbm_surface = tbm_surface_create(width, height, wl_format);
-
 	if (NULL == tbm_surface)
 	{
 		TPL_ERR("TBM SURFACE create failed!");
@@ -1096,10 +1092,10 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 
 	/* Get tbm_bo from tbm_surface_h */
 	bo = tbm_bo_ref(tbm_surface_internal_get_bo(tbm_surface, 0));
-
 	if (NULL == bo)
 	{
 		TPL_ERR("TBM get bo failed!");
+		tbm_surface_destroy(tbm_surface);
 		return NULL;
 	}
 
@@ -1108,6 +1104,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	if (bo_handle.ptr == NULL)
 	{
 		TPL_ERR("TBM bo get handle failed!");
+		tbm_bo_unref(bo);
 		tbm_surface_destroy(tbm_surface);
 		return NULL;
 	}
@@ -1120,6 +1117,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	if (NULL == buffer)
 	{
 		TPL_ERR("TPL buffer alloc failed!");
+		tbm_bo_unref(bo);
 		tbm_surface_destroy(tbm_surface);
 		return NULL;
 	}
@@ -1128,6 +1126,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	if (wayland_buffer == NULL)
 	{
 		TPL_ERR("Mem alloc for wayland_buffer failed!");
+		tbm_bo_unref(bo);
 		tbm_surface_destroy(tbm_surface);
 		tpl_object_unreference((tpl_object_t *) buffer);
 		return NULL;
@@ -1153,7 +1152,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 
 	name = tbm_bo_export(bo);
 
-        TPL_LOG(7, "Client back buffer is new alloced | BO:%d",name);
+    TPL_LOG(7, "Client back buffer is new alloced | BO:%d",name);
 
 	buffer = __tpl_buffer_alloc(surface, (size_t) name, (int) bo_handle.u32, width, height, depth, stride);
 	if (NULL == buffer)
@@ -1204,6 +1203,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	if (wl_proxy == NULL)
 	{
 		TPL_ERR("Failed to create TBM client buffer!");
+		tbm_bo_unref(bo);
 		tbm_surface_destroy(tbm_surface);
 		tpl_object_unreference((tpl_object_t *)buffer);
 		free(wayland_buffer);
@@ -2322,18 +2322,16 @@ static struct wayland_drm_callbacks wl_drm_server_listener =
 #ifdef EGL_BIND_WL_DISPLAY
 unsigned int __tpl_wayland_display_bind_client_display(tpl_display_t *tpl_display, tpl_handle_t native_dpy)
 {
-	struct wl_display *wayland_display;
 	tpl_wayland_display_t *tpl_wayland_display;
 #ifndef TPL_USING_WAYLAND_TBM /* USING WAYLAND_DRM */
+	struct wl_display *wayland_display;
     char *device_name = NULL;
 #endif
 
 	TPL_ASSERT(tpl_display);
 	TPL_ASSERT(native_dpy);
 
-	wayland_display = (struct wl_display *) native_dpy;
 	tpl_wayland_display = (tpl_wayland_display_t *) tpl_display->backend.data;
-
 	tpl_display->bufmgr_fd = dup(gbm_device_get_fd(tpl_display->native_handle));
 	tpl_wayland_display->bufmgr = tbm_bufmgr_init(tpl_display->bufmgr_fd);
 	if (tpl_wayland_display->bufmgr == NULL)
@@ -2343,6 +2341,7 @@ unsigned int __tpl_wayland_display_bind_client_display(tpl_display_t *tpl_displa
 	}
 
 #ifndef TPL_USING_WAYLAND_TBM /* USING WAYLAND_DRM */
+	wayland_display = (struct wl_display *) native_dpy;
 	device_name = drmGetDeviceNameFromFd(tpl_display->bufmgr_fd);
 	tpl_wayland_display->wl_drm = wayland_drm_init((struct wl_display *) wayland_display, device_name, &wl_drm_server_listener, tpl_display, 0);
 	if (NULL == tpl_wayland_display->wl_drm)
