@@ -1039,10 +1039,11 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	tpl_wayland_display_t *wayland_display;
 
 #ifdef TPL_USING_WAYLAND_TBM
-    tbm_surface_h           tbm_surface = NULL;
+	tbm_surface_h           tbm_surface = NULL;
+	tbm_surface_info_s	tbm_surf_info;
 #endif
 	struct wl_proxy		*wl_proxy = NULL;
-    unsigned int name = -1;
+	unsigned int name = -1;
 	uint32_t wl_format = 0;
 
 	TPL_ASSERT(surface);
@@ -1109,6 +1110,12 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 		return NULL;
 	}
 
+	if (tbm_surface_get_info(tbm_surface, &tbm_surf_info) != 0)
+	{
+		TPL_ERR("Failed to get tbm_surface info!");
+		return NULL;
+	}
+	stride = tbm_surf_info.planes[0].stride;
 	name = tbm_bo_export(bo);
 
 	TPL_LOG(7, "Client back buffer is new alloced | BO:%d",name);
@@ -1134,7 +1141,6 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 #else
 	/* Allocate a buffer */
 	bo = tbm_bo_alloc(wayland_display->bufmgr, stride * height, TBM_BO_DEFAULT);
-
 	if (NULL == bo)
 	{
 		TPL_ERR("TBM bo alloc failed!");
@@ -1401,7 +1407,7 @@ __tpl_wayland_surface_create_buffer_from_wl_drm(tpl_surface_t *surface, tpl_bool
 		depth = 32; /* TPL_FORMAT_GET_DEPTH(format); */
 		stride = drm_buffer->stride[0];
 
-		bo = tbm_bo_ref((tbm_bo)wayland_drm_buffer_get_buffer(drm_buffer));
+		bo = (tbm_bo)wayland_drm_buffer_get_buffer(drm_buffer);
 		if (NULL == bo)
 		{
 			TPL_ERR("Failed to reference bo!");
@@ -1514,12 +1520,16 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		depth = __tpl_wayland_get_depth_from_format(format);
 		stride = tbm_surf_info.planes[0].stride;
 
+		/* [HOT-FIX] 20151116 joonbum.ko */
+		/* Memory leak occured */
+		/*
 		bo = tbm_bo_ref(bo);
 		if (NULL == bo)
 		{
 			TPL_ERR("Failed to reference bo!");
 			return NULL;
 		}
+		*/
 
 		/* Create tpl buffer. */
 		bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
