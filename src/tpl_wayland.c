@@ -1298,14 +1298,6 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 	}
 
 	depth = __tpl_wayland_get_depth_from_format(format);
-	stride = ALIGN_TO_64BYTE(width * depth / 8);
-
-	/* gbm does not support stride so we must ensure the width is same as stride. */
-	if (width > 1 && (width * depth / 8 != stride) )
-	{
-		TPL_ERR("Unsupported stride %d", stride);
-		return NULL;
-	}
 
 	/* Allocate a buffer */
 	gbm_bo = gbm_bo_create(gbm, width, height,
@@ -1319,6 +1311,9 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 
 	gbm_tbm_bo = (struct gbm_tbm_bo *) gbm_bo;
 	bo = tbm_bo_ref(gbm_tbm_bo_get_tbm_bo(gbm_tbm_bo));
+
+	/* Get stride info from gbm_tbm_bo */
+	stride = gbm_tbm_bo_get_stride(gbm_tbm_bo);
 
 	/* Create tpl buffer. */
 	bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
