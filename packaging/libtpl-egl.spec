@@ -38,7 +38,7 @@ Summary:	Tizen Porting Layer for ARM Mali EGL (DRI3 backend)
 %if "%{TPL_WINSYS}" == "WL"
 Summary:	Tizen Porting Layer for ARM Mali EGL (Wayland backend)
 %endif
-Group:		System/Libraries
+Group: Graphics & UI Framework/GL
 License:	MIT
 Source:		%{name}-%{version}.tar.gz
 
@@ -160,6 +160,7 @@ cp -a pkgconfig/tpl-egl.pc		%{buildroot}%{_libdir}/pkgconfig/
 
 %files
 %manifest packaging/libtpl-egl.manifest
+%license COPYING
 %defattr(-,root,root,-)
 %{_libdir}/libtpl-egl.so
 %{_libdir}/libtpl-egl.so.%{TPL_VER_MAJOR}
