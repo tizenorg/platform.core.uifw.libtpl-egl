@@ -9,8 +9,8 @@
 #include <drm.h>
 #include <tbm_bufmgr.h>
 #include <gbm.h>
-#include <gbm_tbm.h>
-#include <gbm_tbmint.h>
+#include <gbm/gbm_tbm.h>
+#include <gbm/gbm_tbmint.h>
 #include <xf86drm.h>
 
 #undef inline
