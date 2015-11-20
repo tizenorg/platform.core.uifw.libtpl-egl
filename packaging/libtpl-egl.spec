@@ -97,10 +97,6 @@ the DDK for ARM Mali EGL.
 %setup -q
 
 %build
-%if "%{TPL_WINSYS}" == "WL"
-make -C src/wayland_module/gbm_tbm all
-%endif
-
 %if "%{TPL_WINSYS}" == "DRI2"
 TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri2
 %endif
@@ -156,14 +152,6 @@ ln -sf libtpl-egl.so.%{TPL_VER_MAJOR}	%{buildroot}%{_libdir}/libtpl-egl.so
 cp -a src/tpl.h				%{buildroot}%{_includedir}/
 cp -a pkgconfig/tpl-egl.pc		%{buildroot}%{_libdir}/pkgconfig/
 
-%if "%{TPL_WINSYS}" == "WL"
-mkdir -p %{buildroot}%{_libdir}/gbm
-
-make -C src/wayland_module/gbm_tbm install libdir=%{buildroot}%{_libdir}
-ln -sf gbm/libgbm_tbm.so		%{buildroot}%{_libdir}/libgbm_tbm.so
-ln -sf libgbm_tbm.so			%{buildroot}%{_libdir}/gbm/gbm_tbm.so
-%endif
-
 %post -p /sbin/ldconfig
 
 %postun -p /sbin/ldconfig
@@ -177,11 +165,6 @@ ln -sf libgbm_tbm.so			%{buildroot}%{_libdir}/gbm/gbm_tbm.so
 %{_libdir}/libtpl-egl.so.%{TPL_VER_MAJOR}
 %{_libdir}/libtpl-egl.so.%{TPL_VERSION}
 %{_libdir}/libtpl-egl.so.%{TPL_VER_FULL}
-%if "%{TPL_WINSYS}" == "WL"
-%{_libdir}/gbm/gbm_tbm.so
-%{_libdir}/gbm/libgbm_tbm.so
-%{_libdir}/libgbm_tbm.so
-%endif
 
 %files devel
 %defattr(-,root,root,-)
