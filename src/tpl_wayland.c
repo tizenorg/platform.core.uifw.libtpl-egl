@@ -73,6 +73,7 @@ struct _tpl_wayland_display
 		struct
 		{
 			tpl_list_t               cached_buffers;
+			tpl_bool_t               bound_client_display;
 		} comp;
 	} proc;
 };
@@ -406,6 +407,9 @@ __tpl_wayland_display_fini(tpl_display_t *display)
 		{
 			struct gbm_device *gbm = (struct gbm_device *)display->native_handle;
 			struct gbm_tbm_device *gbm_tbm = (struct gbm_tbm_device *)gbm;
+
+			if (wayland_display->proc.comp.bound_client_display)
+			   __tpl_wayland_display_unbind_client_display(display, NULL);
 
 			gbm_tbm_device_set_callback_surface_has_free_buffers(gbm_tbm, NULL);
 			gbm_tbm_device_set_callback_surface_lock_front_buffer(gbm_tbm, NULL);
@@ -2360,6 +2364,7 @@ unsigned int __tpl_wayland_display_bind_client_display(tpl_display_t *tpl_displa
 		return TPL_FALSE;
 	}
 #endif
+	tpl_wayland_display->proc.comp.bound_client_display = TPL_TRUE;
 	return TPL_TRUE;
 }
 
@@ -2382,6 +2387,7 @@ unsigned int __tpl_wayland_display_unbind_client_display(tpl_display_t *tpl_disp
 #endif
 	tbm_bufmgr_deinit(tpl_wayland_display->bufmgr);
  	close(tpl_display->bufmgr_fd);
+	tpl_wayland_display->proc.comp.bound_client_display = TPL_FALSE;
 	return TPL_TRUE;
 }
 #endif
