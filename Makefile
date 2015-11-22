@@ -31,7 +31,7 @@ ifneq ($(call is-feature-enabled,winsys_wl),)
 	CFLAGS += `pkg-config --cflags gbm`
 	LDFLAGS += `pkg-config --libs gbm`
 ifneq ($(call is-feature-enabled,wl_tbm),)
-	LDFLAGS += `pkg-config --libs wayland-tbm-client`
+	LDFLAGS += `pkg-config --libs wayland-tbm-client wayland-tbm-server`
 	CFLAGS += -DTPL_USING_WAYLAND_TBM
 else
 	LDFLAGS += `pkg-config --libs wayland-drm`

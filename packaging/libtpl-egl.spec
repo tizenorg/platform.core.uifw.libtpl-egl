@@ -68,6 +68,7 @@ BuildRequires:	pkgconfig(gbm)
 BuildRequires:	wayland-devel
 %if "%{ENABLE_WL_TBM}" == "1"
 BuildRequires:	pkgconfig(wayland-tbm-client)
+BuildRequires:  pkgconfig(wayland-tbm-server)
 %else
 BuildRequires:	pkgconfig(wayland-drm)
 %endif
