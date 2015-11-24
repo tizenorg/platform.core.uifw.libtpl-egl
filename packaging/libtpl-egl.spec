@@ -1,27 +1,23 @@
+#TPL VERSION MACROS
 %define TPL_VER_MAJOR	0
 %define TPL_VER_MINOR	8
-%define TPL_RELEASE	9
-%define TPL_VERSION	%{TPL_VER_MAJOR}.%{TPL_VER_MINOR}
+%define TPL_RELEASE		9
+%define TPL_VERSION		%{TPL_VER_MAJOR}.%{TPL_VER_MINOR}
 %define TPL_VER_FULL	%{TPL_VERSION}.%{TPL_RELEASE}
 
+#TPL WINDOW SYSTEM DEFINITION
+%define TPL_WINSYS		WL
+
+#TPL FEATURE OPTION
 %define ENABLE_TTRACE	0
-%define ENABLE_DLOG	0
+%define ENABLE_DLOG		0
 %define ENABLE_PNG_DUMP 0
 %define ENABLE_WL_TBM	0
-################################################################################
 
-%define TPL_WINSYS	WL
+#WAYLAND-EGL VERSION MACROS
+%define WL_EGL_VERSION	1.0.0
 
-%if "%{?tizen_version}" == "2.4"
-%define TPL_WINSYS	DRI3
-%if "%{?tizen_target_name}" == "Z130H"
-%define TPL_WINSYS	DRI2
-%endif
-%if "%{?tizen_target_name}" == "Z300H"
-%define TPL_WINSYS	DRI2
-%endif
-%endif
-
+#TPL WINDOW SYSTEM CHECK
 %if "%{TPL_WINSYS}" != "DRI2" && "%{TPL_WINSYS}" != "DRI3" && "%{TPL_WINSYS}" != "WL"
 BuildRequires:		ERROR(No_window_system_designated)
 %endif
@@ -46,9 +42,6 @@ BuildRequires:	pkg-config
 BuildRequires:	pkgconfig(libdrm)
 BuildRequires:	pkgconfig(libtbm)
 BuildRequires:	pkgconfig(dlog)
-%if "%{ENABLE_PNG_DUMP}" == "1"
-BuildRequires:	pkgconfig(libpng)
-%endif
 
 %if "%{TPL_WINSYS}" == "DRI2" || "%{TPL_WINSYS}" == "DRI3"
 BuildRequires:	pkgconfig(libdri2)
@@ -64,15 +57,19 @@ BuildRequires:	pkgconfig(xshmfence)
 %endif
 
 %if "%{TPL_WINSYS}" == "WL"
+BuildRequires:  libtool
+BuildRequires:  wayland-devel
 BuildRequires:	pkgconfig(gbm)
-BuildRequires:	wayland-devel
 %if "%{ENABLE_WL_TBM}" == "1"
 BuildRequires:	pkgconfig(wayland-tbm-client)
 BuildRequires:  pkgconfig(wayland-tbm-server)
 %else
 BuildRequires:	pkgconfig(wayland-drm)
 %endif
-BuildRequires:	libwayland-egl-devel
+%endif
+
+%if "%{ENABLE_PNG_DUMP}" == "1"
+BuildRequires:	pkgconfig(libpng)
 %endif
 
 %description
@@ -87,17 +84,33 @@ The following window systems are supported:
 Summary:	Development files for TPL
 Group:		System/Libraries
 Requires:	%{name} = %{version}-%{release}
+%if "%{TPL_WINSYS}" == "WL"
+Requires:   libwayland-egl-devel
+%endif
 
 %description devel
 This package contains the development libraries and header files needed by
 the DDK for ARM Mali EGL.
 
-################################################################################
+%if "%{TPL_WINSYS}" == "WL"
+%package -n libwayland-egl
+Summary:    Wayland EGL backend
+
+%description -n libwayland-egl
+Wayland EGL backend
+
+%package -n libwayland-egl-devel
+Summary:    Development header files for use with Wayland protocol
+
+%description -n libwayland-egl-devel
+Development header files for use with Wayland protocol
+%endif
 
 %prep
 %setup -q
 
 %build
+#libtpl-egl build
 %if "%{TPL_WINSYS}" == "DRI2"
 TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri2
 %endif
@@ -134,6 +147,13 @@ export TPL_RELEASE=%{TPL_RELEASE}
 
 make all
 
+#libwayland-egl build
+%if "%{TPL_WINSYS}" == "WL"
+cd src/wayland-egl
+export WLD_EGL_SO_VER=%{WL_EGL_VERSION}
+make
+%endif
+
 %install
 rm -fr %{buildroot}
 mkdir -p %{buildroot}
@@ -153,11 +173,22 @@ ln -sf libtpl-egl.so.%{TPL_VER_MAJOR}	%{buildroot}%{_libdir}/libtpl-egl.so
 cp -a src/tpl.h				%{buildroot}%{_includedir}/
 cp -a pkgconfig/tpl-egl.pc		%{buildroot}%{_libdir}/pkgconfig/
 
-%post -p /sbin/ldconfig
+%if "%{TPL_WINSYS}" == "WL"
+cd src/wayland-egl
+cp libwayland-egl.so.%{WL_EGL_VERSION} %{buildroot}%{_libdir}/libwayland-egl.so
+cp libwayland-egl.so.%{WL_EGL_VERSION} %{buildroot}%{_libdir}/libwayland-egl.so.1
+cp libwayland-egl.so.%{WL_EGL_VERSION} %{buildroot}%{_libdir}/libwayland-egl.so.1.0
+export WLD_EGL_SO_VER=%{WL_EGL_VERSION}
+%makeinstall
+%endif
 
+%post -p /sbin/ldconfig
 %postun -p /sbin/ldconfig
 
-################################################################################
+%if "%{TPL_WINSYS}" == "WL"
+%post   -n libwayland-egl -p /sbin/ldconfig
+%postun -n libwayland-egl -p /sbin/ldconfig
+%endif
 
 %files
 %manifest packaging/libtpl-egl.manifest
@@ -172,3 +203,18 @@ cp -a pkgconfig/tpl-egl.pc		%{buildroot}%{_libdir}/pkgconfig/
 %defattr(-,root,root,-)
 %{_includedir}/tpl.h
 %{_libdir}/pkgconfig/tpl-egl.pc
+
+%if "%{TPL_WINSYS}" == "WL"
+%files -n libwayland-egl
+%manifest packaging/libwayland-egl.manifest
+%license COPYING
+%defattr(-,root,root,-)
+%{_libdir}/libwayland-egl.so
+%{_libdir}/libwayland-egl.so.1
+%{_libdir}/libwayland-egl.so.1.0
+%{_libdir}/libwayland-egl.so.%{WL_EGL_VERSION}
+
+%files -n libwayland-egl-devel
+%defattr(-,root,root,-)
+%{_libdir}/pkgconfig/wayland-egl.pc
+%endif

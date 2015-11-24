@@ -1,7 +1,7 @@
 #define inline __inline__
 
 #include <wayland-drm.h>
-#include <wayland-egl-priv.h>
+#include "wayland-egl/wayland-egl-priv.h"
 
 #include <wayland-client.h>
 #include <wayland-drm-client-protocol.h>
