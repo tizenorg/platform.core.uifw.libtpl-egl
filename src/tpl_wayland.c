@@ -1,10 +1,13 @@
 #define inline __inline__
 
-#include <wayland-drm.h>
-#include "wayland-egl/wayland-egl-priv.h"
-
 #include <wayland-client.h>
+
+#ifndef TPL_USING_WAYLAND_TBM
+#include <wayland-drm.h>
 #include <wayland-drm-client-protocol.h>
+#endif
+
+#include "wayland-egl/wayland-egl-priv.h"
 
 #include <drm.h>
 #include <tbm_bufmgr.h>
