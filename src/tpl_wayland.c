@@ -1473,7 +1473,7 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 	tpl_wayland_buffer_t *wayland_buffer = NULL;
 	tbm_surface_h tbm_surface = NULL;
 	tbm_surface_info_s tbm_surf_info;
-        tbm_bo bo;
+	tbm_bo bo;
 	tbm_bo_handle bo_handle;
 
 	int width = 0, height = 0, depth, stride;
@@ -1498,70 +1498,53 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 	bo = tbm_surface_internal_get_bo(tbm_surface, 0);
 	key = tbm_bo_export(bo);
 
-	buffer = __tpl_wayland_surface_buffer_cache_find(&wayland_display->proc.comp.cached_buffers, key);
-	if (buffer != NULL)
-	{
-		__tpl_buffer_set_surface(buffer, surface);
-		tpl_object_reference((tpl_object_t *) buffer);
-	}
-	else
-	{
-		if (TPL_TRUE != __tpl_wayland_display_get_pixmap_info(surface->display, surface->native_handle,
+	/*TODO add tpl_wayland_surface_buffer_cache routine */
+	if (TPL_TRUE != __tpl_wayland_display_get_pixmap_info(surface->display, surface->native_handle,
 					&width, &height, &format))
-		{
-			TPL_ERR("Failed to get pixmap info!");
-			return NULL;
-		}
-
-		if (tbm_surface_get_info(tbm_surface, &tbm_surf_info) != 0)
-                {
-			TPL_ERR("Failed to get stride info!");
-			return NULL;
-		}
-
-		depth = __tpl_wayland_get_depth_from_format(format);
-		stride = tbm_surf_info.planes[0].stride;
-
-		/* Create tpl buffer. */
-		bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
-		if (NULL == bo_handle.ptr)
-		{
-			TPL_ERR("Failed to get bo handle!");
-			return NULL;
-		}
-
-		buffer = __tpl_buffer_alloc(surface, key,
-		                  (int) bo_handle.u32, width, height, depth, stride);
-		if (buffer == NULL)
-		{
-			TPL_ERR("Failed to alloc TPL buffer!");
-			return NULL;
-		}
-
-		wayland_buffer = (tpl_wayland_buffer_t *) calloc(1, sizeof(tpl_wayland_buffer_t));
-		if (wayland_buffer == NULL)
-		{
-			TPL_ERR("Mem alloc failed for wayland buffer!");
-			tpl_object_unreference((tpl_object_t *) buffer);
-			return NULL;
-		}
-
-		wayland_buffer->display = surface->display;
-		wayland_buffer->bo = bo;
-		wayland_buffer->tbm_surface = tbm_surface;
-
-		buffer->backend.data = (void *)wayland_buffer;
-		buffer->key = key;
-
-		if (TPL_TRUE != __tpl_wayland_surface_buffer_cache_add(&wayland_display->proc.comp.cached_buffers, buffer))
-		{
-			TPL_ERR("Adding surface to buffer cache failed!");
-			tbm_bo_unref(bo);
-			tpl_object_unreference((tpl_object_t *) buffer);
-			free(wayland_buffer);
-			return NULL;
-		}
+	{
+		TPL_ERR("Failed to get pixmap info!");
+		return NULL;
 	}
+
+	if (tbm_surface_get_info(tbm_surface, &tbm_surf_info) != 0)
+	{
+		TPL_ERR("Failed to get stride info!");
+		return NULL;
+	}
+
+	depth = __tpl_wayland_get_depth_from_format(format);
+	stride = tbm_surf_info.planes[0].stride;
+
+	/* Create tpl buffer. */
+	bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
+	if (NULL == bo_handle.ptr)
+	{
+		TPL_ERR("Failed to get bo handle!");
+		return NULL;
+	}
+
+	buffer = __tpl_buffer_alloc(surface, key,
+								(int) bo_handle.u32, width, height, depth, stride);
+	if (buffer == NULL)
+	{
+		TPL_ERR("Failed to alloc TPL buffer!");
+		return NULL;
+	}
+
+	wayland_buffer = (tpl_wayland_buffer_t *) calloc(1, sizeof(tpl_wayland_buffer_t));
+	if (wayland_buffer == NULL)
+	{
+		TPL_ERR("Mem alloc failed for wayland buffer!");
+		tpl_object_unreference((tpl_object_t *) buffer);
+		return NULL;
+	}
+
+	wayland_buffer->display = surface->display;
+	wayland_buffer->bo = bo;
+	wayland_buffer->tbm_surface = tbm_surface;
+
+	buffer->backend.data = (void *)wayland_buffer;
+	buffer->key = key;
 
 	if (reset_buffers != NULL)
 		*reset_buffers = TPL_FALSE;
