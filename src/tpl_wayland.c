@@ -108,6 +108,8 @@ struct _tpl_wayland_buffer
 		{
 			struct gbm_bo           *gbm_bo;
 			tpl_bool_t               posted;
+			struct wl_listener      destroy_listener;
+			size_t                  key;
 		} comp;
 	} proc;
 };
@@ -1466,6 +1468,19 @@ __tpl_wayland_surface_create_buffer_from_wl_drm(tpl_surface_t *surface, tpl_bool
 	return buffer;
 }
 #else
+static void
+__tpl_wayland_buffer_destroy_notify(struct wl_listener *listener, void *data)
+{
+	tpl_display_t *display;
+	tpl_wayland_display_t *wayland_display;
+    tpl_wayland_buffer_t *wayland_buffer = NULL;
+
+    wayland_buffer = wl_container_of(listener, wayland_buffer, proc.comp.destroy_listener);
+    display = wayland_buffer->display;
+    wayland_display = (tpl_wayland_display_t *) display->backend.data;
+    __tpl_wayland_surface_buffer_cache_remove(&wayland_display->proc.comp.cached_buffers, (size_t)wayland_buffer->proc.comp.key);
+}
+
 static tpl_buffer_t *
 __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 {
@@ -1575,6 +1590,10 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 			free(wayland_buffer);
 			return NULL;
 		}
+
+        wayland_buffer->proc.comp.destroy_listener.notify = __tpl_wayland_buffer_destroy_notify;
+        wayland_buffer->proc.comp.key = key;
+		wl_resource_add_destroy_listener((struct wl_resource*)surface->native_handle, &wayland_buffer->proc.comp.destroy_listener);
 	}
 
 	if (reset_buffers != NULL)
