@@ -11,7 +11,11 @@
 #define TPL_INLINE			__inline__
 #define TPL_IGNORE(x)			(void)x
 
+#ifdef ARM_ATOMIC_OPERATION
 #define TPL_DMB()			__asm__ volatile("dmb sy" : : : "memory")
+#else
+#define TPL_DMB()
+#endif
 
 #if (TTRACE_ENABLE)
 #include <ttrace.h>

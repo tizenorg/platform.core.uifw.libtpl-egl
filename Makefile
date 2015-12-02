@@ -51,6 +51,10 @@ ifneq ($(call is-feature-enabled,pngdump),)
 	LDFLAGS += `pkg-config libpng`
 endif
 
+ifneq ($(call is-feature-enabled,arm_atomic_operation),)
+	CFLAGS += -DARM_ATOMIC_OPERATION
+endif
+
 TPL_HEADERS += $(SRC_DIR)/tpl.h
 TPL_HEADERS += $(SRC_DIR)/tpl_internal.h
 TPL_HEADERS += $(SRC_DIR)/tpl_utils.h
