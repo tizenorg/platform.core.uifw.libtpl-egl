@@ -1522,23 +1522,11 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		depth = __tpl_wayland_get_depth_from_format(format);
 		stride = tbm_surf_info.planes[0].stride;
 
-		/* [HOT-FIX] 20151116 joonbum.ko */
-		/* Memory leak occured */
-		/*
-		bo = tbm_bo_ref(bo);
-		if (NULL == bo)
-		{
-			TPL_ERR("Failed to reference bo!");
-			return NULL;
-		}
-		*/
-
 		/* Create tpl buffer. */
 		bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
 		if (NULL == bo_handle.ptr)
 		{
 			TPL_ERR("Failed to get bo handle!");
-			tbm_bo_unref(bo);
 			return NULL;
 		}
 
@@ -1547,7 +1535,6 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		if (buffer == NULL)
 		{
 			TPL_ERR("Failed to alloc TPL buffer!");
-			tbm_bo_unref(bo);
 			return NULL;
 		}
 
@@ -1555,7 +1542,6 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		if (wayland_buffer == NULL)
 		{
 			TPL_ERR("Mem alloc failed for wayland buffer!");
-			tbm_bo_unref(bo);
 			tpl_object_unreference((tpl_object_t *) buffer);
 			return NULL;
 		}
