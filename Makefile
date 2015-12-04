@@ -36,7 +36,11 @@ ifneq ($(call is-feature-enabled,wl_tbm),)
 else
 	LDFLAGS += `pkg-config --libs wayland-drm`
 endif
+ifneq ($(call is-feature-enabled,tbm_surface_queue),)
+	CFLAGS += -DTBM_SURFACE_QUEUE
 endif
+endif
+
 ifneq ($(call is-feature-enabled,ttrace),)
 	CFLAGS += -DTTRACE_ENABLE
 endif
