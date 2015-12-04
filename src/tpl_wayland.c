@@ -102,6 +102,7 @@ struct _tpl_wayland_buffer
 	tbm_surface_h	tbm_surface;
 	tbm_bo			bo;
 	int				reused;
+	tpl_buffer_t *tpl_buffer;
 
 	enum wayland_buffer_status status;
 	union
@@ -1336,6 +1337,33 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	return buffer;
 }
 
+#ifdef TBM_SURFACE_QUEUE
+static int tpl_buffer_key;
+#define KEY_TPL_BUFFER  (unsigned long)(&tpl_buffer_key)
+
+static inline tpl_buffer_t *
+__tpl_wayland_surface_get_buffer_from_tbm_surface(tbm_surface_h surface)
+{
+    tbm_bo bo;
+    tpl_buffer_t* buf=NULL;
+
+    bo = tbm_surface_internal_get_bo(surface, 0);
+    tbm_bo_get_user_data(bo, KEY_TPL_BUFFER, (void **)&buf);
+
+    return buf;
+}
+
+static inline void
+__tpl_wayland_buffer_set_tbm_surface(tbm_surface_h surface, tpl_buffer_t *buf)
+{
+    tbm_bo bo;
+
+    bo = tbm_surface_internal_get_bo(surface, 0);
+    tbm_bo_add_user_data(bo, KEY_TPL_BUFFER, NULL);
+    tbm_bo_set_user_data(bo, KEY_TPL_BUFFER, buf);
+}
+#endif
+
 static tpl_buffer_t *
 __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 {
@@ -1437,21 +1465,25 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 	wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
 
 	tsq_err = tbm_surface_queue_dequeue(wayland_surface->tbm_queue, &tbm_surface);
+    if (tbm_surface == NULL)
+    {
+            TPL_LOG(6, "Wait until dequeable | tsq_err = %d", tsq_err);
+            tbm_surface_queue_can_dequeue(wayland_surface->tbm_queue, 1);
 
-        if (tbm_surface == NULL)
-        {
-                TPL_LOG(6, "Wait until dequeable | tsq_err = %d", tsq_err);
-                tbm_surface_queue_can_dequeue(wayland_surface->tbm_queue, 1);
-
-                tsq_err = tbm_surface_queue_dequeue(wayland_surface->tbm_queue, &tbm_surface);
-                if (tbm_surface == NULL)
-                {
-                        TPL_ERR("Failed to get tbm_surface from tbm_surface_queue | tsq_err = %d",tsq_err);
-                        return NULL;
-                }
-        }
-
+            tsq_err = tbm_surface_queue_dequeue(wayland_surface->tbm_queue, &tbm_surface);
+            if (tbm_surface == NULL)
+            {
+                    TPL_ERR("Failed to get tbm_surface from tbm_surface_queue | tsq_err = %d",tsq_err);
+                    return NULL;
+            }
+    }
 	tbm_surface_internal_ref(tbm_surface);
+
+    buffer = __tpl_wayland_surface_get_buffer_from_tbm_surface(tbm_surface);
+    if (buffer)
+    {
+        return buffer;
+    }
 
 	width = tbm_surface_get_width(tbm_surface);
 	height = tbm_surface_get_height(tbm_surface);
@@ -1515,6 +1547,7 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 		*reset_buffers = TPL_FALSE;
 
 	TPL_LOG(3, "buffer:%p bo_hnd:%d, %dx%d", buffer, (int) bo_handle.u32, width, height);
+    __tpl_wayland_buffer_set_tbm_surface(tbm_surface, buffer);
 
 	return buffer;
 #endif
@@ -1631,12 +1664,15 @@ __tpl_wayland_buffer_destroy_notify(struct wl_listener *listener, void *data)
 	tpl_wayland_display_t *wayland_display;
 	tpl_wayland_buffer_t *wayland_buffer = NULL;
 	size_t key = 0;
+	int ref;
 
 	wayland_buffer = wl_container_of(listener, wayland_buffer, proc.comp.destroy_listener);
 	display = wayland_buffer->display;
 	key = tbm_bo_export(wayland_buffer->bo);
 	wayland_display = (tpl_wayland_display_t *)display->backend.data;
 	__tpl_wayland_surface_buffer_cache_remove(&wayland_display->proc.comp.cached_buffers, key);
+
+	while( 0 < (ref = tpl_object_unreference(wayland_buffer->tpl_buffer)));
 }
 
 static tpl_buffer_t *
@@ -1722,6 +1758,7 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		wayland_buffer->display = surface->display;
 		wayland_buffer->bo = bo;
 		wayland_buffer->tbm_surface = tbm_surface;
+		wayland_buffer->tpl_buffer = buffer;
 
 		buffer->backend.data = (void *)wayland_buffer;
 		buffer->key = key;
