@@ -29,16 +29,7 @@ endif
 ifneq ($(call is-feature-enabled,winsys_wl),)
 	CFLAGS += -DTPL_WINSYS_WL -DEGL_BIND_WL_DISPLAY
 	CFLAGS += `pkg-config --cflags gbm`
-	LDFLAGS += `pkg-config --libs gbm`
-ifneq ($(call is-feature-enabled,wl_tbm),)
-	LDFLAGS += `pkg-config --libs wayland-tbm-client wayland-tbm-server`
-	CFLAGS += -DTPL_USING_WAYLAND_TBM
-else
-	LDFLAGS += `pkg-config --libs wayland-drm`
-endif
-ifneq ($(call is-feature-enabled,tbm_surface_queue),)
-	CFLAGS += -DTBM_SURFACE_QUEUE
-endif
+	LDFLAGS += `pkg-config --libs gbm wayland-tbm-client wayland-tbm-server`
 endif
 
 ifneq ($(call is-feature-enabled,ttrace),)

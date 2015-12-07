@@ -12,8 +12,6 @@
 %define ENABLE_TTRACE	0
 %define ENABLE_DLOG	0
 %define ENABLE_PNG_DUMP	0
-%define ENABLE_WL_TBM	1
-%define ENABLE_TBM_SURFACE_QUEUE 1
 #WAYLAND-EGL VERSION MACROS
 %define WL_EGL_VERSION	1.0.0
 
@@ -60,12 +58,8 @@ BuildRequires:	pkgconfig(xshmfence)
 BuildRequires:  libtool
 BuildRequires:  wayland-devel
 BuildRequires:	pkgconfig(gbm)
-%if "%{ENABLE_WL_TBM}" == "1"
 BuildRequires:	pkgconfig(wayland-tbm-client)
 BuildRequires:  pkgconfig(wayland-tbm-server)
-%else
-BuildRequires:	pkgconfig(wayland-drm)
-%endif
 %endif
 
 %if "%{ENABLE_PNG_DUMP}" == "1"
@@ -119,12 +113,6 @@ TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri3
 %endif
 %if "%{TPL_WINSYS}" == "WL"
 TPL_OPTIONS=${TPL_OPTIONS}-winsys_wl
-%if "%{ENABLE_WL_TBM}" == "1"
-TPL_OPTIONS=${TPL_OPTIONS}-wl_tbm
-%endif
-%if "%{ENABLE_TBM_SURFACE_QUEUE}" == "1"
-TPL_OPTIONS=${TPL_OPTIONS}-tbm_surface_queue
-%endif
 %endif
 
 %if "%{ENABLE_TTRACE}" == "1"
