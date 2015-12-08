@@ -1108,14 +1108,18 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	tpl_wayland_surface_t *wayland_surface = NULL;
 	tbm_bo bo;
 	tbm_bo_handle bo_handle;
-	int width, height, depth, stride;
+	int width, height, depth, stride, size, offset;
 	tpl_format_t format;
 
 	tpl_wayland_display_t *wayland_display;
 
 #ifdef TPL_USING_WAYLAND_TBM
 	tbm_surface_h           tbm_surface = NULL;
+/* TODO: If HW support getting of  gem memory size,
+		use tbm_surface_get_info() with tbm_surface_info_s  */
+#if 0
 	tbm_surface_info_s	tbm_surf_info;
+#endif
 #endif
 	struct wl_proxy		*wl_proxy = NULL;
 	unsigned int name = -1;
@@ -1184,13 +1188,22 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 		tbm_surface_destroy(tbm_surface);
 		return NULL;
 	}
-
+	/* TODO: If HW support getting of  gem memory size,
+			then replace tbm_surface_internal_get_plane_data() to tbm_surface_get_info() */
+#if 0
 	if (tbm_surface_get_info(tbm_surface, &tbm_surf_info) != 0)
 	{
 		TPL_ERR("Failed to get tbm_surface info!");
 		return NULL;
 	}
 	stride = tbm_surf_info.planes[0].stride;
+#else
+	if (!tbm_surface_internal_get_plane_data(tbm_surface, 0, &size, &offset,  &stride))
+	{
+		TPL_ERR("Failed to get tbm_surface stride info!");
+		return NULL;
+	}
+#endif
 	name = tbm_bo_export(bo);
 
 	TPL_LOG(7, "Client back buffer is new alloced | BO:%d",name);
@@ -1681,11 +1694,15 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 	tpl_buffer_t *buffer = NULL;
 	tpl_wayland_buffer_t *wayland_buffer = NULL;
 	tbm_surface_h tbm_surface = NULL;
+	/* TODO: If HW support getting of  gem memory size,
+			use tbm_surface_get_info() with tbm_surface_info_s */
+#if 0
 	tbm_surface_info_s tbm_surf_info;
+#endif
 	tbm_bo bo;
 	tbm_bo_handle bo_handle;
 
-	int width = 0, height = 0, depth, stride;
+	int width = 0, height = 0, depth, stride, size, offset;
 	tpl_format_t format = TPL_FORMAT_INVALID;
 	size_t key = 0;
 
@@ -1721,15 +1738,23 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 			TPL_ERR("Failed to get pixmap info!");
 			return NULL;
 		}
-
+		/* TODO: If HW support getting of  gem memory size,
+				then replace tbm_surface_internal_get_plane_data() to tbm_surface_get_info() */
+#if 0
 		if (tbm_surface_get_info(tbm_surface, &tbm_surf_info) != 0)
 		{
 			TPL_ERR("Failed to get stride info!");
 			return NULL;
 		}
-
-		depth = __tpl_wayland_get_depth_from_format(format);
 		stride = tbm_surf_info.planes[0].stride;
+#else
+		if (!tbm_surface_internal_get_plane_data(tbm_surface, 0, &size, &offset,  &stride))
+		{
+			TPL_ERR("Failed to get tbm_surface stride info!");
+			return NULL;
+		}
+#endif
+		depth = __tpl_wayland_get_depth_from_format(format);
 
 		/* Create tpl buffer. */
 		bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
