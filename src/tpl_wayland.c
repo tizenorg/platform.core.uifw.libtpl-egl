@@ -989,11 +989,16 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 		return NULL;
 	}
 
+	/* Inc ref count about tbm_surface */
+	/* It will be dec when wayland_buffer_fini called*/
+	tbm_surface_internal_ref(tbm_surface);
+
 	/* Get tbm_bo from tbm_surface_h */
-	bo = tbm_bo_ref(tbm_surface_internal_get_bo(tbm_surface, 0));
+	bo = tbm_surface_internal_get_bo(tbm_surface, 0);
 	if (NULL == bo)
 	{
 		TPL_ERR("TBM get bo failed!");
+		tbm_surface_internal_unref(tbm_surface);
 		tbm_surface_destroy(tbm_surface);
 		return NULL;
 	}
@@ -1003,7 +1008,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	if (bo_handle.ptr == NULL)
 	{
 		TPL_ERR("TBM bo get handle failed!");
-		tbm_bo_unref(bo);
+		tbm_surface_internal_unref(tbm_surface);
 		tbm_surface_destroy(tbm_surface);
 		return NULL;
 	}
@@ -1013,6 +1018,8 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	if (tbm_surface_get_info(tbm_surface, &tbm_surf_info) != 0)
 	{
 		TPL_ERR("Failed to get tbm_surface info!");
+		tbm_surface_internal_unref(tbm_surface);
+		tbm_surface_destroy(tbm_surface);
 		return NULL;
 	}
 	stride = tbm_surf_info.planes[0].stride;
@@ -1020,6 +1027,8 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	if (!tbm_surface_internal_get_plane_data(tbm_surface, 0, &size, &offset,  &stride))
 	{
 		TPL_ERR("Failed to get tbm_surface stride info!");
+		tbm_surface_internal_unref(tbm_surface);
+		tbm_surface_destroy(tbm_surface);
 		return NULL;
 	}
 #endif
@@ -1031,7 +1040,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	if (NULL == buffer)
 	{
 		TPL_ERR("TPL buffer alloc failed!");
-		tbm_bo_unref(bo);
+		tbm_surface_internal_unref(tbm_surface);
 		tbm_surface_destroy(tbm_surface);
 		return NULL;
 	}
@@ -1040,7 +1049,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	if (wayland_buffer == NULL)
 	{
 		TPL_ERR("Mem alloc for wayland_buffer failed!");
-		tbm_bo_unref(bo);
+		tbm_surface_internal_unref(tbm_surface);
 		tbm_surface_destroy(tbm_surface);
 		tpl_object_unreference((tpl_object_t *) buffer);
 		return NULL;
@@ -1054,7 +1063,7 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	if (wl_proxy == NULL)
 	{
 		TPL_ERR("Failed to create TBM client buffer!");
-		tbm_bo_unref(bo);
+		tbm_surface_internal_unref(tbm_surface);
 		tbm_surface_destroy(tbm_surface);
 		tpl_object_unreference((tpl_object_t *)buffer);
 		free(wayland_buffer);
@@ -1144,6 +1153,9 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 			return NULL;
 		}
 	}
+
+	/* Inc ref count about tbm_surface */
+	/* It will be dec when before tbm_surface_queue_enqueue called */
 	tbm_surface_internal_ref(tbm_surface);
 
 	buffer = __tpl_wayland_surface_get_buffer_from_tbm_surface(tbm_surface);
@@ -1197,8 +1209,8 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 	if (wayland_buffer == NULL)
 	{
 		TPL_ERR("Mem alloc for wayland_buffer failed!");
-		tbm_surface_internal_unref(tbm_surface);
 		tpl_object_unreference((tpl_object_t *) buffer);
+		tbm_surface_internal_unref(tbm_surface);
 		return NULL;
 	}
 
@@ -1270,6 +1282,10 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		return NULL;
 	}
 
+	/* Inc ref count about tbm_surface */
+	/* It will be dec when wayland_buffer_fini called*/
+	tbm_surface_internal_ref(tbm_surface);
+
 	bo = tbm_surface_internal_get_bo(tbm_surface, 0);
 	key = tbm_bo_export(bo);
 
@@ -1285,6 +1301,7 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 															  &width, &height, &format))
 		{
 			TPL_ERR("Failed to get pixmap info!");
+			tbm_surface_internal_unref(tbm_surface);
 			return NULL;
 		}
 		/* TODO: If HW support getting of  gem memory size,
@@ -1293,6 +1310,7 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		if (tbm_surface_get_info(tbm_surface, &tbm_surf_info) != 0)
 		{
 			TPL_ERR("Failed to get stride info!");
+			tbm_surface_internal_unref(tbm_surface);
 			return NULL;
 		}
 		stride = tbm_surf_info.planes[0].stride;
@@ -1300,6 +1318,7 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		if (!tbm_surface_internal_get_plane_data(tbm_surface, 0, &size, &offset,  &stride))
 		{
 			TPL_ERR("Failed to get tbm_surface stride info!");
+			tbm_surface_internal_unref(tbm_surface);
 			return NULL;
 		}
 #endif
@@ -1310,6 +1329,7 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		if (NULL == bo_handle.ptr)
 		{
 			TPL_ERR("Failed to get bo handle!");
+			tbm_surface_internal_unref(tbm_surface);
 			return NULL;
 		}
 
@@ -1318,6 +1338,7 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		if (buffer == NULL)
 		{
 			TPL_ERR("Failed to alloc TPL buffer!");
+			tbm_surface_internal_unref(tbm_surface);
 			return NULL;
 		}
 
@@ -1326,6 +1347,7 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		{
 			TPL_ERR("Mem alloc failed for wayland buffer!");
 			tpl_object_unreference((tpl_object_t *) buffer);
+			tbm_surface_internal_unref(tbm_surface);
 			return NULL;
 		}
 
@@ -1341,6 +1363,7 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		{
 			TPL_ERR("Adding surface to buffer cache failed!");
 			tpl_object_unreference((tpl_object_t *) buffer);
+			tbm_surface_internal_unref(tbm_surface);
 			free(wayland_buffer);
 			return NULL;
 		}
@@ -1446,15 +1469,12 @@ __tpl_wayland_buffer_fini(tpl_buffer_t *buffer)
 
 		tpl_wayland_display_t *wayland_display =
 			(tpl_wayland_display_t *)wayland_buffer->display->backend.data;
-		if (wayland_buffer->bo != NULL)
-		{
-			tbm_bo_unref(wayland_buffer->bo);
-			wayland_buffer->bo = NULL;
-		}
 
-		if (wayland_buffer->tbm_surface != NULL)
+		if (wayland_buffer->bo != NULL && wayland_buffer->tbm_surface != NULL)
 		{
+			tbm_surface_internal_unref(wayland_buffer->tbm_surface);
 			tbm_surface_destroy(wayland_buffer->tbm_surface);
+			wayland_buffer->bo = NULL;
 			wayland_buffer->tbm_surface = NULL;
 		}
 
