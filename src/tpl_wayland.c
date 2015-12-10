@@ -7,6 +7,9 @@
 #include <drm.h>
 #include <tbm_bufmgr.h>
 #include <gbm.h>
+#ifndef USE_TBM_QUEUE
+#define USE_TBM_QUEUE
+#endif
 #include <gbm/gbm_tbm.h>
 #include <gbm/gbm_tbmint.h>
 #include <xf86drm.h>
@@ -927,7 +930,8 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	tpl_wayland_surface_t *wayland_surface = NULL;
 	tbm_bo bo;
 	tbm_bo_handle bo_handle;
-	int width, height, depth, stride, size, offset;
+	int width, height, depth;
+	uint32_t stride, size, offset;
 	tpl_format_t format;
 
 	tpl_wayland_display_t *wayland_display;
