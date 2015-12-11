@@ -47,6 +47,8 @@ __tpl_buffer_alloc(tpl_surface_t *surface, size_t key, int fd, int width, int he
 	buffer->pitch = pitch;
 	buffer->map_cnt = 0;
 
+	TPL_LOG(9, "++++++++++ buffer:%p | name:%d | ref:%d", buffer, key, 1);
+
 	/* Backend initialization. */
 	__tpl_buffer_init_backend(buffer, surface->display->backend.type);
 

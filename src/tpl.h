@@ -671,6 +671,8 @@ tpl_bool_t tpl_surface_get_damage(tpl_surface_t *surface,
 			    int *num_rects,
 			    const int **rects);
 
+tpl_bool_t tpl_surface_destroy_cached_buffers(tpl_surface_t *surface);
+
 /**
  * Map the given buffer to the user space address.
  *
@@ -684,6 +686,8 @@ tpl_bool_t tpl_surface_get_damage(tpl_surface_t *surface,
  *
  * @see tpl_buffer_unmap()
  */
+
+
 void * tpl_buffer_map(tpl_buffer_t *buffer,
 		      int size);
 

@@ -15,11 +15,15 @@ __tpl_frame_alloc()
 void
 __tpl_frame_free(tpl_frame_t *frame)
 {
+	int ref;
+
 	TPL_ASSERT(frame);
 
 	if (frame->buffer)
-		tpl_object_unreference((tpl_object_t *)frame->buffer);
-
+	{
+		ref = tpl_object_unreference((tpl_object_t *)frame->buffer);
+		TPL_LOG(9, "---------- buffer:%p | name:%d | ref:%d", frame->buffer, frame->buffer->key, ref);
+	}
 	__tpl_region_fini(&frame->damage);
 	free(frame);
 }
@@ -30,9 +34,15 @@ __tpl_frame_set_buffer(tpl_frame_t *frame, tpl_buffer_t *buffer)
 	TPL_ASSERT(frame);
 	TPL_ASSERT(buffer);
 
-	if (frame->buffer)
-		tpl_object_unreference((tpl_object_t *)frame->buffer);
+	int ref;
 
-	tpl_object_reference((tpl_object_t *)buffer);
+	if (frame->buffer)
+	{
+		tpl_object_unreference((tpl_object_t *)frame->buffer);
+		TPL_LOG(9, "---------- buffer:%p | name:%d | ref:%d", frame->buffer, frame->buffer->key, ref);
+	}
+
+	ref = tpl_object_reference((tpl_object_t *)buffer);
+	TPL_LOG(9, "++++++++++ buffer:%p | name:%d | ref:%d", buffer, buffer->key, ref);
 	frame->buffer = buffer;
 }

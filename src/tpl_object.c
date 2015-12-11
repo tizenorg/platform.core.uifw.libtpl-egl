@@ -1,6 +1,24 @@
 #include "tpl_internal.h"
 #include <pthread.h>
 
+#define PRINT_GNU_BACKTRACE() \
+  do \
+    { \
+       void* frame_addrs[5]; \
+       char** frame_strings; \
+       size_t backtrace_size; \
+       int i; \
+       backtrace_size = backtrace(frame_addrs, 5); \
+       frame_strings = backtrace_symbols(frame_addrs, backtrace_size); \
+       for (i = 0; i < backtrace_size; ++i) \
+         { \
+           printf("%d: [0x%x] %s\n", i, frame_addrs[i], frame_strings[i]); \
+         } \
+      free(frame_strings); \
+    } \
+  while (0)
+
+
 tpl_bool_t
 __tpl_object_is_valid(tpl_object_t *object)
 {
@@ -63,13 +81,17 @@ __tpl_object_unlock(tpl_object_t *object)
 int
 tpl_object_reference(tpl_object_t *object)
 {
+    int ref;
 	if (TPL_TRUE != __tpl_object_is_valid(object))
 	{
 		TPL_ERR("input object is invalid!");
 		return -1;
 	}
-
-	return (int) __tpl_util_atomic_inc(&object->reference);
+    ref = (int) __tpl_util_atomic_inc(&object->reference);
+	//return (int) __tpl_util_atomic_inc(&object->reference);
+    PRINT_GNU_BACKTRACE();
+    fprintf(stderr,"[TPL_REF_CNT] ref: %d   obj:%p\n", ref, object);
+    return ref;
 }
 
 int
@@ -90,7 +112,8 @@ tpl_object_unreference(tpl_object_t *object)
 		__tpl_object_fini(object);
 		object->free(object);
 	}
-
+    PRINT_GNU_BACKTRACE();
+    fprintf(stderr,"[TPL_UNREF_CNT] ref: %d obj:%p\n", reference, object);
 	return (int) reference;
 }
 

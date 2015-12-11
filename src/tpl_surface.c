@@ -430,6 +430,30 @@ tpl_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 }
 
 tpl_bool_t
+tpl_surface_destroy_cached_buffers(tpl_surface_t *surface)
+{
+	tpl_bool_t retval = TPL_FALSE;
+
+	if (NULL == surface)
+	{
+		TPL_ERR("Invalid surface!");
+		return NULL;
+	}
+
+	if (NULL == surface->backend.destroy_cached_buffers)
+	{
+		TPL_ERR("TPL surface has not been initialized correctly!");
+		return NULL;
+	}
+
+	TPL_OBJECT_LOCK(surface);
+	retval = surface->backend.destroy_cached_buffers(surface);
+	TPL_OBJECT_UNLOCK(surface);
+
+	return retval;
+}
+
+tpl_bool_t
 tpl_surface_post(tpl_surface_t *surface)
 {
 	tpl_frame_t *frame;
