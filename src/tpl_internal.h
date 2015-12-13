@@ -82,6 +82,8 @@ struct _tpl_surface_backend
 
 	tpl_buffer_t *	(*get_buffer)(tpl_surface_t *surface, tpl_bool_t *reset_buffers);
 	void		(*post)(tpl_surface_t *surface, tpl_frame_t *frame);
+        tpl_bool_t	(*destroy_cached_buffers)(tpl_surface_t *surface);
+	tpl_bool_t	(*update_cached_buffers)(tpl_surface_t *surface);
 };
 
 struct _tpl_buffer_backend

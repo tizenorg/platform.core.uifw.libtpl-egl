@@ -660,6 +660,74 @@ __tpl_wayland_surface_get_idle_buffer_idx(tpl_wayland_surface_t *wayland_surface
 	return ret_id;
 }
 
+static tpl_bool_t
+__tpl_wayland_surface_destroy_cached_buffers(tpl_surface_t *surface)
+{
+	tpl_wayland_surface_t *wayland_surface = NULL;
+	tpl_wayland_display_t *wayland_display = NULL;
+
+	if (surface == NULL)
+	{
+		TPL_ERR("tpl surface is invalid!!\n");
+		return TPL_FALSE;
+	}
+
+	wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
+	wayland_display = (tpl_wayland_display_t*)surface->display->backend.data;
+
+	if (wayland_surface == NULL || wayland_display == NULL)
+	{
+		TPL_ERR("tpl surface has invalid members!!\n");
+		return TPL_FALSE;
+	}
+
+	if (wayland_display->type == CLIENT)
+		__tpl_wayland_surface_render_buffers_free(wayland_surface, TPL_BUFFER_ALLOC_SIZE_APP);
+
+	return TPL_TRUE;
+}
+
+static tpl_bool_t
+__tpl_wayland_surface_update_cached_buffers(tpl_surface_t *surface)
+{
+	tpl_wayland_surface_t *wayland_surface = NULL;
+	tpl_wayland_display_t *wayland_display = NULL;
+
+	if (surface == NULL)
+	{
+		TPL_ERR("tpl surface is invalid!!\n");
+		return TPL_FALSE;
+	}
+
+	wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
+	wayland_display = (tpl_wayland_display_t*)surface->display->backend.data;
+
+	if (wayland_surface == NULL || wayland_display == NULL)
+	{
+		TPL_ERR("tpl surface has invalid members!!\n");
+		return TPL_FALSE;
+	}
+
+	if (wayland_display->type == CLIENT)
+	{
+		int i;
+		for (i = 0; i < TPL_BUFFER_ALLOC_SIZE_APP; i++)
+		{
+			tpl_buffer_t *cached_buffer = wayland_surface->back_buffers[i];
+
+			if (cached_buffer != NULL &&
+				(surface->width != wayland_surface->back_buffers[i]->width ||
+				surface->height != wayland_surface->back_buffers[i]->height))
+			{
+				__tpl_wayland_surface_buffer_free(wayland_surface->back_buffers[i]);
+				wayland_surface->back_buffers[i] = NULL;
+			}
+		}
+	}
+
+	return TPL_TRUE;
+}
+
 static void
 __tpl_wayland_surface_fini(tpl_surface_t *surface)
 {
@@ -1642,6 +1710,8 @@ __tpl_surface_init_backend_wayland(tpl_surface_backend_t *backend)
 	backend->validate_frame	= __tpl_wayland_surface_validate_frame;
 	backend->get_buffer	= __tpl_wayland_surface_get_buffer;
 	backend->post		= __tpl_wayland_surface_post;
+        backend->destroy_cached_buffers = __tpl_wayland_surface_destroy_cached_buffers;
+	backend->update_cached_buffers = __tpl_wayland_surface_update_cached_buffers;
 }
 
 void
