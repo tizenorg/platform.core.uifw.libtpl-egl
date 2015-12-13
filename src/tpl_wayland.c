@@ -1129,9 +1129,10 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 
 	tbm_bo_handle bo_handle;
 	int width, height, depth;
-	uint32_t size, offset, stride;
+	uint32_t size, offset, stride, key;
 	tpl_format_t format;
-	tpl_wayland_surface_t *wayland_surface;
+	tpl_wayland_surface_t *wayland_surface = NULL;
+	tpl_wayland_display_t *wayland_display = NULL;
 
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->native_handle);
@@ -1139,6 +1140,7 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 	TPL_ASSERT(surface->display->native_handle);
 
 	wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
+	wayland_display = (tpl_wayland_display_t*)surface->display->backend.data;
 
 	tsq_err = tbm_surface_queue_dequeue(wayland_surface->tbm_queue, &tbm_surface);
 	if (tbm_surface == NULL)
@@ -1158,8 +1160,17 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 	/* It will be dec when before tbm_surface_queue_enqueue called */
 	tbm_surface_internal_ref(tbm_surface);
 
-	buffer = __tpl_wayland_surface_get_buffer_from_tbm_surface(tbm_surface);
-	if (buffer)
+	if ((bo = tbm_surface_internal_get_bo(tbm_surface, 0)) == NULL)
+	{
+		TPL_ERR("Failed to get tbm_bo from tbm_surface");
+		tbm_surface_internal_unref(tbm_surface);
+		return NULL;
+	}
+
+	key = tbm_bo_export(bo);
+
+	buffer = __tpl_wayland_surface_buffer_cache_find(&wayland_display->proc.comp.cached_buffers, key);
+	if (buffer != NULL)
 	{
 		return buffer;
 	}
@@ -1184,17 +1195,10 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 	/* Get pitch stride from tbm_surface */
 	tbm_surface_internal_get_plane_data(tbm_surface, 0, &size, &offset, &stride);
 
-	if ((bo = tbm_surface_internal_get_bo(tbm_surface, 0)) == NULL)
-        {
-                TPL_ERR("Failed to get tbm_bo from tbm_surface");
-		tbm_surface_internal_unref(tbm_surface);
-                return NULL;
-        }
-
 	/* Create tpl buffer. */
 	bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_3D);
 
-	buffer = __tpl_buffer_alloc(surface, (size_t) bo_handle.u32,
+	buffer = __tpl_buffer_alloc(surface, (size_t) key,
 	                  (int)bo_handle.u32, width, height, depth, stride);
 
         if (buffer == NULL)
@@ -1221,6 +1225,15 @@ __tpl_wayland_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl
 	wayland_buffer->bo = bo;
 	wayland_buffer->tbm_surface = tbm_surface;
 
+	if (TPL_TRUE != __tpl_wayland_surface_buffer_cache_add(&wayland_display->proc.comp.cached_buffers, buffer))
+	{
+		TPL_ERR("Adding surface to buffer cache failed!");
+		tpl_object_unreference((tpl_object_t *) buffer);
+		tbm_surface_internal_unref(tbm_surface);
+		free(wayland_buffer);
+		return NULL;
+	}
+
 	if (reset_buffers != NULL)
 		*reset_buffers = TPL_FALSE;
 
@@ -1243,9 +1256,8 @@ __tpl_wayland_buffer_destroy_notify(struct wl_listener *listener, void *data)
 	display = wayland_buffer->display;
 	key = tbm_bo_export(wayland_buffer->bo);
 	wayland_display = (tpl_wayland_display_t *)display->backend.data;
+	tpl_object_unreference((tpl_object_t *)wayland_buffer->tpl_buffer);
 	__tpl_wayland_surface_buffer_cache_remove(&wayland_display->proc.comp.cached_buffers, key);
-
-	while( 0 < (ref = tpl_object_unreference((tpl_object_t*)wayland_buffer->tpl_buffer)));
 }
 
 static tpl_buffer_t *
@@ -1282,10 +1294,6 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		return NULL;
 	}
 
-	/* Inc ref count about tbm_surface */
-	/* It will be dec when wayland_buffer_fini called*/
-	tbm_surface_internal_ref(tbm_surface);
-
 	bo = tbm_surface_internal_get_bo(tbm_surface, 0);
 	key = tbm_bo_export(bo);
 
@@ -1293,12 +1301,17 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 	if (buffer != NULL)
 	{
 		__tpl_buffer_set_surface(buffer, surface);
-		tpl_object_reference((tpl_object_t *) buffer);
 	}
 	else
 	{
-		if (TPL_TRUE != __tpl_wayland_display_get_pixmap_info(surface->display, surface->native_handle,
-															  &width, &height, &format))
+		/* Inc ref count about tbm_surface */
+		/* It will be dec when wayland_buffer_fini called*/
+		tbm_surface_internal_ref(tbm_surface);
+
+		if (TPL_TRUE != __tpl_wayland_display_get_pixmap_info(
+					surface->display,
+					surface->native_handle,
+					&width, &height, &format))
 		{
 			TPL_ERR("Failed to get pixmap info!");
 			tbm_surface_internal_unref(tbm_surface);
