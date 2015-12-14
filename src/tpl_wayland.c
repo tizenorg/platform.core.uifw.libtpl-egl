@@ -1415,7 +1415,8 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		}
 
 		buffer = __tpl_buffer_alloc(surface, key,
-									(int) bo_handle.u32, width, height, depth, stride);
+			(int) bo_handle.u32, width, height, depth, stride);
+
 		if (buffer == NULL)
 		{
 			TPL_ERR("Failed to alloc TPL buffer!");
@@ -1452,6 +1453,8 @@ __tpl_wayland_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool
 		wayland_buffer->proc.comp.destroy_listener.notify = __tpl_wayland_buffer_destroy_notify;
 		wl_resource_add_destroy_listener((struct wl_resource*)surface->native_handle, &wayland_buffer->proc.comp.destroy_listener);
 	}
+
+	tpl_object_reference((tpl_object_t *)buffer);
 
 	if (reset_buffers != NULL)
 		*reset_buffers = TPL_FALSE;
