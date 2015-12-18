@@ -437,13 +437,13 @@ tpl_surface_destroy_cached_buffers(tpl_surface_t *surface)
 	if (NULL == surface)
 	{
 		TPL_ERR("Invalid surface!");
-		return NULL;
+		return TPL_FALSE;
 	}
 
 	if (NULL == surface->backend.destroy_cached_buffers)
 	{
 		TPL_ERR("TPL surface has not been initialized correctly!");
-		return NULL;
+		return TPL_FALSE;
 	}
 
 	TPL_OBJECT_LOCK(surface);
@@ -461,13 +461,13 @@ tpl_surface_update_cached_buffers(tpl_surface_t *surface)
 	if (NULL == surface)
 	{
 		TPL_ERR("Invalid surface!");
-		return NULL;
+		return TPL_FALSE;
 	}
 
 	if (NULL == surface->backend.destroy_cached_buffers)
 	{
 		TPL_ERR("TPL surface has not been initialized correctly!");
-		return NULL;
+		return TPL_FALSE;
 	}
 
 	TPL_OBJECT_LOCK(surface);

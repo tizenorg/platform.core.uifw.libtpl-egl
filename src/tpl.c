@@ -221,7 +221,24 @@ __tpl_runtime_flush_all_display()
 tpl_backend_type_t
 __tpl_display_choose_backend(tpl_handle_t native_dpy)
 {
+#if 1
+    const char *plat_name;
+    plat_name = getenv("EGL_PLATFORM");
+#ifdef TPL_WINSYS_DRI2
+    if (strcmp(plat_name, "x11") == 0) return TPL_BACKEND_X11_DRI2;
+#endif
+#ifdef TPL_WINSYS_DRI3
+    if (strcmp(plat_name, "x11") == 0) return TPL_BACKEND_X11_DRI3;
+#endif
 #ifdef TPL_WINSYS_WL
+    if (strcmp(plat_name, "wayland") == 0) return TPL_BACKEND_WAYLAND;
+    if (strcmp(plat_name, "drm") == 0) return TPL_BACKEND_GBM;
+#endif
+#endif
+
+#ifdef TPL_WINSYS_WL
+	if (__tpl_display_choose_backend_gbm(native_dpy) == TPL_TRUE)
+		return TPL_BACKEND_GBM;
 	if (__tpl_display_choose_backend_wayland(native_dpy) == TPL_TRUE)
 		return TPL_BACKEND_WAYLAND;
 #endif
@@ -245,6 +262,9 @@ __tpl_display_init_backend(tpl_display_t *display, tpl_backend_type_t type)
 	switch (type)
 	{
 #ifdef TPL_WINSYS_WL
+	case TPL_BACKEND_GBM:
+		__tpl_display_init_backend_gbm(&display->backend);
+		break;
 	case TPL_BACKEND_WAYLAND:
 		__tpl_display_init_backend_wayland(&display->backend);
 		break;
@@ -273,6 +293,9 @@ __tpl_surface_init_backend(tpl_surface_t *surface, tpl_backend_type_t type)
 	switch (type)
 	{
 #ifdef TPL_WINSYS_WL
+	case TPL_BACKEND_GBM:
+		__tpl_surface_init_backend_gbm(&surface->backend);
+		break;
 	case TPL_BACKEND_WAYLAND:
 		__tpl_surface_init_backend_wayland(&surface->backend);
 		break;
@@ -298,6 +321,9 @@ __tpl_buffer_init_backend(tpl_buffer_t *buffer, tpl_backend_type_t type)
 	switch (type)
 	{
 #ifdef TPL_WINSYS_WL
+	case TPL_BACKEND_GBM:
+		__tpl_buffer_init_backend_gbm(&buffer->backend);
+		break;
 	case TPL_BACKEND_WAYLAND:
 		__tpl_buffer_init_backend_wayland(&buffer->backend);
 		break;
