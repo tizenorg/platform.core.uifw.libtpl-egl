@@ -21,9 +21,9 @@ BuildRequires:		ERROR(No_window_system_designated)
 %endif
 
 #Exclusive Emulator Arch
-%if "%{_with_emulator}" == "1"
-ExclusiveArch:
-%endif
+#%if "%{_with_emulator}" == "1"
+#ExclusiveArch:
+#%endif
 
 Name:		libtpl-egl
 Version:	%{TPL_VERSION}
