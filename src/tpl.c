@@ -221,18 +221,22 @@ __tpl_runtime_flush_all_display()
 tpl_backend_type_t
 __tpl_display_choose_backend(tpl_handle_t native_dpy)
 {
-    const char *plat_name;
-    plat_name = getenv("EGL_PLATFORM");
+	const char *plat_name = NULL;
+	plat_name = getenv("EGL_PLATFORM");
+
+	if (plat_name)
+	{
 #ifdef TPL_WINSYS_DRI2
-    if (strcmp(plat_name, "x11") == 0) return TPL_BACKEND_X11_DRI2;
+		if (strcmp(plat_name, "x11") == 0) return TPL_BACKEND_X11_DRI2;
 #endif
 #ifdef TPL_WINSYS_DRI3
-    if (strcmp(plat_name, "x11") == 0) return TPL_BACKEND_X11_DRI3;
+		if (strcmp(plat_name, "x11") == 0) return TPL_BACKEND_X11_DRI3;
 #endif
 #ifdef TPL_WINSYS_WL
-    if (strcmp(plat_name, "wayland") == 0) return TPL_BACKEND_WAYLAND;
-    if (strcmp(plat_name, "drm") == 0) return TPL_BACKEND_GBM;
+		if (strcmp(plat_name, "wayland") == 0) return TPL_BACKEND_WAYLAND;
+		if (strcmp(plat_name, "drm") == 0) return TPL_BACKEND_GBM;
 #endif
+	}
 
 #ifdef TPL_WINSYS_WL
 	if (__tpl_display_choose_backend_gbm(native_dpy) == TPL_TRUE)
