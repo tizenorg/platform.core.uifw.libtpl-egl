@@ -2,14 +2,13 @@
 
 #include <wayland-client.h>
 
-#include "wayland-egl/wayland-egl-priv.h"
-
 #include <drm.h>
-#include <tbm_bufmgr.h>
-#include <gbm.h>
+
 #ifndef USE_TBM_QUEUE
 #define USE_TBM_QUEUE
 #endif
+
+#include <gbm.h>
 #include <gbm/gbm_tbm.h>
 #include <gbm/gbm_tbmint.h>
 #include <xf86drm.h>
@@ -22,56 +21,39 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <tbm_bufmgr.h>
 #include <tbm_surface.h>
 #include <tbm_surface_internal.h>
 #include <tbm_surface_queue.h>
 #include <wayland-tbm-client.h>
 #include <wayland-tbm-server.h>
 
-/* In wayland, application and compositor create its own drawing buffers. Recommend size is more than 2. */
-#define TPL_BUFFER_ALLOC_SIZE_APP               3
-#define TPL_BUFFER_ALLOC_SIZE_COMPOSITOR        4
-#define TPL_BUFFER_ALLOC_SIZE_MAX		(((TPL_BUFFER_ALLOC_SIZE_APP) > (TPL_BUFFER_ALLOC_SIZE_COMPOSITOR))?(TPL_BUFFER_ALLOC_SIZE_APP):(TPL_BUFFER_ALLOC_SIZE_COMPOSITOR))
-
 typedef struct _tpl_gbm_display       tpl_gbm_display_t;
 typedef struct _tpl_gbm_surface       tpl_gbm_surface_t;
 typedef struct _tpl_gbm_buffer        tpl_gbm_buffer_t;
 
-enum gbm_buffer_status
-{
-	IDLE = 0,
-	BUSY = 1,
-	READY = 2, /* redering done */
-	POSTED = 3 /* gbm locked */
-};
-
 struct _tpl_gbm_display
 {
-	tbm_bufmgr		bufmgr;
-	tpl_list_t		cached_buffers;
-	tpl_bool_t		bound_client_display;
+	tbm_bufmgr	bufmgr;
+	tpl_list_t	cached_buffers;
+	tpl_bool_t	bound_client_display;
 };
 
 struct _tpl_gbm_surface
 {
-	tpl_buffer_t	*current_rendering_buffer;
+	tpl_buffer_t		*current_rendering_buffer;
 	tpl_list_t		done_rendering_queue;
-	int				current_back_idx;
-	tpl_buffer_t	*back_buffers[TPL_BUFFER_ALLOC_SIZE_MAX];
-	tbm_surface_queue_h tbm_queue;
+	tbm_surface_queue_h	tbm_queue;
 };
 
 struct _tpl_gbm_buffer
 {
-	tpl_display_t	*display;
-	tbm_surface_h	tbm_surface;
+	tpl_display_t		*display;
+	tpl_buffer_t		*tpl_buffer;
+	tbm_surface_h		tbm_surface;
 	tbm_bo			bo;
-	int				reused;
-	tpl_buffer_t *tpl_buffer;
 
-	enum gbm_buffer_status status;
-	struct gbm_bo		*gbm_bo;
-	tpl_bool_t			posted;
+        struct gbm_bo		*gbm_bo;
 	struct wl_listener	destroy_listener;
 };
 
@@ -170,9 +152,6 @@ __tpl_gbm_display_is_gbm_device(tpl_handle_t native_dpy)
 {
 	TPL_ASSERT(native_dpy);
 
-	if (*(void **)native_dpy == &wl_display_interface)
-		return TPL_FALSE;
-
 	/* MAGIC CHECK: A native display handle is a gbm_device if the de-referenced first value
 	   is a memory address pointing gbm_create_surface(). */
 	if (*(void **)native_dpy == gbm_create_device)
@@ -204,10 +183,10 @@ __tpl_gbm_display_init(tpl_display_t *display)
 		__tpl_list_init(&gbm_display->cached_buffers);
 	}
 	else
-		goto free_wl_display;
+		goto free_gbm_display;
 
 	return TPL_TRUE;
-free_wl_display:
+free_gbm_display:
 	if (gbm_display != NULL)
 	{
 		free(gbm_display);
@@ -373,7 +352,6 @@ __tpl_gbm_surface_init(tpl_surface_t *surface)
 		return TPL_FALSE;
 
 	surface->backend.data = (void *)tpl_gbm_surface;
-	tpl_gbm_surface->current_back_idx = 0;
 	tpl_gbm_surface->tbm_queue = NULL;
 
 	__tpl_list_init(&tpl_gbm_surface->done_rendering_queue);
@@ -413,20 +391,6 @@ __tpl_gbm_surface_buffer_free(tpl_buffer_t *buffer)
 	{
 		__tpl_buffer_set_surface(buffer, NULL);
 		tpl_object_unreference((tpl_object_t *) buffer);
-	}
-}
-
-static void
-__tpl_gbm_surface_render_buffers_free(tpl_gbm_surface_t *gbm_surface, int num_buffers)
-{
-	TPL_ASSERT(gbm_surface);
-	int i;
-
-	for (i = 0; i < num_buffers; i++)
-	{
-		if ( gbm_surface->back_buffers[i] != NULL )
-			__tpl_gbm_surface_buffer_free(gbm_surface->back_buffers[i]);
-		gbm_surface->back_buffers[i] = NULL;
 	}
 }
 
@@ -482,17 +446,20 @@ static void
 __tpl_gbm_surface_fini(tpl_surface_t *surface)
 {
 	tpl_gbm_surface_t *gbm_surface = NULL;
+	tpl_gbm_display_t *gbm_display = NULL;
 
 	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->display);
 
 	gbm_surface = (tpl_gbm_surface_t *) surface->backend.data;
 	if (NULL == gbm_surface)
 		return;
 
-	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
+	gbm_display = (tpl_gbm_display_t *) surface->display->backend.data;
+	if (NULL == gbm_display)
+		return;
 
-	/* all back buffers will be freed in this function */
-	__tpl_gbm_surface_render_buffers_free(gbm_surface, TPL_BUFFER_ALLOC_SIZE_MAX);
+	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
 	free(gbm_surface);
 	surface->backend.data = NULL;
@@ -573,8 +540,6 @@ __tpl_gbm_surface_end_frame(tpl_surface_t *surface)
 	if (gbm_surface->current_rendering_buffer != NULL)
 	{
 		gbm_buffer = (tpl_gbm_buffer_t *) gbm_surface->current_rendering_buffer->backend.data;
-
-		gbm_buffer->status = READY;
 
 		TPL_LOG(6, "current_rendering_buffer BO:%d", tbm_bo_export(gbm_buffer->bo));
 	}
@@ -958,7 +923,6 @@ __tpl_gbm_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 	{
 		__tpl_gbm_surface_buffer_free(gbm_surface->current_rendering_buffer);
 		gbm_surface->current_rendering_buffer = NULL;
-		gbm_surface->back_buffers[gbm_surface->current_back_idx] = NULL;
 
 		if (reset_buffers != NULL)
 			*reset_buffers = TPL_TRUE;
@@ -1128,8 +1092,8 @@ __tpl_display_init_backend_gbm(tpl_display_backend_t *backend)
 	backend->fini				= __tpl_gbm_display_fini;
 	backend->query_config			= __tpl_gbm_display_query_config;
 	backend->filter_config			= __tpl_gbm_display_filter_config;
-	backend->get_window_info			= __tpl_gbm_display_get_window_info;
-	backend->get_pixmap_info			= __tpl_gbm_display_get_pixmap_info;
+	backend->get_window_info		= __tpl_gbm_display_get_window_info;
+	backend->get_pixmap_info		= __tpl_gbm_display_get_pixmap_info;
 	backend->flush				= __tpl_gbm_display_flush;
 #ifdef EGL_BIND_WL_DISPLAY
 	backend->bind_client_display_handle	= __tpl_gbm_display_bind_client_wayland_display;
