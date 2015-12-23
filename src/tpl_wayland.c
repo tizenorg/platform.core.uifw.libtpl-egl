@@ -787,18 +787,24 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 			*reset_buffers = TPL_TRUE;
 	}
 
+	TPL_OBJECT_UNLOCK(surface);
+	TPL_LOG(6, "Wait until dequeable | tsq_err = %d", tsq_err);
+	while(tbm_surface_queue_can_dequeue(wayland_surface->tbm_queue, 0) == 0)
+	{
+		/* Application sent all buffers to the server. Wait for server response. */
+		if (wl_display_dispatch_queue(surface->display->native_handle, wayland_display->wl_queue) == -1)
+		{
+			TPL_OBJECT_LOCK(surface);
+			return NULL;
+		}
+	}
+	TPL_OBJECT_LOCK(surface);
+
 	tsq_err = tbm_surface_queue_dequeue(wayland_surface->tbm_queue, &tbm_surface);
 	if (tbm_surface == NULL)
 	{
-		TPL_LOG(6, "Wait until dequeable | tsq_err = %d", tsq_err);
-		tbm_surface_queue_can_dequeue(wayland_surface->tbm_queue, 1);
-
-		tsq_err = tbm_surface_queue_dequeue(wayland_surface->tbm_queue, &tbm_surface);
-		if (tbm_surface == NULL)
-		{
-			TPL_ERR("Failed to get tbm_surface from tbm_surface_queue | tsq_err = %d",tsq_err);
-			return NULL;
-		}
+		TPL_ERR("Failed to get tbm_surface from tbm_surface_queue | tsq_err = %d",tsq_err);
+		return NULL;
 	}
 
 	tbm_surface_internal_ref(tbm_surface);
