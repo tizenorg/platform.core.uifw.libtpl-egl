@@ -643,11 +643,8 @@ __tpl_gbm_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl_boo
 	gbm_display = (tpl_gbm_display_t*)surface->display->backend.data;
 
 	tsq_err = tbm_surface_queue_dequeue(gbm_surface->tbm_queue, &tbm_surface);
-	if (tbm_surface == NULL)
+	if(tbm_surface == NULL && tbm_surface_queue_can_dequeue(gbm_surface->tbm_queue, 1) == 1)
 	{
-		TPL_LOG(6, "Wait until dequeable | tsq_err = %d", tsq_err);
-		tbm_surface_queue_can_dequeue(gbm_surface->tbm_queue, 1);
-
 		tsq_err = tbm_surface_queue_dequeue(gbm_surface->tbm_queue, &tbm_surface);
 		if (tbm_surface == NULL)
 		{
@@ -655,7 +652,6 @@ __tpl_gbm_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl_boo
 			return NULL;
 		}
 	}
-
 	/* Inc ref count about tbm_surface */
 	/* It will be dec when before tbm_surface_queue_enqueue called */
 	tbm_surface_internal_ref(tbm_surface);
