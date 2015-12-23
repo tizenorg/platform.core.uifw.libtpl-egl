@@ -593,9 +593,13 @@ tpl_bool_t tpl_surface_validate_frame(tpl_surface_t *surface);
  * @see tpl_surface_begin_frame()
  * @see tpl_surface_end_frame()
  */
+#if TPL_WINSYS_WL
+void* tpl_surface_get_buffer(tpl_surface_t *surface,
+					tpl_bool_t *reset_buffers);
+#else
 tpl_buffer_t * tpl_surface_get_buffer(tpl_surface_t *surface,
 				      tpl_bool_t *reset_buffers);
-
+#endif
 /**
  * Post a frame from the frame queue of the given surface.
  *

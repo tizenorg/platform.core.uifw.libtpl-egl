@@ -27,7 +27,7 @@ ifneq ($(call is-feature-enabled,winsys_dri3),)
 endif
 
 ifneq ($(call is-feature-enabled,winsys_wl),)
-	CFLAGS += -DTPL_WINSYS_WL -DEGL_BIND_WL_DISPLAY
+	CFLAGS += -DTPL_WINSYS_WL=1 -DEGL_BIND_WL_DISPLAY
 	CFLAGS += `pkg-config --cflags gbm`
 	LDFLAGS += `pkg-config --libs gbm wayland-tbm-client wayland-tbm-server`
 endif
