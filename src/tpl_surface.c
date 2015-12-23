@@ -391,6 +391,42 @@ tpl_surface_get_damage(tpl_surface_t *surface, int *num_rects, const int **rects
 	return TPL_TRUE;
 }
 
+#if TPL_WINSYS_WL
+tbm_surface_h
+tpl_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
+{
+	TPL_ASSERT(surface);
+
+	tbm_surface_h tbm_surface = NULL;
+
+	if (surface->backend.get_buffer == NULL)
+	{
+		TPL_ERR("TPL surface has not been initialized correctly!");
+		return NULL;
+	}
+
+	TRACE_BEGIN("TPL:GETBUFFER");
+	TPL_OBJECT_LOCK(surface);
+
+	tbm_surface = surface->backend.get_buffer(surface, reset_buffers);
+
+	if(tbm_surface != NULL)
+	{
+		/* Update size of the surface. */
+		surface->width = tbm_surface_internal_get_width(tbm_surface);
+		surface->height = tbm_surface_internal_get_height(tbm_surface);
+
+		if (surface->frame)
+			__tpl_frame_set_buffer(surface->frame, tbm_surface);
+	}
+
+	TPL_OBJECT_UNLOCK(surface);
+	TRACE_END();
+
+	return (void*)tbm_surface;
+}
+
+#else
 tpl_buffer_t *
 tpl_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 {
@@ -428,6 +464,7 @@ tpl_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 
 	return buffer;
 }
+#endif
 
 tpl_bool_t
 tpl_surface_destroy_cached_buffers(tpl_surface_t *surface)
@@ -528,7 +565,11 @@ tpl_surface_post(tpl_surface_t *surface)
 		return TPL_FALSE;
 	}
 
+#if TPL_WINSYS_WL
+	if (frame->tbm_surface == NULL)
+#else
 	if (frame->buffer == NULL)
+#endif
 	{
 		__tpl_frame_free(frame);
 		TPL_OBJECT_UNLOCK(surface);
@@ -536,7 +577,6 @@ tpl_surface_post(tpl_surface_t *surface)
 		TPL_ERR("Buffer not initialized for frame!");
 		return TPL_FALSE;
 	}
-
 	/* Call backend post if it has not been called for the frame. */
 	if (TPL_FRAME_STATE_POSTED != frame->state)
 		surface->backend.post(surface, frame);
