@@ -11,6 +11,12 @@
 
 #include "tpl_utils.h"
 
+#if TPL_WINSYS_WL
+#include <tbm_bufmgr.h>
+#include <tbm_surface.h>
+#include <tbm_surface_internal.h>
+#endif
+
 #define TPL_OBJECT_LOCK(object)		__tpl_object_lock((tpl_object_t *)(object))
 #define TPL_OBJECT_UNLOCK(object)	__tpl_object_unlock((tpl_object_t *)(object))
 
@@ -35,7 +41,11 @@ typedef enum
 
 struct _tpl_frame
 {
+#if TPL_WINSYS_WL
+	tbm_surface_h		tbm_surface;
+#else
 	tpl_buffer_t		*buffer;
+#endif
 	int			interval;
 	tpl_region_t		damage;
 	tpl_frame_state_t	state;
@@ -208,8 +218,11 @@ void __tpl_object_unlock(tpl_object_t *object);
 tpl_frame_t *		__tpl_frame_alloc();
 void			__tpl_frame_free(tpl_frame_t *frame);
 
+#if TPL_WINSYS_WL
+void			__tpl_frame_set_buffer(tpl_frame_t *frame, tbm_surface_h tbm_surface);
+#else
 void			__tpl_frame_set_buffer(tpl_frame_t *frame, tpl_buffer_t *buffer);
-
+#endif
 /* Display functions. */
 tpl_handle_t		__tpl_display_get_native_handle(tpl_display_t *display);
 void			__tpl_display_flush(tpl_display_t *display);
