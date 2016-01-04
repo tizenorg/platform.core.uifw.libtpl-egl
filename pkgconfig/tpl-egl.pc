@@ -4,7 +4,7 @@ libdir=${exec_prefix}/lib
 includedir=${prefix}/include
 
 Name: libtpl-egl
-Description: Tizen Porting Layer for ARM Mali EGL
+Description: Tizen Porting Layer for EGL
 Version: 0.1
 Requires.private:
 Libs: -L${libdir} -ltpl-egl

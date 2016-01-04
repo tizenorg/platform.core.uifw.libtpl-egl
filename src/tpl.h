@@ -6,7 +6,7 @@
  * @brief TPL API header file.
  *
  * TPL is an abstraction layer for surface & buffer management on Tizen
- * platform aimed to implement the EGL porting layer of ARM Mali OpenGLES
+ * platform aimed to implement the EGL porting layer of GPU Vendor's OpenGLES
  * driver over various display protocols.
  *
  * TPL provides object-oriented interfaces. Every TPL object can be represented
