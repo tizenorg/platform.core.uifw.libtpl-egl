@@ -24,13 +24,13 @@ Name:		libtpl-egl
 Version:	%{TPL_VERSION}
 Release:	%{TPL_RELEASE}
 %if "%{TPL_WINSYS}" == "DRI2"
-Summary:	Tizen Porting Layer for ARM Mali EGL (DRI2 backend)
+Summary:	Tizen Porting Layer for EGL (DRI2 backend)
 %endif
 %if "%{TPL_WINSYS}" == "DRI3"
-Summary:	Tizen Porting Layer for ARM Mali EGL (DRI3 backend)
+Summary:	Tizen Porting Layer for EGL (DRI3 backend)
 %endif
 %if "%{TPL_WINSYS}" == "WL"
-Summary:	Tizen Porting Layer for ARM Mali EGL (Wayland backend)
+Summary:	Tizen Porting Layer for EGL (Wayland backend)
 %endif
 Group: Graphics & UI Framework/GL
 License:	MIT
@@ -68,7 +68,7 @@ BuildRequires:	pkgconfig(libpng)
 
 %description
 Tizen Porting Layer (a.k.a TPL) is a linkage between the underlying window
-system and the EGL porting layer found in ARM Mali DDKs.
+system and the EGL porting layer.
 
 The following window systems are supported:
 - X11 DRI2/DRI3
@@ -84,7 +84,7 @@ Requires:   libwayland-egl-devel
 
 %description devel
 This package contains the development libraries and header files needed by
-the DDK for ARM Mali EGL.
+the GPU Vendor DDK's EGL.
 
 %if "%{TPL_WINSYS}" == "WL"
 %package -n libwayland-egl
