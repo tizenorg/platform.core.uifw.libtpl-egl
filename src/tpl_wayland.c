@@ -43,6 +43,7 @@ struct _tpl_wayland_surface
 	tpl_buffer_t		*current_rendering_buffer;
 	tpl_list_t		done_rendering_queue;
 	tbm_surface_queue_h	tbm_queue;
+	tpl_bool_t		resized;
 };
 
 struct _tpl_wayland_buffer
@@ -401,6 +402,9 @@ __tpl_wayland_display_flush(tpl_display_t *display)
 	/* Do nothing. */
 }
 
+static void
+__cb_client_window_resize_callback(struct wl_egl_window* wl_egl_window, void* private);
+
 static tpl_bool_t
 __tpl_wayland_surface_init(tpl_surface_t *surface)
 {
@@ -414,6 +418,7 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 
 	surface->backend.data = (void *)wayland_surface;
 	wayland_surface->tbm_queue = NULL;
+	wayland_surface->resized = TPL_FALSE;
 
 	__tpl_list_init(&wayland_surface->done_rendering_queue);
 
@@ -422,6 +427,7 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 		int tbm_format;
 		struct wl_egl_window *wl_egl_window = (struct wl_egl_window *)surface->native_handle;
 		wl_egl_window->private = surface;
+		wl_egl_window->resize_callback = (void*)__cb_client_window_resize_callback;
 
 		switch (surface->format)
 		{
@@ -668,7 +674,13 @@ __tpl_wayland_surface_begin_frame(tpl_surface_t *surface)
 static tpl_bool_t
 __tpl_wayland_surface_validate_frame(tpl_surface_t *surface)
 {
-	TPL_IGNORE(surface);
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->backend.data);
+
+	tpl_wayland_surface_t *wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
+
+	if (wayland_surface->resized)
+		return TPL_FALSE;
 
 	return TPL_TRUE;
 }
@@ -776,8 +788,9 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 	format = tbm_surface_queue_get_format(wayland_surface->tbm_queue);
 
 	/* Check whether the surface was resized by wayland_egl */
-	if (width != tbm_surface_queue_get_width(wayland_surface->tbm_queue) ||
-        height != tbm_surface_queue_get_height(wayland_surface->tbm_queue))
+	if (wayland_surface->resized == TPL_TRUE ||
+	    width != tbm_surface_queue_get_width(wayland_surface->tbm_queue) ||
+            height != tbm_surface_queue_get_height(wayland_surface->tbm_queue))
 	{
 		tbm_surface_queue_reset(wayland_surface->tbm_queue, width, height, format);
 
@@ -785,6 +798,8 @@ __tpl_wayland_surface_create_buffer_from_wl_egl(tpl_surface_t *surface, tpl_bool
 		__tpl_wayland_surface_buffer_cache_remove_all(&wayland_display->cached_buffers);
 		if (reset_buffers != NULL)
 			*reset_buffers = TPL_TRUE;
+
+		wayland_surface->resized = TPL_FALSE;
 	}
 
 	TPL_OBJECT_UNLOCK(surface);
@@ -1076,7 +1091,7 @@ __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffe
 		return NULL;
 	}
 
-	if (wayland_surface->current_rendering_buffer == NULL)
+	if (wayland_surface->resized || wayland_surface->current_rendering_buffer == NULL)
 	{
 		if (surface->type == TPL_SURFACE_TYPE_WINDOW)
 		{
@@ -1361,3 +1376,13 @@ __cb_client_buffer_release_callback(void *data, struct wl_proxy *proxy)
 static const struct wl_buffer_listener buffer_release_listener = {
 	(void *)__cb_client_buffer_release_callback,
 };
+
+static void
+__cb_client_window_resize_callback(struct wl_egl_window* wl_egl_window, void* private)
+{
+	TPL_ASSERT(private);
+
+	tpl_surface_t *surface = (tpl_surface_t*)private;
+	tpl_wayland_surface_t *wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
+	wayland_surface->resized = TPL_TRUE;
+}
