@@ -18,7 +18,7 @@ static void
 __tpl_surface_free(void *data)
 {
 	TPL_ASSERT(data);
-
+        TPL_LOG(9, "tpl_surface_t(%p)", data);
 	__tpl_surface_fini((tpl_surface_t *) data);
 	free(data);
 }
@@ -228,6 +228,7 @@ tpl_surface_begin_frame(tpl_surface_t *surface)
 
 	surface->frame->state = TPL_FRAME_STATE_READY;
 
+	TPL_LOG(9, "surface(%p)| surface->frame(%p)", surface, surface->frame);
 	TPL_LOG(5, "surface->frame:%p, surface->damage:%p, surface->frame->damage:%p",
 		surface->frame, &surface->damage, (surface->frame)?(&surface->frame->damage):NULL);
 	/* There might be some frames which is enqueued but not posted. Some backend requires native
@@ -260,7 +261,7 @@ tpl_surface_end_frame(tpl_surface_t *surface)
 
 	TPL_LOG(5, "surface->frame:%p, surface->damage:%p, surface->frame->damage:%p",
 		surface->frame, &surface->damage, (surface->frame)?(&surface->frame->damage):NULL);
-
+	TPL_LOG(9, "surface(%p)| surface->frame(%p)", surface, surface->frame);
 	TRACE_BEGIN("TPL:ENDFRAME");
 	TPL_OBJECT_LOCK(surface);
 

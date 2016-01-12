@@ -20,6 +20,7 @@ __tpl_frame_free(tpl_frame_t *frame)
 {
 	TPL_ASSERT(frame);
 
+	TPL_LOG(9, "frame(%p)| tbm_surface(%p)", frame, frame->tbm_surface);
 	if (frame->tbm_surface)
 		tbm_surface_internal_unref(frame->tbm_surface);
 
@@ -33,6 +34,7 @@ __tpl_frame_set_buffer(tpl_frame_t *frame, tbm_surface_h tbm_surface)
 	TPL_ASSERT(frame);
 	TPL_ASSERT(tbm_surface);
 
+	TPL_LOG(9, "frame(%p)| tbm_surface(%p)", frame, tbm_surface);
 	if (frame->tbm_surface)
 		tbm_surface_internal_unref(frame->tbm_surface);
 
