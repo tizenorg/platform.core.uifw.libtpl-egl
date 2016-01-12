@@ -58,8 +58,6 @@ unsigned int __tpl_gbm_display_bind_client_wayland_display(tpl_display_t  *tpl_d
 unsigned int __tpl_gbm_display_unbind_client_wayland_display(tpl_display_t  *tpl_display, tpl_handle_t native_dpy);
 #endif
 
-#define TPL_BUFFER_CACHE_MAX_ENTRIES 40
-
 static int tpl_gbm_buffer_key;
 #define KEY_TPL_GBM_BUFFER  (unsigned long)(&tpl_gbm_buffer_key)
 

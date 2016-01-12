@@ -120,14 +120,6 @@ typedef struct _tpl_display tpl_display_t;
 typedef struct _tpl_surface tpl_surface_t;
 
 /**
- * A structure representing TPL buffer object.
- *
- * TPL buffer is an object representing a set of pixels which is usually a
- * block of memories.
- */
-typedef struct _tpl_buffer tpl_buffer_t;
-
-/**
  * Function type used for freeing some data.
  */
 typedef void (*tpl_free_func_t)(void *data);
@@ -594,13 +586,8 @@ tpl_bool_t tpl_surface_validate_frame(tpl_surface_t *surface);
  * @see tpl_surface_begin_frame()
  * @see tpl_surface_end_frame()
  */
-#if TPL_WINSYS_WL
 tbm_surface_h tpl_surface_get_buffer(tpl_surface_t *surface,
 					tpl_bool_t *reset_buffers);
-#else
-tpl_buffer_t * tpl_surface_get_buffer(tpl_surface_t *surface,
-				      tpl_bool_t *reset_buffers);
-#endif
 /**
  * Post a frame from the frame queue of the given surface.
  *
@@ -681,166 +668,6 @@ tpl_bool_t tpl_surface_destroy_cached_buffers(tpl_surface_t *surface);
 
 tpl_bool_t tpl_surface_update_cached_buffers(tpl_surface_t *surface);
 
-/**
- * Map the given buffer to the user space address.
- *
- * Users can do CPU access to the buffer memory by using this function. It is
- * recommended to lock the buffer first with appropriate lock usage to avoid
- * cache coherency problems.
- *
- * @param buffer buffer to map.
- * @param size Size of the area to be mapped. Give 0 for entire buffer.
- * @return Pointer to the mapped buffer memory.
- *
- * @see tpl_buffer_unmap()
- */
-void * tpl_buffer_map(tpl_buffer_t *buffer,
-		      int size);
-
-/**
- * Unmap the given buffer from the user space address.
- *
- * @param buffer buffer to unmap
- * @param ptr Pointer to the mapped memory. Give NULL if the entire buffer was mapped.
- * @param size Size of the mapped memory. Give 0 if the entire buffer was mapped.
- *
- * @see tpl_buffer_map()
- */
-void tpl_buffer_unmap(tpl_buffer_t *buffer,
-		      void *ptr,
-		      int size);
-
-/**
- * Lock the given buffer.
- *
- * Buffer lock is used for synchronizations. The locking is actually done to
- * the low-level buffer object like dma_buf. So, it is possible that locking
- * call is blocked although no locking is ever called for the TPL buffer. Other
- * TPL buffer pointing to the same low-level buffer might be locked or other
- * process might be holding the lock for the same low-level buffer.
- *
- * The lock might work as R/W lock depending on backend.
- *
- * @param buffer buffer to lock.
- * @param usage purpose of the lock.
- * @return TPL_TRUE on success, TPL_FALSE otherwise.
- *
- * @see tpl_buffer_unlock()
- */
-tpl_bool_t tpl_buffer_lock(tpl_buffer_t *buffer,
-			   tpl_lock_usage_t usage);
-
-/**
- * Unlock the given buffer.
- *
- * @param buffer buffer to unlock.
- *
- * @see tpl_buffer_lock()
- */
-void tpl_buffer_unlock(tpl_buffer_t *buffer);
-
-/**
- * Create a native buffer of the given TPL buffer.
- *
- * This function can be used to export a TPL buffer by the returned native
- * buffer. Some windowing system need a extra buffer export mechanism between
- * compositor and application.
- *
- * @param buffer buffer to export.
- * @return A native buffer from the buffer. NULL on error.
- */
-void *tpl_buffer_create_native_buffer(tpl_buffer_t *buffer);
-
-/**
- * Get the low-level buffer key of the given TPL buffer.
- *
- * It is a common method representing buffers with 32bits or 64bits key. A TPL
- * buffer internally indicate a platform dependent low-level buffer like
- * dma_buf. This function retrieves such key to the low-level buffer.
- *
- * @param buffer buffer to retrieve the key.
- * @return Key to the low-level buffer.
- *
- * @see tpl_buffer_get_fd()
- */
-size_t tpl_buffer_get_key(tpl_buffer_t *buffer);
-
-/**
- * Get the low-level buffer fd of the given TPL buffer.
- *
- * It is also a common method accessing a buffer via file system. This function
- * returns file descriptor for the low-level buffer.
- *
- * @param buffer buffer to retrieve fd.
- * @return file descriptor of the low-level buffer.
- *
- * @see tpl_buffer_get_key()
- */
-int tpl_buffer_get_fd(tpl_buffer_t *buffer);
-
-/**
- * Get the age of the given TPL buffer.
- *
- * Buffer age gives us information on content which is already rendered on the
- * buffer. It is used to do partial update which is an optimization techinique
- * that renders only different area between current frame and previously
- * rendered buffer content.
- *
- * @param buffer buffer to get age.
- * @return age of the buffer..
- */
-int tpl_buffer_get_age(tpl_buffer_t *buffer);
-
-/**
- * Get the TPL surface where the given TPL buffer belongs to.
- *
- * @param buffer buffer to get the belonging surface.
- * @return surface where the given buffer belongs to.
- *
- * @see tpl_surface_get_buffer()
- */
-tpl_surface_t * tpl_buffer_get_surface(tpl_buffer_t *buffer);
-
-/**
- * Get the size of the given TPL buffer.
- *
- * @param buffer buffer to get the size.
- * @param width pointer to receive the width value.
- * @param height pointer to receive the height value.
- * @return TPL_TRUE on success, TPL_FALSE on error.
- */
-tpl_bool_t tpl_buffer_get_size(tpl_buffer_t *buffer,
-			 int *width,
-			 int *height);
-
-/**
- * Get the color depth of the given TPL buffer.
- *
- * @param buffer buffer to get the color depth.
- * @return color depth of the given buffer.
- */
-int tpl_buffer_get_depth(tpl_buffer_t *buffer);
-
-/**
- * Get the pitch value (in bytes) of the given TPL buffer.
- *
- * @param buffer buffer to get the pitch.
- * @return pitch of the given buffer in bytes.
- */
-int tpl_buffer_get_pitch(tpl_buffer_t *buffer);
-
-int tpl_buffer_get_map_cnt(tpl_buffer_t *buffer);
-/**
- * Get the ID of the given TPL buffer.
- *
- * @param buffer buffer to get the id.
- * @return id of the given buffer.
- */
-
-unsigned int tpl_buffer_get_id(tpl_buffer_t *buffer);
-
-
-int tpl_buffer_get_map_cnt(tpl_buffer_t *buffer);
 
 /**
  * Query information on the given native window.

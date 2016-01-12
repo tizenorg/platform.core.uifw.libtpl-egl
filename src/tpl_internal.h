@@ -11,11 +11,9 @@
 
 #include "tpl_utils.h"
 
-#if TPL_WINSYS_WL
 #include <tbm_bufmgr.h>
 #include <tbm_surface.h>
 #include <tbm_surface_internal.h>
-#endif
 
 #define TPL_OBJECT_LOCK(object)		__tpl_object_lock((tpl_object_t *)(object))
 #define TPL_OBJECT_UNLOCK(object)	__tpl_object_unlock((tpl_object_t *)(object))
@@ -23,7 +21,6 @@
 typedef struct _tpl_runtime		tpl_runtime_t;
 typedef struct _tpl_display_backend	tpl_display_backend_t;
 typedef struct _tpl_surface_backend	tpl_surface_backend_t;
-typedef struct _tpl_buffer_backend	tpl_buffer_backend_t;
 typedef struct _tpl_frame		tpl_frame_t;
 
 typedef struct tpl_hlist		tpl_hlist_t;
@@ -41,11 +38,7 @@ typedef enum
 
 struct _tpl_frame
 {
-#if TPL_WINSYS_WL
 	tbm_surface_h		tbm_surface;
-#else
-	tpl_buffer_t		*buffer;
-#endif
 	int			interval;
 	tpl_region_t		damage;
 	tpl_frame_state_t	state;
@@ -90,29 +83,10 @@ struct _tpl_surface_backend
 	tpl_bool_t	(*end_frame)(tpl_surface_t *surface);
 	tpl_bool_t	(*validate_frame)(tpl_surface_t *surface);
 
-	tpl_buffer_t *	(*get_buffer)(tpl_surface_t *surface, tpl_bool_t *reset_buffers);
+	tbm_surface_h	(*get_buffer)(tpl_surface_t *surface, tpl_bool_t *reset_buffers);
 	void		(*post)(tpl_surface_t *surface, tpl_frame_t *frame);
         tpl_bool_t	(*destroy_cached_buffers)(tpl_surface_t *surface);
 	tpl_bool_t	(*update_cached_buffers)(tpl_surface_t *surface);
-};
-
-struct _tpl_buffer_backend
-{
-	tpl_backend_type_t	type;
-	void			*data;
-	unsigned int		flags;
-
-	tpl_bool_t	(*init)(tpl_buffer_t *buffer);
-	void		(*fini)(tpl_buffer_t *buffer);
-
-	void *		(*map)(tpl_buffer_t *buffer, int size);
-	void		(*unmap)(tpl_buffer_t *buffer, void *ptr, int size);
-
-	tpl_bool_t	(*lock)(tpl_buffer_t *buffer, tpl_lock_usage_t usage);
-	void		(*unlock)(tpl_buffer_t *buffer);
-
-	void *		(*create_native_buffer)(tpl_buffer_t *buffer);
-	int		(*get_buffer_age)(tpl_buffer_t *buffer);
 };
 
 struct _tpl_object
@@ -160,24 +134,6 @@ struct _tpl_surface
 	tpl_surface_backend_t		backend;
 };
 
-struct _tpl_buffer
-{
-	tpl_object_t		base;
-
-	tpl_surface_t		*surface;
-	size_t			key;
-	int			fd;
-	int			age;
-
-	int			width;
-	int			height;
-	int			depth;
-	int			pitch;
-
-	int			map_cnt;
-	tpl_buffer_backend_t	backend;
-};
-
 /*******************************************************************************
 * TPL object functions
 *******************************************************************************/
@@ -217,12 +173,8 @@ void __tpl_object_unlock(tpl_object_t *object);
 /* Frame functions. */
 tpl_frame_t *		__tpl_frame_alloc();
 void			__tpl_frame_free(tpl_frame_t *frame);
-
-#if TPL_WINSYS_WL
 void			__tpl_frame_set_buffer(tpl_frame_t *frame, tbm_surface_h tbm_surface);
-#else
-void			__tpl_frame_set_buffer(tpl_frame_t *frame, tpl_buffer_t *buffer);
-#endif
+
 /* Display functions. */
 tpl_handle_t		__tpl_display_get_native_handle(tpl_display_t *display);
 void			__tpl_display_flush(tpl_display_t *display);
@@ -233,10 +185,6 @@ void			__tpl_surface_wait_all_frames(tpl_surface_t *surface);
 
 void			__tpl_surface_set_backend_data(tpl_surface_t *surface, void *data);
 void *			__tpl_surface_get_backend_data(tpl_surface_t *surface);
-
-/* Buffer functions. */
-tpl_buffer_t *		__tpl_buffer_alloc(tpl_surface_t *surface, size_t key, int fd, int width, int height, int depth, int pitch);
-void			__tpl_buffer_set_surface(tpl_buffer_t *buffer, tpl_surface_t *surface);
 
 /* Runtime functions. */
 tpl_display_t *		__tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display);
@@ -254,7 +202,6 @@ tpl_bool_t __tpl_display_choose_backend_x11_dri3(tpl_handle_t native_dpy);
 
 void __tpl_display_init_backend(tpl_display_t *display, tpl_backend_type_t type);
 void __tpl_surface_init_backend(tpl_surface_t *surface, tpl_backend_type_t type);
-void __tpl_buffer_init_backend(tpl_buffer_t *buffer, tpl_backend_type_t type);
 
 void __tpl_display_init_backend_gbm(tpl_display_backend_t *backend);
 void __tpl_display_init_backend_wayland(tpl_display_backend_t *backend);
@@ -265,11 +212,6 @@ void __tpl_surface_init_backend_gbm(tpl_surface_backend_t *backend);
 void __tpl_surface_init_backend_wayland(tpl_surface_backend_t *backend);
 void __tpl_surface_init_backend_x11_dri2(tpl_surface_backend_t *backend);
 void __tpl_surface_init_backend_x11_dri3(tpl_surface_backend_t *backend);
-
-void __tpl_buffer_init_backend_gbm(tpl_buffer_backend_t *backend);
-void __tpl_buffer_init_backend_wayland(tpl_buffer_backend_t *backend);
-void __tpl_buffer_init_backend_x11_dri2(tpl_buffer_backend_t *backend);
-void __tpl_buffer_init_backend_x11_dri3(tpl_buffer_backend_t *backend);
 
 /* Region functions. */
 void __tpl_region_init(tpl_region_t *region);

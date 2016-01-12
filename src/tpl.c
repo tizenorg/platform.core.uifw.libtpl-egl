@@ -317,35 +317,6 @@ __tpl_surface_init_backend(tpl_surface_t *surface, tpl_backend_type_t type)
 	}
 }
 
-void
-__tpl_buffer_init_backend(tpl_buffer_t *buffer, tpl_backend_type_t type)
-{
-	switch (type)
-	{
-#ifdef TPL_WINSYS_WL
-	case TPL_BACKEND_GBM:
-		__tpl_buffer_init_backend_gbm(&buffer->backend);
-		break;
-	case TPL_BACKEND_WAYLAND:
-		__tpl_buffer_init_backend_wayland(&buffer->backend);
-		break;
-#endif
-#ifdef TPL_WINSYS_DRI2
-	case TPL_BACKEND_X11_DRI2:
-		__tpl_buffer_init_backend_x11_dri2(&buffer->backend);
-		break;
-#endif
-#ifdef TPL_WINSYS_DRI3
-	case TPL_BACKEND_X11_DRI3:
-		__tpl_buffer_init_backend_x11_dri3(&buffer->backend);
-		break;
-#endif
-	default:
-		TPL_ASSERT(TPL_FALSE);
-		break;
-	}
-}
-
 tpl_bool_t
 tpl_get_native_window_info(tpl_display_t *display, tpl_handle_t window,
 			   int *width, int *height, tpl_format_t *format, int depth, int a_size)

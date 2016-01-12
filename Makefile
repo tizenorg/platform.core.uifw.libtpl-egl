@@ -55,7 +55,6 @@ TPL_HEADERS += $(SRC_DIR)/tpl_internal.h
 TPL_HEADERS += $(SRC_DIR)/tpl_utils.h
 
 TPL_SRCS += $(SRC_DIR)/tpl.c
-TPL_SRCS += $(SRC_DIR)/tpl_buffer.c
 TPL_SRCS += $(SRC_DIR)/tpl_display.c
 TPL_SRCS += $(SRC_DIR)/tpl_frame.c
 TPL_SRCS += $(SRC_DIR)/tpl_object.c
