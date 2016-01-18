@@ -63,16 +63,6 @@ bool tpl_object_get_type_test(TPLNativeWnd* wnd )
 		goto finish;
 	}
 
-	//tpl_object_get_type:BUFFER
-	obj_type = -1;
-	obj_type = tpl_object_get_type((tpl_object_t *)wnd->tpl_buf);
-	if (obj_type != TPL_OBJECT_BUFFER)
-	{
-		LOG("ERRO", LOG_LEVEL_HIGH , "failed:tpl_object_get_type");
-		ret = false;
-		goto finish;
-	}
-
 finish:
 	if(true == ret)
 		LOG("PASS", LOG_LEVEL_HIGH , "Pass:%s",__func__);

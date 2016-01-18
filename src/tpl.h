@@ -134,7 +134,6 @@ typedef enum
 	TPL_OBJECT_ERROR = -1,
 	TPL_OBJECT_DISPLAY,
 	TPL_OBJECT_SURFACE,
-	TPL_OBJECT_BUFFER,
 	TPL_OBJECT_MAX
 } tpl_object_type_t;
 
