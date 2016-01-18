@@ -154,18 +154,6 @@ tpl_display_get_backend_type(tpl_display_t *display)
 	return display->backend.type;
 }
 
-int
-tpl_display_get_bufmgr_fd(tpl_display_t *display)
-{
-	if(NULL == display || TPL_TRUE != __tpl_object_is_valid(&display->base))
-	{
-		TPL_ERR("display is invalid!");
-		return -1;
-	}
-
-	return display->bufmgr_fd;
-}
-
 tpl_handle_t
 tpl_display_get_native_handle(tpl_display_t *display)
 {

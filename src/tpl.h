@@ -368,19 +368,6 @@ tpl_bool_t tpl_display_unbind_client_display_handle(tpl_display_t *display,
 tpl_backend_type_t tpl_display_get_backend_type(tpl_display_t *display);
 
 /**
- * Get file descriptor of the buffer manager for the given TPL display.
- *
- * There might be native buffer manager device (ex. DRM). This function exports
- * such native buffer manager for users to be able to access buffers using the
- * buffer manager. How returned buffer manager fd is used is fully dependent on
- * native platform implementation.
- *
- * @param display display to get buffer manger fd.
- * @return file descriptor handle for the buffer manager.
- */
-int tpl_display_get_bufmgr_fd(tpl_display_t *display);
-
-/**
  * Get the native display handle which the given TPL display is created for.
  *
  * @param display display to get native handle.

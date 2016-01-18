@@ -92,16 +92,6 @@ bool tpl_display_get_arg_test (TPLNativeWnd* wnd)
 		goto finish;
 	}
 
-	//tpl_display_get_bufmgr_fd
-	int test_fd = -1;
-	test_fd = tpl_display_get_bufmgr_fd(wnd->tpl_display);
-	if(test_fd == -1)
-	{
-		LOG("ERRO", LOG_LEVEL_HIGH , "failed:tpl_display_get_bufmgr_fd");
-		ret = false;
-		goto finish;
-	}
-
 	//tpl_display_get_native_handle
 	tpl_handle_t test_handle = NULL;
 	test_handle = tpl_display_get_native_handle(wnd->tpl_display);
@@ -272,7 +262,6 @@ bool tpl_display_abnormal_test (TPLNativeWnd* wnd)
 	tpl_display_bind_client_display_handle(NULL,NULL);
 	tpl_display_unbind_client_display_handle(NULL,NULL);
 	tpl_display_get_backend_type(NULL);
-	tpl_display_get_bufmgr_fd(NULL);
 	tpl_display_get_native_handle(NULL);
 	tpl_display_filter_config(NULL,NULL,0);
 	tpl_display_query_config(NULL,TPL_SURFACE_TYPE_PIXMAP,0,8,8,8,24,NULL,NULL);
