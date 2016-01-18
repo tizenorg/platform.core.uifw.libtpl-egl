@@ -43,14 +43,14 @@
  *	tpl_surface_post(sfc);
  * }
  *
- * In Mali driver, "draw something..." part is what Mali frame builder does.
+ * In GPU Vendor driver, "draw something..." part is what the GPU frame builder does.
  *
  * TPL exposes native platform buffer identifiers and managers so that the
  * buffer can be used in other modules. Currently, dma_buf/DRM is supported for
  * such kind of purposes.
  *
  * EGL porting layer just calls TPL functions to do what it is requested, and
- * give the result to Mali driver. TPL does all the protocol dependent actions.
+ * give the result to GPU Vendor driver. TPL does all the protocol dependent actions.
  * Such protocol dependent part can be well-separated into TPL backends.
  *
  * Also, TPL backend can be configured at runtime. Users can specify which type
