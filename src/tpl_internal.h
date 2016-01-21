@@ -196,6 +196,7 @@ void			__tpl_runtime_flush_all_display();
 tpl_backend_type_t __tpl_display_choose_backend(tpl_handle_t native_dpy);
 
 tpl_bool_t __tpl_display_choose_backend_gbm(tpl_handle_t native_dpy);
+tpl_bool_t __tpl_display_choose_backend_tbm(tpl_handle_t native_dpy);
 tpl_bool_t __tpl_display_choose_backend_wayland(tpl_handle_t native_dpy);
 tpl_bool_t __tpl_display_choose_backend_x11_dri2(tpl_handle_t native_dpy);
 tpl_bool_t __tpl_display_choose_backend_x11_dri3(tpl_handle_t native_dpy);
@@ -204,11 +205,13 @@ void __tpl_display_init_backend(tpl_display_t *display, tpl_backend_type_t type)
 void __tpl_surface_init_backend(tpl_surface_t *surface, tpl_backend_type_t type);
 
 void __tpl_display_init_backend_gbm(tpl_display_backend_t *backend);
+void __tpl_display_init_backend_tbm(tpl_display_backend_t *backend);
 void __tpl_display_init_backend_wayland(tpl_display_backend_t *backend);
 void __tpl_display_init_backend_x11_dri2(tpl_display_backend_t *backend);
 void __tpl_display_init_backend_x11_dri3(tpl_display_backend_t *backend);
 
 void __tpl_surface_init_backend_gbm(tpl_surface_backend_t *backend);
+void __tpl_surface_init_backend_tbm(tpl_surface_backend_t *backend);
 void __tpl_surface_init_backend_wayland(tpl_surface_backend_t *backend);
 void __tpl_surface_init_backend_x11_dri2(tpl_surface_backend_t *backend);
 void __tpl_surface_init_backend_x11_dri3(tpl_surface_backend_t *backend);

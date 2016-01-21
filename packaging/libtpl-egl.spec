@@ -110,6 +110,8 @@ Development header files for use with Wayland protocol
 
 %build
 #libtpl-egl build
+TPL_OPTIONS=${TPL_OPTIONS}-winsys_tbm
+
 %if "%{TPL_WINSYS}" == "DRI2"
 TPL_OPTIONS=${TPL_OPTIONS}-winsys_dri2
 %endif

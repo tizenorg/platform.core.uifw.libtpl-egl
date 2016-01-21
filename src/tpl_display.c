@@ -41,12 +41,6 @@ tpl_display_get(tpl_backend_type_t type, tpl_handle_t native_dpy)
 	tpl_display_t *display;
 	tpl_bool_t ret;
 
-	if (0 > type || TPL_BACKEND_COUNT == type || TPL_BACKEND_MAX <= type)
-	{
-		TPL_ERR("Invalid backend type!");
-		return NULL;
-	}
-
 	/* Search for an already connected display for the given native display. */
 	display = __tpl_runtime_find_display(type, native_dpy);
 
@@ -59,7 +53,7 @@ tpl_display_get(tpl_backend_type_t type, tpl_handle_t native_dpy)
 		type = __tpl_display_choose_backend(native_dpy);
 
 	/* if still not found, then there's no compatible display */
-	if (TPL_BACKEND_UNKNOWN == type)
+	if (TPL_BACKEND_UNKNOWN == type || TPL_BACKEND_COUNT == type || TPL_BACKEND_MAX <= type)
 	{
 		TPL_ERR("Invalid backend type!");
 		return NULL;

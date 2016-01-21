@@ -32,6 +32,10 @@ ifneq ($(call is-feature-enabled,winsys_wl),)
 	LDFLAGS += `pkg-config --libs gbm wayland-tbm-client wayland-tbm-server`
 endif
 
+ifneq ($(call is-feature-enabled,winsys_tbm),)
+	CFLAGS += -DTPL_WINSYS_TBM=1
+endif
+
 ifneq ($(call is-feature-enabled,ttrace),)
 	CFLAGS += -DTTRACE_ENABLE
 endif
@@ -79,6 +83,10 @@ TPL_HEADERS += $(SRC_DIR)/tpl_x11_internal.h
 
 TPL_SRCS += $(SRC_DIR)/tpl_x11_common.c
 TPL_SRCS += $(SRC_DIR)/tpl_x11_dri3.c
+endif
+
+ifneq ($(call is-feature-enabled,winsys_tbm),)
+TPL_SRCS += $(SRC_DIR)/tpl_tbm.c
 endif
 
 OBJS = $(TPL_SRCS:%.c=%.o)

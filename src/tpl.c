@@ -233,12 +233,15 @@ __tpl_display_choose_backend(tpl_handle_t native_dpy)
 		if (strcmp(plat_name, "x11") == 0) return TPL_BACKEND_X11_DRI3;
 #endif
 #ifdef TPL_WINSYS_WL
+		if (strcmp(plat_name, "tbm") == 0) return TPL_BACKEND_TBM;
 		if (strcmp(plat_name, "wayland") == 0) return TPL_BACKEND_WAYLAND;
 		if (strcmp(plat_name, "drm") == 0) return TPL_BACKEND_GBM;
 #endif
 	}
 
 #ifdef TPL_WINSYS_WL
+	if (__tpl_display_choose_backend_tbm(native_dpy) == TPL_TRUE)
+	    return TPL_BACKEND_TBM;
 	if (__tpl_display_choose_backend_gbm(native_dpy) == TPL_TRUE)
 		return TPL_BACKEND_GBM;
 	if (__tpl_display_choose_backend_wayland(native_dpy) == TPL_TRUE)
@@ -270,6 +273,9 @@ __tpl_display_init_backend(tpl_display_t *display, tpl_backend_type_t type)
 	case TPL_BACKEND_WAYLAND:
 		__tpl_display_init_backend_wayland(&display->backend);
 		break;
+	case TPL_BACKEND_TBM:
+		__tpl_display_init_backend_tbm(&display->backend);
+		break;
 #endif
 #ifdef TPL_WINSYS_DRI2
 	case TPL_BACKEND_X11_DRI2:
@@ -300,6 +306,9 @@ __tpl_surface_init_backend(tpl_surface_t *surface, tpl_backend_type_t type)
 		break;
 	case TPL_BACKEND_WAYLAND:
 		__tpl_surface_init_backend_wayland(&surface->backend);
+		break;
+	case TPL_BACKEND_TBM:
+		__tpl_surface_init_backend_tbm(&surface->backend);
 		break;
 #endif
 #ifdef TPL_WINSYS_DRI2
