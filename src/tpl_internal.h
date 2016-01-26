@@ -21,28 +21,8 @@
 typedef struct _tpl_runtime		tpl_runtime_t;
 typedef struct _tpl_display_backend	tpl_display_backend_t;
 typedef struct _tpl_surface_backend	tpl_surface_backend_t;
-typedef struct _tpl_frame		tpl_frame_t;
 
 typedef struct tpl_hlist		tpl_hlist_t;
-
-
-typedef enum
-{
-	TPL_FRAME_ERROR = -1,
-	TPL_FRAME_STATE_INVALID,
-	TPL_FRAME_STATE_READY,
-	TPL_FRAME_STATE_QUEUED,
-	TPL_FRAME_STATE_POSTED,
-	TPL_FRAME_MAX
-} tpl_frame_state_t;
-
-struct _tpl_frame
-{
-	tbm_surface_h		tbm_surface;
-	int			interval;
-	tpl_region_t		damage;
-	tpl_frame_state_t	state;
-};
 
 struct _tpl_display_backend
 {
@@ -79,12 +59,10 @@ struct _tpl_surface_backend
 	tpl_bool_t	(*init)(tpl_surface_t *surface);
 	void		(*fini)(tpl_surface_t *surface);
 
-	tpl_bool_t	(*begin_frame)(tpl_surface_t *surface);
-	tpl_bool_t	(*end_frame)(tpl_surface_t *surface);
-	tpl_bool_t	(*validate_frame)(tpl_surface_t *surface);
+	tpl_bool_t	(*validate)(tpl_surface_t *surface);
 
 	tbm_surface_h	(*get_buffer)(tpl_surface_t *surface, tpl_bool_t *reset_buffers);
-	void		(*post)(tpl_surface_t *surface, tpl_frame_t *frame);
+	void		(*post)(tpl_surface_t *surface, tbm_surface_h tbm_surface);
         tpl_bool_t	(*destroy_cached_buffers)(tpl_surface_t *surface);
 	tpl_bool_t	(*update_cached_buffers)(tpl_surface_t *surface);
 };
@@ -125,10 +103,8 @@ struct _tpl_surface
 	tpl_format_t			format;
 	int				width, height;
 
-	tpl_frame_t			*frame;
 	int				post_interval;
 	tpl_region_t			damage;
-	tpl_list_t			frame_queue;
 
 	int				dump_count;
 	tpl_surface_backend_t		backend;
@@ -170,18 +146,9 @@ tpl_bool_t __tpl_object_lock(tpl_object_t *object);
  */
 void __tpl_object_unlock(tpl_object_t *object);
 
-/* Frame functions. */
-tpl_frame_t *		__tpl_frame_alloc();
-void			__tpl_frame_free(tpl_frame_t *frame);
-void			__tpl_frame_set_buffer(tpl_frame_t *frame, tbm_surface_h tbm_surface);
-
 /* Display functions. */
 tpl_handle_t		__tpl_display_get_native_handle(tpl_display_t *display);
 void			__tpl_display_flush(tpl_display_t *display);
-
-/* Surface functions. */
-tpl_frame_t *		__tpl_surface_get_latest_frame(tpl_surface_t *surface);
-void			__tpl_surface_wait_all_frames(tpl_surface_t *surface);
 
 void			__tpl_surface_set_backend_data(tpl_surface_t *surface, void *data);
 void *			__tpl_surface_get_backend_data(tpl_surface_t *surface);

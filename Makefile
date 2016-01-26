@@ -60,7 +60,6 @@ TPL_HEADERS += $(SRC_DIR)/tpl_utils.h
 
 TPL_SRCS += $(SRC_DIR)/tpl.c
 TPL_SRCS += $(SRC_DIR)/tpl_display.c
-TPL_SRCS += $(SRC_DIR)/tpl_frame.c
 TPL_SRCS += $(SRC_DIR)/tpl_object.c
 TPL_SRCS += $(SRC_DIR)/tpl_region.c
 TPL_SRCS += $(SRC_DIR)/tpl_surface.c

@@ -207,8 +207,8 @@ __tpl_wayland_display_fini(tpl_display_t *display)
 
 static tpl_bool_t
 __tpl_wayland_display_query_config(tpl_display_t *display, tpl_surface_type_t surface_type,
-								   int red_size, int green_size, int blue_size, int alpha_size,
-								   int color_depth, int *native_visual_id, tpl_bool_t *is_slow)
+		int red_size, int green_size, int blue_size, int alpha_size,
+		int color_depth, int *native_visual_id, tpl_bool_t *is_slow)
 {
 	TPL_ASSERT(display);
 
@@ -392,6 +392,10 @@ __tpl_wayland_surface_fini(tpl_surface_t *surface)
 
 		TPL_LOG(9, "tbm_surface_queue_destroy || wl_egl_window(%p)| tbm_queue(%p)",
 				wl_egl_window, wayland_surface->tbm_queue);
+
+		if (wayland_surface->current_buffer)
+			tbm_surface_internal_unref(wayland_surface->current_buffer);
+
 		tbm_surface_queue_destroy(wayland_surface->tbm_queue);
 		wayland_surface->tbm_queue = NULL;
 	}
@@ -401,25 +405,21 @@ __tpl_wayland_surface_fini(tpl_surface_t *surface)
 }
 
 static void
-__tpl_wayland_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
+__tpl_wayland_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
 	TPL_ASSERT(surface->display->native_handle);
-	TPL_ASSERT(frame);
-	TPL_ASSERT(frame->tbm_surface);
+	TPL_ASSERT(tbm_surface);
 
 	struct wl_egl_window *wl_egl_window = NULL;
 	tpl_wayland_display_t *wayland_display = (tpl_wayland_display_t*) surface->display->backend.data;
 	tpl_wayland_surface_t *wayland_surface = (tpl_wayland_surface_t*) surface->backend.data;
 	tpl_wayland_buffer_t *wayland_buffer = NULL;
-	tbm_surface_h tbm_surface = NULL;
 	tbm_surface_queue_error_e tsqe;
-	int i;
 
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
-	tbm_surface = frame->tbm_surface;
 	wayland_buffer = __tpl_wayland_get_wayland_buffer_from_tbm_surface(tbm_surface);
 	TPL_ASSERT(wayland_buffer);
 
@@ -445,18 +445,22 @@ __tpl_wayland_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 	wl_egl_window->attached_width = wl_egl_window->width;
 	wl_egl_window->attached_height = wl_egl_window->height;
 
-	for (i = 0; i < frame->damage.num_rects; i++)
+
+	if (surface->damage.num_rects == 0)
 	{
-		wl_surface_damage(wl_egl_window->surface,
-				frame->damage.rects[i * 4 + 0],
-				frame->damage.rects[i * 4 + 1],
-				frame->damage.rects[i * 4 + 2],
-				frame->damage.rects[i * 4 + 3]);
-	}
-	if (frame->damage.num_rects == 0) {
 		wl_surface_damage(wl_egl_window->surface,
 				wl_egl_window->dx, wl_egl_window->dy,
 				wl_egl_window->width, wl_egl_window->height);
+	} else {
+                int i;
+		for (i = 0; i < surface->damage.num_rects; i++)
+		{
+			wl_surface_damage(wl_egl_window->surface,
+					surface->damage.rects[i * 4 + 0],
+					surface->damage.rects[i * 4 + 1],
+					surface->damage.rects[i * 4 + 2],
+					surface->damage.rects[i * 4 + 3]);
+		}
 	}
 
 	{
@@ -473,20 +477,7 @@ __tpl_wayland_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 }
 
 static tpl_bool_t
-__tpl_wayland_surface_begin_frame(tpl_surface_t *surface)
-{
-	TPL_ASSERT(surface);
-	TPL_ASSERT(surface->display);
-
-	TPL_OBJECT_UNLOCK(surface);
-	__tpl_wayland_display_roundtrip(surface->display);
-	TPL_OBJECT_LOCK(surface);
-
-	return TPL_TRUE;
-}
-
-static tpl_bool_t
-__tpl_wayland_surface_validate_frame(tpl_surface_t *surface)
+__tpl_wayland_surface_validate(tpl_surface_t *surface)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->backend.data);
@@ -499,33 +490,6 @@ __tpl_wayland_surface_validate_frame(tpl_surface_t *surface)
 	return TPL_TRUE;
 }
 
-static tpl_bool_t
-__tpl_wayland_surface_end_frame(tpl_surface_t *surface)
-{
-	TPL_ASSERT(surface);
-	TPL_ASSERT(surface->backend.data);
-
-	tpl_wayland_surface_t *wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
-	if (wayland_surface->current_buffer != NULL)
-		wayland_surface->current_buffer = NULL;
-
-	return TPL_TRUE;
-}
-
-static tpl_bool_t
-__tpl_wayland_surface_destroy_cached_buffers(tpl_surface_t *surface)
-{
-	TPL_ASSERT(surface);
-	TPL_ASSERT(surface->backend.data);
-
-	TPL_LOG(9, "surface(%p)| surface->frame(%p)", surface, surface->frame);
-
-	tpl_wayland_surface_t *wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
-	if (wayland_surface->current_buffer)
-		tbm_surface_internal_unref(wayland_surface->current_buffer);
-
-	return TPL_TRUE;
-}
 static int
 __tpl_wayland_get_depth_from_format(tpl_format_t format)
 {
@@ -574,7 +538,6 @@ __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffe
 	TPL_ASSERT(surface->backend.data);
 	TPL_ASSERT(surface->display);
 
-	int width, height, format;
 	tbm_surface_h		tbm_surface = NULL;
 	tpl_wayland_buffer_t	*wayland_buffer = NULL;
 	tpl_wayland_surface_t	*wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
@@ -585,24 +548,7 @@ __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffe
 
 	if (reset_buffers != NULL) *reset_buffers = TPL_FALSE;
 
-	width	= wl_egl_window->width;
-	height	= wl_egl_window->height;
-	format	= tbm_surface_queue_get_format(wayland_surface->tbm_queue);
-
-	/* Check whether the surface was resized by wayland_egl */
-	if (wayland_surface->resized == TPL_TRUE ||
-	    width != tbm_surface_queue_get_width(wayland_surface->tbm_queue) ||
-            height != tbm_surface_queue_get_height(wayland_surface->tbm_queue))
-	{
-		TPL_LOG(9, "RESIZE!!|tpl_surface_t(%p)| wl_egl_window(%p)| wayland_surface(%p)",
-				surface, wl_egl_window, wayland_surface);
-		tbm_surface_queue_reset(wayland_surface->tbm_queue, width, height, format);
-
-		if (reset_buffers != NULL)
-			*reset_buffers = TPL_TRUE;
-
-		wayland_surface->resized = TPL_FALSE;
-	}
+	if (wayland_surface->resized == TPL_TRUE) wayland_surface->resized = TPL_FALSE;
 
 	TPL_OBJECT_UNLOCK(surface);
 	while(tbm_surface_queue_can_dequeue(wayland_surface->tbm_queue, 0) == 0)
@@ -728,13 +674,9 @@ __tpl_surface_init_backend_wayland(tpl_surface_backend_t *backend)
 
 	backend->init		= __tpl_wayland_surface_init;
 	backend->fini		= __tpl_wayland_surface_fini;
-	backend->begin_frame	= __tpl_wayland_surface_begin_frame;
-	backend->end_frame	= __tpl_wayland_surface_end_frame;
-	backend->validate_frame	= __tpl_wayland_surface_validate_frame;
+	backend->validate	= __tpl_wayland_surface_validate;
 	backend->get_buffer	= __tpl_wayland_surface_get_buffer;
 	backend->post		= __tpl_wayland_surface_post;
-	backend->destroy_cached_buffers = __tpl_wayland_surface_destroy_cached_buffers;
-	backend->update_cached_buffers = NULL;
 }
 
 static void
@@ -804,10 +746,31 @@ static void
 __cb_client_window_resize_callback(struct wl_egl_window* wl_egl_window, void* private)
 {
 	TPL_ASSERT(private);
+	TPL_ASSERT(wl_egl_window);
 
+	int width, height, format;
 	tpl_surface_t *surface = (tpl_surface_t*)private;
 	tpl_wayland_surface_t *wayland_surface = (tpl_wayland_surface_t*)surface->backend.data;
+
 	wayland_surface->resized = TPL_TRUE;
+
+	width	= wl_egl_window->width;
+	height	= wl_egl_window->height;
+	format	= tbm_surface_queue_get_format(wayland_surface->tbm_queue);
+
+	/* Check whether the surface was resized by wayland_egl */
+	if (wayland_surface->resized == TPL_TRUE ||
+	    width != tbm_surface_queue_get_width(wayland_surface->tbm_queue) ||
+            height != tbm_surface_queue_get_height(wayland_surface->tbm_queue))
+	{
+		TPL_LOG(9, "RESIZE!!|tpl_surface_t(%p)| wl_egl_window(%p)| wayland_surface(%p)",
+				surface, wl_egl_window, wayland_surface);
+		if (wayland_surface->current_buffer != NULL)
+			tbm_surface_internal_unref(wayland_surface->current_buffer);
+
+		tbm_surface_queue_reset(wayland_surface->tbm_queue, width, height, format);
+	}
+
 	TPL_LOG(9, "tpl_surface_t(%p)| wl_egl_window(%p)| wayland_surface(%p)",
 			surface, wl_egl_window, wayland_surface);
 }

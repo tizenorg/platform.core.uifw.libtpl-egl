@@ -247,15 +247,12 @@ __tpl_tbm_surface_fini(tpl_surface_t *surface)
 }
 
 static void
-__tpl_tbm_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
+__tpl_tbm_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
 	TPL_ASSERT(surface->display->native_handle);
-	TPL_ASSERT(frame);
-	TPL_ASSERT(frame->tbm_surface);
-
-	tbm_surface_h tbm_surface = frame->tbm_surface;
+	TPL_ASSERT(tbm_surface);
 
 	tbm_surface_internal_unref(tbm_surface);
 
@@ -277,29 +274,9 @@ __tpl_tbm_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 }
 
 static tpl_bool_t
-__tpl_tbm_surface_begin_frame(tpl_surface_t *surface)
-{
-	TPL_ASSERT(surface);
-	TPL_ASSERT(surface->display);
-
-	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
-
-	return TPL_TRUE;
-}
-
-static tpl_bool_t
-__tpl_tbm_surface_validate_frame(tpl_surface_t *surface)
+__tpl_tbm_surface_validate(tpl_surface_t *surface)
 {
 	TPL_IGNORE(surface);
-
-	return TPL_TRUE;
-}
-
-static tpl_bool_t
-__tpl_tbm_surface_end_frame(tpl_surface_t *surface)
-{
-	TPL_ASSERT(surface);
-	TPL_ASSERT(surface->display);
 
 	return TPL_TRUE;
 }
@@ -407,9 +384,7 @@ __tpl_surface_init_backend_tbm(tpl_surface_backend_t *backend)
 
 	backend->init		= __tpl_tbm_surface_init;
 	backend->fini		= __tpl_tbm_surface_fini;
-	backend->begin_frame	= __tpl_tbm_surface_begin_frame;
-	backend->end_frame	= __tpl_tbm_surface_end_frame;
-	backend->validate_frame	= __tpl_tbm_surface_validate_frame;
+	backend->validate	= __tpl_tbm_surface_validate;
 	backend->get_buffer	= __tpl_tbm_surface_get_buffer;
 	backend->post		= __tpl_tbm_surface_post;
 }

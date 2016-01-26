@@ -491,46 +491,6 @@ tpl_bool_t tpl_surface_get_size(tpl_surface_t *surface,
 			  int *width,
 			  int *height);
 
-/**
- * Begin a new frame of the given TPL surface.
- *
- * TPL forces users to process frames in begin/end manner. Information for a
- * frame such as current buffer can be queried after the frame has begun via
- * tpl_surface_begin_frame(). When a frame ends by calling
- * tpl_surface_end_frame(), the frame is queued. Such queued frames are
- * consumed one by one in FIFO order when tpl_surface_post() is called.
- *
- * If previous frame was not ended, this function will implicitly end previous
- * one.
- *
- * This function has no effect if the surface type is not window.
- *
- * @param surface surface to begin a frame.
- *
- * @see tpl_surface_end_frame()
- * @see tpl_surface_validate_frame()
- * @see tpl_surface_post()
- * @see tpl_surface_get_buffer()
- */
-tpl_bool_t tpl_surface_begin_frame(tpl_surface_t *surface);
-
-/**
- * End the current frame of the given TPL surface.
- *
- * The current frame will be queued in the "frame queue". Frame interval and
- * damage region for the frame is copied from surface's current states.
- *
- * This function has no effect if the surface type is not window.
- *
- * @param surface surface to end a frame.
- *
- * @see tpl_surface_begin_frame()
- * @see tpl_surface_validate_frame()
- * @see tpl_surface_post()
- * @see tpl_surface_set_post_interval()
- * @see tpl_surface_set_damage()
- */
-tpl_bool_t tpl_surface_end_frame(tpl_surface_t *surface);
 
 /**
  * Validate current frame of the given TPL surface.
@@ -549,7 +509,7 @@ tpl_bool_t tpl_surface_end_frame(tpl_surface_t *surface);
  * @see tpl_surface_end_frame()
  * @see tpl_surface_get_buffer()
  */
-tpl_bool_t tpl_surface_validate_frame(tpl_surface_t *surface);
+tpl_bool_t tpl_surface_validate(tpl_surface_t *surface);
 
 /**
  * Get the buffer of the current frame for the given TPL surface.
@@ -592,7 +552,7 @@ tbm_surface_h tpl_surface_get_buffer(tpl_surface_t *surface,
  * @see tpl_surface_begin_frame()
  * @see tpl_surface_end_frame()
  */
-tpl_bool_t tpl_surface_post(tpl_surface_t *surface);
+tpl_bool_t tpl_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface);
 
 /**
  * Set frame interval of the given TPL surface.

@@ -41,6 +41,7 @@ struct _tpl_gbm_display
 struct _tpl_gbm_surface
 {
 	tbm_surface_queue_h	tbm_queue;
+	tbm_surface_h		current_buffer;
 };
 
 struct _tpl_gbm_buffer
@@ -281,6 +282,7 @@ __tpl_gbm_surface_init(tpl_surface_t *surface)
 
 	surface->backend.data = (void *)tpl_gbm_surface;
 	tpl_gbm_surface->tbm_queue = NULL;
+	tpl_gbm_surface->current_buffer = NULL;
 
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW)
 	{
@@ -323,23 +325,24 @@ __tpl_gbm_surface_fini(tpl_surface_t *surface)
 
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
+	if (gbm_surface->current_buffer)
+		tbm_surface_internal_unref(gbm_surface->current_buffer);
+
 	free(gbm_surface);
 	surface->backend.data = NULL;
 }
 
 static void
-__tpl_gbm_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
+__tpl_gbm_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
 	TPL_ASSERT(surface->display->native_handle);
-	TPL_ASSERT(frame);
-	TPL_ASSERT(frame->tbm_surface);
+	TPL_ASSERT(tbm_surface);
 
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
 	tpl_gbm_surface_t *gbm_surface = (tpl_gbm_surface_t*)surface->backend.data;
-	tbm_surface_h tbm_surface = frame->tbm_surface;
 
 	tbm_surface_internal_unref(tbm_surface);
 
@@ -351,33 +354,9 @@ __tpl_gbm_surface_post(tpl_surface_t *surface, tpl_frame_t *frame)
 }
 
 static tpl_bool_t
-__tpl_gbm_surface_begin_frame(tpl_surface_t *surface)
-{
-	tpl_gbm_surface_t *gbm_surface;
-
-	TPL_ASSERT(surface);
-	TPL_ASSERT(surface->display);
-
-	gbm_surface = (tpl_gbm_surface_t *) surface->backend.data;
-
-	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
-
-	return TPL_TRUE;
-}
-
-static tpl_bool_t
-__tpl_gbm_surface_validate_frame(tpl_surface_t *surface)
+__tpl_gbm_surface_validate(tpl_surface_t *surface)
 {
 	TPL_IGNORE(surface);
-
-	return TPL_TRUE;
-}
-
-static tpl_bool_t
-__tpl_gbm_surface_end_frame(tpl_surface_t *surface)
-{
-	TPL_ASSERT(surface);
-	TPL_ASSERT(surface->display);
 
 	return TPL_TRUE;
 }
@@ -477,6 +456,8 @@ __tpl_gbm_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl_boo
 
 	gbm_buffer->display = surface->display;
 	gbm_buffer->bo = bo;
+
+	gbm_surface->current_buffer = tbm_surface;
 
 	if (reset_buffers != NULL)
 		*reset_buffers = TPL_FALSE;
@@ -584,9 +565,7 @@ __tpl_surface_init_backend_gbm(tpl_surface_backend_t *backend)
 
 	backend->init		= __tpl_gbm_surface_init;
 	backend->fini		= __tpl_gbm_surface_fini;
-	backend->begin_frame	= __tpl_gbm_surface_begin_frame;
-	backend->end_frame	= __tpl_gbm_surface_end_frame;
-	backend->validate_frame	= __tpl_gbm_surface_validate_frame;
+	backend->validate	= __tpl_gbm_surface_validate;
 	backend->get_buffer	= __tpl_gbm_surface_get_buffer;
 	backend->post		= __tpl_gbm_surface_post;
 }
