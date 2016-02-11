@@ -81,7 +81,7 @@ __tpl_wayland_set_wayland_buffer_to_tbm_surface(tbm_surface_h surface, tpl_wayla
     tbm_bo bo;
 
     bo = tbm_surface_internal_get_bo(surface, 0);
-    tbm_bo_add_user_data(bo, KEY_TPL_WAYLAND_BUFFER, __tpl_wayland_buffer_free);
+    tbm_bo_add_user_data(bo, KEY_TPL_WAYLAND_BUFFER, (tbm_data_free)__tpl_wayland_buffer_free);
     tbm_bo_set_user_data(bo, KEY_TPL_WAYLAND_BUFFER, buf);
 }
 
@@ -391,7 +391,7 @@ __tpl_wayland_surface_fini(tpl_surface_t *surface)
 }
 
 static void
-__tpl_wayland_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface)
+__tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
@@ -402,7 +402,7 @@ __tpl_wayland_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 	tpl_wayland_display_t *wayland_display = (tpl_wayland_display_t*) surface->display->backend.data;
 	tpl_wayland_surface_t *wayland_surface = (tpl_wayland_surface_t*) surface->backend.data;
 	tpl_wayland_buffer_t *wayland_buffer = NULL;
-	tbm_surface_queue_error_e tsqe;
+	tbm_surface_queue_error_e tsq_err;
 
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
@@ -417,10 +417,16 @@ __tpl_wayland_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 
 	tbm_surface_internal_unref(tbm_surface);
 	TPL_LOG(9, "tbm_surface(%p) ----------", tbm_surface);
-	tsqe = tbm_surface_queue_enqueue(wayland_surface->tbm_queue, tbm_surface);
 
-        /* deprecated */
-        tsqe = tbm_surface_queue_acquire(wayland_surface->tbm_queue, &tbm_surface);
+	tsq_err = tbm_surface_queue_enqueue(wayland_surface->tbm_queue, tbm_surface);
+	if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE)
+		TPL_ERR("Failed to enqeueue tbm_surface. | tsq_err = %d", tsq_err);
+
+	/* deprecated */
+        tsq_err = tbm_surface_queue_acquire(wayland_surface->tbm_queue, &tbm_surface);
+	if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE)
+		TPL_ERR("Failed to acquire tbm_surface. | tsq_err = %d", tsq_err);
+
         tbm_surface_internal_ref(tbm_surface);
 	TPL_LOG(9, "tbm_surface(%p) ++++++++++",tbm_surface);
 	wl_surface_attach(wl_egl_window->surface,
@@ -477,7 +483,7 @@ __tpl_wayland_surface_validate(tpl_surface_t *surface)
 }
 
 static tbm_surface_h
-__tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
+__tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->native_handle);
@@ -491,8 +497,6 @@ __tpl_wayland_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffe
 	struct wl_egl_window	*wl_egl_window = (struct wl_egl_window *)surface->native_handle;
 	struct wl_proxy		*wl_proxy = NULL;
 	tbm_surface_queue_error_e tsq_err = 0;
-
-	if (reset_buffers != NULL) *reset_buffers = TPL_FALSE;
 
 	if (wayland_surface->resized == TPL_TRUE) wayland_surface->resized = TPL_FALSE;
 
@@ -621,8 +625,8 @@ __tpl_surface_init_backend_wayland(tpl_surface_backend_t *backend)
 	backend->init		= __tpl_wayland_surface_init;
 	backend->fini		= __tpl_wayland_surface_fini;
 	backend->validate	= __tpl_wayland_surface_validate;
-	backend->get_buffer	= __tpl_wayland_surface_get_buffer;
-	backend->post		= __tpl_wayland_surface_post;
+	backend->dequeue_buffer	= __tpl_wayland_surface_dequeue_buffer;
+	backend->enqueue_buffer = __tpl_wayland_surface_enqueue_buffer;
 }
 
 static void

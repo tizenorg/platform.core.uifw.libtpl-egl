@@ -61,10 +61,8 @@ struct _tpl_surface_backend
 
 	tpl_bool_t	(*validate)(tpl_surface_t *surface);
 
-	tbm_surface_h	(*get_buffer)(tpl_surface_t *surface, tpl_bool_t *reset_buffers);
-	void		(*post)(tpl_surface_t *surface, tbm_surface_h tbm_surface);
-        tpl_bool_t	(*destroy_cached_buffers)(tpl_surface_t *surface);
-	tpl_bool_t	(*update_cached_buffers)(tpl_surface_t *surface);
+	tbm_surface_h	(*dequeue_buffer)(tpl_surface_t *surface);
+	void		(*enqueue_buffer)(tpl_surface_t *surface, tbm_surface_h tbm_surface);
 };
 
 struct _tpl_object

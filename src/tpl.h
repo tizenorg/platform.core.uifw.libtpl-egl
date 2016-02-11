@@ -34,13 +34,11 @@
  *
  * while (1)
  * {
- *	tpl_surface_begin_frame(sfc);
- *	buf = tpl_surface_get_buffer(sfc);
+ *	buf = tpl_surface_dequeue_buffer(sfc);
  *
  *	draw something...
  *
- *	tpl_surface_end_frame(sfc);
- *	tpl_surface_post(sfc);
+ *	tpl_surface_enqueue_buffer(sfc, buf);
  * }
  *
  * In GPU Vendor driver, "draw something..." part is what the GPU frame builder does.
@@ -439,7 +437,7 @@ tpl_surface_type_t tpl_surface_get_type(tpl_surface_t *surface);
  *
  * Size of a surface might change when a user resizes window or server resizes
  * it. TPL updates such size information every time when a buffer is queried
- * using tpl_surface_get_buffer(). User have to consider that there might be
+ * using tpl_surface_dequeue_buffer(). User have to consider that there might be
  * still mismatch between actual surface size and cached one.
  *
  * @param surface surface to get size.
@@ -455,18 +453,14 @@ tpl_bool_t tpl_surface_get_size(tpl_surface_t *surface,
  * Validate current frame of the given TPL surface.
  *
  * Users should call this function before getting actual final render target
- * buffer. Calling tpl_surface_get_buffer() after calling this function might
+ * buffer. Calling tpl_surface_dequeue_buffer() after calling this function might
  * give different output with previous one. Buffer returned after calling this
- * function is guaranteed to be not changing. This is somewhat wierd but
- * necessary to fully utilize CPU/GPU in a parallel way on tizen DRI2 protocol
- * implementation (lazy swap).
+ * function is guaranteed to be not changing.
  *
- * @param surface surface to validate its current frame.
- * @return TPL_TRUE if current buffer is changed due to this validation, TPL_FALSE otherwise.
+ * @param surface surface to validate its current buffer.
+ * @return TPL_FALSE if current buffer is changed due to this validation, TPL_TRUE otherwise.
  *
- * @see tpl_surface_begin_frame()
- * @see tpl_surface_end_frame()
- * @see tpl_surface_get_buffer()
+ * @see tpl_surface_dequeue_buffer()
  */
 tpl_bool_t tpl_surface_validate(tpl_surface_t *surface);
 
@@ -477,41 +471,37 @@ tpl_bool_t tpl_surface_validate(tpl_surface_t *surface);
  * communication with the server might be required. Returned buffers are used
  * for render target to draw current frame.
  *
- * Returned buffers are valid until next tpl_surface_get_buffer() returns
- * TPL_FALSE on reset_buffers parameter. If TPL_TRUE is returned on
- * reset_buffers, all previsouly returned buffers should no longer be used.
+ * Returned buffers are valid until next tpl_surface_dequeue_buffer().
+ * But if tpl_surface_validate() returns TPL_FALSE, previously returned buffers
+ * should no longer be used. Then, this function will be called again before drawing,
+ * and returns valid buffer.
  *
  * @param surface surface to get buffer for the current frame.
- * @param reset_buffers pointer to receive whether previouly returned buffers should be reset or not.
  * @return buffer for the current frame.
  *
  * Calling this function multiple times within a single frame is not guranteed
  * to return a same buffer.
  *
- * @see tpl_surface_begin_frame()
- * @see tpl_surface_end_frame()
+ * @see tpl_surface_validate()
  */
-tbm_surface_h tpl_surface_get_buffer(tpl_surface_t *surface,
-					tpl_bool_t *reset_buffers);
+tbm_surface_h tpl_surface_dequeue_buffer(tpl_surface_t *surface);
+
 /**
- * Post a frame from the frame queue of the given surface.
+ * Post a given tbm_surface.
  *
  * This function request display server to post a frame. This is the only
- * function which can dequeue a frame from the frame queue.
+ * function which can enqueue a buffer to the tbm_surface_queue.
  *
- * Make sure this function is called exactly once for a frame. Depending on
- * backend, other TPL functions might wait for this function to be called.
+ * Make sure this function is called exactly once for a frame.
  * Scheduling post calls on a separate thread is recommended.
  *
- * If tpl_surface_end_frame() was not called for the current frame, this
- * function might implicitly end the current frame.
+ * This function might implicitly end the current frame.
  *
  * @param surface surface to post a frame.
+ * @param tbm_surface buffer to post.
  *
- * @see tpl_surface_begin_frame()
- * @see tpl_surface_end_frame()
  */
-tpl_bool_t tpl_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface);
+tpl_bool_t tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface);
 
 /**
  * Set frame interval of the given TPL surface.
@@ -568,11 +558,6 @@ tpl_bool_t tpl_surface_set_damage(tpl_surface_t *surface,
 tpl_bool_t tpl_surface_get_damage(tpl_surface_t *surface,
 			    int *num_rects,
 			    const int **rects);
-
-tpl_bool_t tpl_surface_destroy_cached_buffers(tpl_surface_t *surface);
-
-tpl_bool_t tpl_surface_update_cached_buffers(tpl_surface_t *surface);
-
 
 /**
  * Query information on the given native window.

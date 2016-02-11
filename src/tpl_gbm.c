@@ -117,13 +117,6 @@ __tpl_gbm_display_init(tpl_display_t *display)
 	display->bufmgr_fd = -1;
 
 	return TPL_TRUE;
-free_gbm_display:
-	if (gbm_display != NULL)
-	{
-		free(gbm_display);
-		display->backend.data = NULL;
-	}
-	return TPL_FALSE;
 }
 
 static void
@@ -227,7 +220,6 @@ __tpl_gbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 				      int *width, int *height, tbm_format *format)
 {
 	tbm_surface_h	tbm_surface = NULL;
-	int		tbm_format = -1;
 
 	tbm_surface = wayland_tbm_server_get_surface(NULL, (struct wl_resource*)pixmap);
 	if (tbm_surface == NULL)
@@ -311,7 +303,7 @@ __tpl_gbm_surface_fini(tpl_surface_t *surface)
 }
 
 static void
-__tpl_gbm_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface)
+__tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
@@ -340,7 +332,7 @@ __tpl_gbm_surface_validate(tpl_surface_t *surface)
 }
 
 static tbm_surface_h
-__tpl_gbm_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
+__tpl_gbm_surface_dequeue_buffer_from_gbm_surface(tpl_surface_t *surface)
 {
 	tbm_bo bo;
 	tbm_surface_h tbm_surface = NULL;
@@ -348,7 +340,6 @@ __tpl_gbm_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl_boo
 	tpl_gbm_buffer_t *gbm_buffer = NULL;
 
 	tpl_gbm_surface_t *gbm_surface = NULL;
-	tpl_gbm_display_t *gbm_display = NULL;
 
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->native_handle);
@@ -356,7 +347,6 @@ __tpl_gbm_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl_boo
 	TPL_ASSERT(surface->display->native_handle);
 
 	gbm_surface = (tpl_gbm_surface_t*)surface->backend.data;
-	gbm_display = (tpl_gbm_display_t*)surface->display->backend.data;
 
 	tsq_err = tbm_surface_queue_dequeue(gbm_surface->tbm_queue, &tbm_surface);
 	if(tbm_surface == NULL && tbm_surface_queue_can_dequeue(gbm_surface->tbm_queue, 1) == 1)
@@ -397,24 +387,16 @@ __tpl_gbm_surface_create_buffer_from_gbm_surface(tpl_surface_t *surface, tpl_boo
 
 	gbm_surface->current_buffer = tbm_surface;
 
-	if (reset_buffers != NULL)
-		*reset_buffers = TPL_FALSE;
-
 	__tpl_gbm_set_gbm_buffer_to_tbm_surface(tbm_surface, gbm_buffer);
 
 	return tbm_surface;
 }
 
 static tbm_surface_h
-__tpl_gbm_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
+__tpl_gbm_surface_get_buffer_from_wl_tbm(tpl_surface_t *surface)
 {
-	tpl_gbm_buffer_t *gbm_buffer = NULL;
 	tbm_surface_h tbm_surface = NULL;
-	/* TODO: If HW support getting of  gem memory size,
-		use tbm_surface_get_info() with tbm_surface_info_s  */
-#if 0
-	tbm_surface_info_s tbm_surf_info;
-#endif
+
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
 	TPL_ASSERT(surface->native_handle);
@@ -430,23 +412,20 @@ __tpl_gbm_surface_create_buffer_from_wl_tbm(tpl_surface_t *surface, tpl_bool_t *
 }
 
 static tbm_surface_h
-__tpl_gbm_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
+__tpl_gbm_surface_dequeue_buffer(tpl_surface_t *surface)
 {
 	tbm_surface_h tbm_surface = NULL;
 
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->backend.data);
 
-	if (reset_buffers != NULL)
-		*reset_buffers = TPL_FALSE;
-
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW)
 	{
-		tbm_surface = __tpl_gbm_surface_create_buffer_from_gbm_surface(surface, reset_buffers);
+		tbm_surface = __tpl_gbm_surface_dequeue_buffer_from_gbm_surface(surface);
 	}
 	if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
 	{
-		tbm_surface = __tpl_gbm_surface_create_buffer_from_wl_tbm(surface, reset_buffers);
+		tbm_surface = __tpl_gbm_surface_get_buffer_from_wl_tbm(surface);
 	}
 
 	TPL_ASSERT(tbm_surface);
@@ -504,8 +483,8 @@ __tpl_surface_init_backend_gbm(tpl_surface_backend_t *backend)
 	backend->init		= __tpl_gbm_surface_init;
 	backend->fini		= __tpl_gbm_surface_fini;
 	backend->validate	= __tpl_gbm_surface_validate;
-	backend->get_buffer	= __tpl_gbm_surface_get_buffer;
-	backend->post		= __tpl_gbm_surface_post;
+	backend->dequeue_buffer	= __tpl_gbm_surface_dequeue_buffer;
+	backend->enqueue_buffer = __tpl_gbm_surface_enqueue_buffer;
 }
 
 #ifdef EGL_BIND_WL_DISPLAY

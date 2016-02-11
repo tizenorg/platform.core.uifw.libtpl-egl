@@ -232,7 +232,7 @@ __tpl_tbm_surface_fini(tpl_surface_t *surface)
 }
 
 static void
-__tpl_tbm_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface)
+__tpl_tbm_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
@@ -267,7 +267,7 @@ __tpl_tbm_surface_validate(tpl_surface_t *surface)
 }
 
 static tbm_surface_h
-__tpl_tbm_surface_get_buffer_from_tbm_queue(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
+__tpl_tbm_surface_dequeue_buffer_from_tbm_queue(tpl_surface_t *surface)
 {
 	tbm_surface_h tbm_surface = NULL;
 	tbm_surface_queue_h tbm_queue = NULL;
@@ -295,19 +295,16 @@ __tpl_tbm_surface_get_buffer_from_tbm_queue(tpl_surface_t *surface, tpl_bool_t *
 }
 
 static tbm_surface_h
-__tpl_tbm_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
+__tpl_tbm_surface_dequeue_buffer(tpl_surface_t *surface)
 {
 	tbm_surface_h tbm_surface = NULL;
 
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->backend.data);
 
-	if (reset_buffers != NULL)
-		*reset_buffers = TPL_FALSE;
-
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW)
 	{
-		tbm_surface = __tpl_tbm_surface_get_buffer_from_tbm_queue(surface, reset_buffers);
+		tbm_surface = __tpl_tbm_surface_dequeue_buffer_from_tbm_queue(surface);
 	}
 	if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
 	{
@@ -370,7 +367,7 @@ __tpl_surface_init_backend_tbm(tpl_surface_backend_t *backend)
 	backend->init		= __tpl_tbm_surface_init;
 	backend->fini		= __tpl_tbm_surface_fini;
 	backend->validate	= __tpl_tbm_surface_validate;
-	backend->get_buffer	= __tpl_tbm_surface_get_buffer;
-	backend->post		= __tpl_tbm_surface_post;
+	backend->dequeue_buffer	= __tpl_tbm_surface_dequeue_buffer;
+	backend->enqueue_buffer = __tpl_tbm_surface_enqueue_buffer;
 }
 

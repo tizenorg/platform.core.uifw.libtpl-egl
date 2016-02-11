@@ -232,13 +232,13 @@ tpl_surface_get_damage(tpl_surface_t *surface, int *num_rects, const int **rects
 }
 
 tbm_surface_h
-tpl_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
+tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 {
 	TPL_ASSERT(surface);
 
 	tbm_surface_h tbm_surface = NULL;
 
-	if (surface->backend.get_buffer == NULL)
+	if (surface->backend.dequeue_buffer == NULL)
 	{
 		TPL_ERR("TPL surface has not been initialized correctly!");
 		return NULL;
@@ -247,71 +247,23 @@ tpl_surface_get_buffer(tpl_surface_t *surface, tpl_bool_t *reset_buffers)
 	TRACE_BEGIN("TPL:GETBUFFER");
 	TPL_OBJECT_LOCK(surface);
 
-	tbm_surface = surface->backend.get_buffer(surface, reset_buffers);
+	tbm_surface = surface->backend.dequeue_buffer(surface);
 
 	if(tbm_surface != NULL)
 	{
 		/* Update size of the surface. */
-		surface->width = tbm_surface_internal_get_width(tbm_surface);
-		surface->height = tbm_surface_internal_get_height(tbm_surface);
+		surface->width = tbm_surface_get_width(tbm_surface);
+		surface->height = tbm_surface_get_height(tbm_surface);
 	}
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
 
-	return (void*)tbm_surface;
+	return tbm_surface;
 }
 
 tpl_bool_t
-tpl_surface_destroy_cached_buffers(tpl_surface_t *surface)
-{
-	tpl_bool_t retval = TPL_FALSE;
-
-	if (NULL == surface)
-	{
-		TPL_ERR("Invalid surface!");
-		return TPL_FALSE;
-	}
-
-	if (NULL == surface->backend.destroy_cached_buffers)
-	{
-		TPL_ERR("TPL surface has not been initialized correctly!");
-		return TPL_FALSE;
-	}
-
-	TPL_OBJECT_LOCK(surface);
-	retval = surface->backend.destroy_cached_buffers(surface);
-	TPL_OBJECT_UNLOCK(surface);
-
-	return retval;
-}
-
-tpl_bool_t
-tpl_surface_update_cached_buffers(tpl_surface_t *surface)
-{
-	tpl_bool_t retval = TPL_FALSE;
-
-	if (NULL == surface)
-	{
-		TPL_ERR("Invalid surface!");
-		return TPL_FALSE;
-	}
-
-	if (NULL == surface->backend.destroy_cached_buffers)
-	{
-		TPL_ERR("TPL surface has not been initialized correctly!");
-		return TPL_FALSE;
-	}
-
-	TPL_OBJECT_LOCK(surface);
-	retval = surface->backend.update_cached_buffers(surface);
-	TPL_OBJECT_UNLOCK(surface);
-
-	return retval;
-}
-
-tpl_bool_t
-tpl_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface)
+tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
 
 	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
@@ -332,7 +284,7 @@ tpl_surface_post(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 	}
 
 	/* Call backend post if it has not been called for the frame. */
-	surface->backend.post(surface, tbm_surface);
+	surface->backend.enqueue_buffer(surface, tbm_surface);
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
