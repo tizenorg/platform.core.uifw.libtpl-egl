@@ -328,14 +328,14 @@ __tpl_surface_init_backend(tpl_surface_t *surface, tpl_backend_type_t type)
 
 tpl_bool_t
 tpl_get_native_window_info(tpl_display_t *display, tpl_handle_t window,
-			   int *width, int *height, tpl_format_t *format, int depth, int a_size)
+			   int *width, int *height, tbm_format *format, int depth, int a_size)
 {
 	return display->backend.get_window_info(display, window, width, height, format, depth, a_size);
 }
 
 tpl_bool_t
 tpl_get_native_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
-			   int *width, int *height, tpl_format_t *format)
+			   int *width, int *height, tbm_format *format)
 {
 	return display->backend.get_pixmap_info(display, pixmap, width, height, format);
 }

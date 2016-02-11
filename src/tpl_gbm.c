@@ -160,8 +160,8 @@ __tpl_gbm_display_query_config(tpl_display_t *display, tpl_surface_type_t surfac
 		if (alpha_size == 8)
 		{
 			if (gbm_device_is_format_supported((struct gbm_device *)display->native_handle,
-												GBM_FORMAT_ARGB8888,
-												GBM_BO_USE_RENDERING) == 1)
+						GBM_FORMAT_ARGB8888,
+						GBM_BO_USE_RENDERING) == 1)
 			{
 				if (native_visual_id != NULL) *native_visual_id = GBM_FORMAT_ARGB8888;
 			}
@@ -174,8 +174,8 @@ __tpl_gbm_display_query_config(tpl_display_t *display, tpl_surface_type_t surfac
 		if (alpha_size == 0)
 		{
 			if (gbm_device_is_format_supported((struct gbm_device *)display->native_handle,
-												GBM_FORMAT_XRGB8888,
-												GBM_BO_USE_RENDERING) == 1)
+						GBM_FORMAT_XRGB8888,
+						GBM_BO_USE_RENDERING) == 1)
 			{
 				if (native_visual_id != NULL) *native_visual_id = GBM_FORMAT_XRGB8888;
 			}
@@ -207,7 +207,7 @@ __tpl_gbm_display_filter_config(tpl_display_t *display,
 
 static tpl_bool_t
 __tpl_gbm_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
-				      int *width, int *height, tpl_format_t *format, int depth, int a_size)
+				      int *width, int *height, tbm_format *format, int depth, int a_size)
 {
 	TPL_ASSERT(display);
 	TPL_ASSERT(window);
@@ -215,26 +215,16 @@ __tpl_gbm_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 	struct gbm_surface *gbm_surface = (struct gbm_surface *)window;
 	tbm_surface_queue_h surf_queue = (tbm_surface_queue_h)gbm_tbm_get_surface_queue(gbm_surface);
 
-	if (format != NULL)
-	{
-		switch (tbm_surface_queue_get_format(surf_queue))
-		{
-			case TBM_FORMAT_ARGB8888: *format = TPL_FORMAT_ARGB8888; break;
-			case TBM_FORMAT_XRGB8888: *format = TPL_FORMAT_XRGB8888; break;
-			case TBM_FORMAT_RGB565: *format = TPL_FORMAT_RGB565; break;
-			default: *format = TPL_FORMAT_INVALID; break;
-		}
-	}
 	if (width != NULL) *width = tbm_surface_queue_get_width(surf_queue);
 	if (height != NULL) *height = tbm_surface_queue_get_height(surf_queue);
-	return TPL_TRUE;
+	if (format != NULL) *format = tbm_surface_queue_get_format(surf_queue);
 
-	return TPL_FALSE;
+	return TPL_TRUE;
 }
 
 static tpl_bool_t
 __tpl_gbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
-				      int *width, int *height, tpl_format_t *format)
+				      int *width, int *height, tbm_format *format)
 {
 	tbm_surface_h	tbm_surface = NULL;
 	int		tbm_format = -1;
@@ -245,19 +235,7 @@ __tpl_gbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 
 	if (width) *width = tbm_surface_get_width(tbm_surface);
 	if (height) *height = tbm_surface_get_height(tbm_surface);
-	if (format)
-	{
-		tbm_format = tbm_surface_get_format(tbm_surface);
-		switch(tbm_format)
-		{
-			case TBM_FORMAT_ARGB8888: *format = TPL_FORMAT_ARGB8888; break;
-			case TBM_FORMAT_XRGB8888: *format = TPL_FORMAT_XRGB8888; break;
-			case TBM_FORMAT_RGB565: *format = TPL_FORMAT_RGB565; break;
-			default:
-				*format = TPL_FORMAT_INVALID;
-				return TPL_FALSE;
-		}
-	}
+	if (format) *format = tbm_surface_get_format(tbm_surface);
 
 	return TPL_TRUE;
 }
@@ -359,46 +337,6 @@ __tpl_gbm_surface_validate(tpl_surface_t *surface)
 	TPL_IGNORE(surface);
 
 	return TPL_TRUE;
-}
-
-static int
-__tpl_gbm_get_depth_from_format(tpl_format_t format)
-{
-	int depth = 0;
-
-	switch(format)
-	{
-		case TPL_FORMAT_BGR565:
-		case TPL_FORMAT_RGB565:
-		case TPL_FORMAT_ABGR4444:
-		case TPL_FORMAT_ARGB4444:
-		case TPL_FORMAT_BGRA4444:
-		case TPL_FORMAT_RGBA4444:
-		case TPL_FORMAT_ABGR1555:
-		case TPL_FORMAT_ARGB1555:
-		case TPL_FORMAT_BGRA5551:
-		case TPL_FORMAT_RGBA5551:
-			depth = 16;
-			break;
-		case TPL_FORMAT_ABGR8888:
-		case TPL_FORMAT_ARGB8888:
-		case TPL_FORMAT_BGRA8888:
-		case TPL_FORMAT_RGBA8888:
-		case TPL_FORMAT_XBGR8888:
-		case TPL_FORMAT_XRGB8888:
-		case TPL_FORMAT_BGRX8888:
-		case TPL_FORMAT_RGBX8888:
-			depth = 32;
-			break;
-		case TPL_FORMAT_BGR888:
-		case TPL_FORMAT_RGB888:
-			depth = 24;
-			break;
-		default:
-			depth = 32;
-	}
-
-	return depth;
 }
 
 static tbm_surface_h

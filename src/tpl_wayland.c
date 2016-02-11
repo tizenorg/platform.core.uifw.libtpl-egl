@@ -246,7 +246,7 @@ __tpl_wayland_display_filter_config(tpl_display_t *display, int *visual_id, int 
 
 static tpl_bool_t
 __tpl_wayland_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
-		int *width, int *height, tpl_format_t *format, int depth, int a_size)
+		int *width, int *height, tbm_format *format, int depth, int a_size)
 {
 	TPL_ASSERT(display);
 	TPL_ASSERT(window);
@@ -264,9 +264,9 @@ __tpl_wayland_display_get_window_info(tpl_display_t *display, tpl_handle_t windo
 		else
 		{
 			if (a_size == 8)
-				*format = TPL_FORMAT_ARGB8888;
+				*format = TBM_FORMAT_ARGB8888;
 			else if (a_size == 0)
-				*format = TPL_FORMAT_XRGB8888;
+				*format = TBM_FORMAT_XRGB8888;
 		}
 	}
 	if (width != NULL) *width = wl_egl_window->width;
@@ -290,7 +290,6 @@ static tpl_bool_t
 __tpl_wayland_surface_init(tpl_surface_t *surface)
 {
 	tpl_wayland_surface_t *wayland_surface = NULL;
-	int tbm_format;
 	struct wl_egl_window *wl_egl_window = (struct wl_egl_window *)surface->native_handle;
 
 
@@ -307,24 +306,11 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 	wayland_surface->resized = TPL_FALSE;
 	wayland_surface->current_buffer = NULL;
 
-	switch (surface->format)
-	{
-	case TPL_FORMAT_ARGB8888: tbm_format = TBM_FORMAT_ARGB8888;
-		break;
-	case TPL_FORMAT_XRGB8888: tbm_format = TBM_FORMAT_XRGB8888;
-		break;
-	case TPL_FORMAT_RGB565: tbm_format = TBM_FORMAT_RGB565;
-		break;
-	default:
-		TPL_ERR("Unsupported format found in surface!");
-		return TPL_FALSE;
-	}
-
 	wayland_surface->tbm_queue = tbm_surface_queue_create(
 			CLIENT_QUEUE_SIZE,
 			wl_egl_window->width,
 			wl_egl_window->height,
-			tbm_format,
+			surface->format,
 			0);
 	TPL_LOG(9, "tbm_surface_queue_create!! || wl_egl_window(%p)| tbm_queue(%p)",
 			wl_egl_window, wayland_surface->tbm_queue);
@@ -488,46 +474,6 @@ __tpl_wayland_surface_validate(tpl_surface_t *surface)
 		return TPL_FALSE;
 
 	return TPL_TRUE;
-}
-
-static int
-__tpl_wayland_get_depth_from_format(tpl_format_t format)
-{
-	int depth = 0;
-
-	switch(format)
-	{
-		case TPL_FORMAT_BGR565:
-		case TPL_FORMAT_RGB565:
-		case TPL_FORMAT_ABGR4444:
-		case TPL_FORMAT_ARGB4444:
-		case TPL_FORMAT_BGRA4444:
-		case TPL_FORMAT_RGBA4444:
-		case TPL_FORMAT_ABGR1555:
-		case TPL_FORMAT_ARGB1555:
-		case TPL_FORMAT_BGRA5551:
-		case TPL_FORMAT_RGBA5551:
-			depth = 16;
-			break;
-		case TPL_FORMAT_ABGR8888:
-		case TPL_FORMAT_ARGB8888:
-		case TPL_FORMAT_BGRA8888:
-		case TPL_FORMAT_RGBA8888:
-		case TPL_FORMAT_XBGR8888:
-		case TPL_FORMAT_XRGB8888:
-		case TPL_FORMAT_BGRX8888:
-		case TPL_FORMAT_RGBX8888:
-			depth = 32;
-			break;
-		case TPL_FORMAT_BGR888:
-		case TPL_FORMAT_RGB888:
-			depth = 24;
-			break;
-		default:
-			depth = 32;
-	}
-
-	return depth;
 }
 
 static tbm_surface_h

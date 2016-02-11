@@ -22,21 +22,6 @@ struct _tpl_tbm_surface
 	int dummy;
 };
 
-static inline tpl_format_t
-__tpl_tbm_get_tpl_format(tbm_format format)
-{
-	tpl_format_t ret;
-	switch (format)
-	{
-		case TBM_FORMAT_ARGB8888: ret = TPL_FORMAT_ARGB8888; break;
-		case TBM_FORMAT_XRGB8888: ret = TPL_FORMAT_XRGB8888; break;
-		case TBM_FORMAT_RGB565: ret = TPL_FORMAT_RGB565; break;
-		default: ret = TPL_FORMAT_INVALID; break;
-	}
-
-	return ret;
-}
-
 static tpl_bool_t
 __tpl_tbm_display_init(tpl_display_t *display)
 {
@@ -131,7 +116,7 @@ __tpl_tbm_display_filter_config(tpl_display_t *display,
 
 static tpl_bool_t
 __tpl_tbm_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
-					  int *width, int *height, tpl_format_t *format, int depth, int a_size)
+					  int *width, int *height, tbm_format *format, int depth, int a_size)
 {
 	TPL_ASSERT(display);
 	TPL_ASSERT(window);
@@ -143,14 +128,14 @@ __tpl_tbm_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 	if (height != NULL)
 		*height = tbm_surface_queue_get_height(surf_queue);
 	if (format != NULL)
-		*format = __tpl_tbm_get_tpl_format(tbm_surface_queue_get_format(surf_queue));
+		*format = tbm_surface_queue_get_format(surf_queue);
 
 	return TPL_TRUE;
 }
 
 static tpl_bool_t
 __tpl_tbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
-					  int *width, int *height, tpl_format_t *format)
+					  int *width, int *height, tbm_format *format)
 {
 	tbm_surface_h	tbm_surface = NULL;
 
@@ -163,7 +148,7 @@ __tpl_tbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 	if (height)
 		*height = tbm_surface_get_height(tbm_surface);
 	if (format)
-		*format = __tpl_tbm_get_tpl_format(tbm_surface_get_format(tbm_surface));
+		*format = tbm_surface_get_format(tbm_surface);
 
 	return TPL_TRUE;
 }

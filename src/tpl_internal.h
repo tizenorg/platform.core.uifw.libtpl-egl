@@ -42,9 +42,9 @@ struct _tpl_display_backend
 	tpl_bool_t		(*filter_config)(tpl_display_t *display, int *visual_id, int alpha_bits);
 
 	tpl_bool_t		(*get_window_info)(tpl_display_t *display, tpl_handle_t window,
-						   int *width, int *height, tpl_format_t *format, int depth,int a_size);
+						   int *width, int *height, tbm_format *format, int depth,int a_size);
 	tpl_bool_t		(*get_pixmap_info)(tpl_display_t *display, tpl_handle_t pixmap,
-						   int *width, int *height, tpl_format_t *format);
+						   int *width, int *height, tbm_format *format);
 
 	void			(*flush)(tpl_display_t *display);
 	void			(*wait_native)(tpl_display_t *display);
@@ -100,7 +100,7 @@ struct _tpl_surface
 	tpl_display_t			*display;
 	tpl_handle_t			native_handle;
 	tpl_surface_type_t		type;
-	tpl_format_t			format;
+	tbm_format			format;
 	int				width, height;
 
 	int				post_interval;

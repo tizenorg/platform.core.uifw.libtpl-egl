@@ -20,7 +20,7 @@ __tpl_surface_free(void *data)
 }
 
 tpl_surface_t *
-tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type_t type, tpl_format_t format)
+tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type_t type, tbm_format format)
 {
 	tpl_surface_t *surface;
 

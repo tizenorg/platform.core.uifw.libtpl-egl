@@ -156,47 +156,6 @@ typedef enum
 } tpl_surface_type_t;
 
 /**
- * Format types.
- *
- * TPL specifies several supportable formats. This can be used to specify the
- * format of a new surface. Each format explains its own depth, color sequence
- * and color bits. and they are enough attributes to convert to the other
- * formats (such as GPU drivers, Windowing systems, Buffer managers).
- *
- * @see tpl_surface_create()
- */
-typedef enum
-{
-	TPL_FORMAT_INVALID = 0,
-	TPL_FORMAT_NOT_YET_SPECIFIED = 1,
-	TPL_FORMAT_BGR565,
-	TPL_FORMAT_RGB565 = 16 + (0 << 8),
-	TPL_FORMAT_XBGR8888,
-	TPL_FORMAT_XRGB8888 = 32 + (0 << 8),
-	TPL_FORMAT_ABGR8888,
-	TPL_FORMAT_ARGB8888 = 32 + (1 << 8),
-	TPL_FORMAT_BGRA8888,
-	TPL_FORMAT_RGBA8888,
-	TPL_FORMAT_BGRX8888,
-	TPL_FORMAT_RGBX8888,
-	TPL_FORMAT_BGR888,
-	TPL_FORMAT_RGB888,
-	TPL_FORMAT_ABGR4444,
-	TPL_FORMAT_ARGB4444,
-	TPL_FORMAT_BGRA4444,
-	TPL_FORMAT_RGBA4444,
-	TPL_FORMAT_ABGR1555,
-	TPL_FORMAT_ARGB1555,
-	TPL_FORMAT_BGRA5551,
-	TPL_FORMAT_RGBA5551,
-	TPL_FORMAT_YUV420,
-	TPL_FORMAT_NV12,
-	TPL_FORMAT_NV21
-} tpl_format_t;
-
-#define TPL_FORMAT_GET_DEPTH(format) (int)((format) & 0xFF)
-
-/**
  * Lock usage types.
  *
  * TPL provides buffer locks which are used for synchronization. This usage
@@ -443,7 +402,7 @@ void tpl_display_flush(tpl_display_t *display);
 tpl_surface_t * tpl_surface_create(tpl_display_t *display,
 				   tpl_handle_t handle,
 				   tpl_surface_type_t type,
-				   tpl_format_t format);
+				   tbm_format format);
 
 /**
  * Get the TPL display where the given TPL surface was created from.
@@ -629,7 +588,7 @@ tpl_bool_t tpl_get_native_window_info(tpl_display_t *display,
 				      tpl_handle_t window,
 				      int *width,
 				      int *height,
-				      tpl_format_t *format,
+				      tbm_format *format,
 				      int depth,
 				      int a_size);
 
@@ -647,7 +606,7 @@ tpl_bool_t tpl_get_native_pixmap_info(tpl_display_t *display,
 				      tpl_handle_t pixmap,
 				      int *width,
 				      int *height,
-				      tpl_format_t *format);
+				      tbm_format *format);
 
 void tpl_display_wait_native(tpl_display_t *display);
 
