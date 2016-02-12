@@ -593,6 +593,17 @@ tpl_bool_t tpl_get_native_pixmap_info(tpl_display_t *display,
 				      int *height,
 				      tbm_format *format);
 
+/**
+ * Get native buffer from the given native pixmap.
+ *
+ * @param display display used for query.
+ * @param pixmap handle of the native pixmap.
+ * @return tbm_surface_h native buffer.
+ */
+tbm_surface_h tpl_get_native_buffer(tpl_display_t *display,
+				    tpl_handle_t pixmap);
+
+
 void tpl_display_wait_native(tpl_display_t *display);
 
 /* Scheduled to deprecated API */

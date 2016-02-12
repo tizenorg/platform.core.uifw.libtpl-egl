@@ -232,6 +232,23 @@ __tpl_gbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 	return TPL_TRUE;
 }
 
+static tbm_surface_h
+__tpl_gbm_display_get_native_buffer(tpl_handle_t pixmap)
+{
+	tbm_surface_h tbm_surface = NULL;
+
+	TPL_ASSERT(pixmap);
+
+	tbm_surface = wayland_tbm_server_get_surface(NULL, (struct wl_resource*)pixmap);
+	if (tbm_surface == NULL)
+	{
+		TPL_ERR("Failed to get tbm surface from wayland_tbm.");
+		return NULL;
+	}
+
+	return tbm_surface;
+}
+
 static void
 __tpl_gbm_display_flush(tpl_display_t *display)
 {
@@ -332,7 +349,7 @@ __tpl_gbm_surface_validate(tpl_surface_t *surface)
 }
 
 static tbm_surface_h
-__tpl_gbm_surface_dequeue_buffer_from_gbm_surface(tpl_surface_t *surface)
+__tpl_gbm_surface_dequeue_buffer(tpl_surface_t *surface)
 {
 	tbm_bo bo;
 	tbm_surface_h tbm_surface = NULL;
@@ -391,47 +408,6 @@ __tpl_gbm_surface_dequeue_buffer_from_gbm_surface(tpl_surface_t *surface)
 
 	return tbm_surface;
 }
-
-static tbm_surface_h
-__tpl_gbm_surface_get_buffer_from_wl_tbm(tpl_surface_t *surface)
-{
-	tbm_surface_h tbm_surface = NULL;
-
-	TPL_ASSERT(surface);
-	TPL_ASSERT(surface->display);
-	TPL_ASSERT(surface->native_handle);
-
-	tbm_surface = wayland_tbm_server_get_surface(NULL, (struct wl_resource*)surface->native_handle);
-	if (tbm_surface == NULL)
-	{
-		TPL_ERR("Failed to get tbm surface!");
-		return NULL;
-	}
-
-	return tbm_surface;
-}
-
-static tbm_surface_h
-__tpl_gbm_surface_dequeue_buffer(tpl_surface_t *surface)
-{
-	tbm_surface_h tbm_surface = NULL;
-
-	TPL_ASSERT(surface);
-	TPL_ASSERT(surface->backend.data);
-
-	if (surface->type == TPL_SURFACE_TYPE_WINDOW)
-	{
-		tbm_surface = __tpl_gbm_surface_dequeue_buffer_from_gbm_surface(surface);
-	}
-	if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
-	{
-		tbm_surface = __tpl_gbm_surface_get_buffer_from_wl_tbm(surface);
-	}
-
-	TPL_ASSERT(tbm_surface);
-
-	return tbm_surface;
-}
 static void
 __tpl_gbm_buffer_free(tpl_gbm_buffer_t *gbm_buffer)
 {
@@ -465,6 +441,7 @@ __tpl_display_init_backend_gbm(tpl_display_backend_t *backend)
 	backend->filter_config			= __tpl_gbm_display_filter_config;
 	backend->get_window_info		= __tpl_gbm_display_get_window_info;
 	backend->get_pixmap_info		= __tpl_gbm_display_get_pixmap_info;
+        backend->get_native_buffer		= __tpl_gbm_display_get_native_buffer;
 	backend->flush				= __tpl_gbm_display_flush;
 #ifdef EGL_BIND_WL_DISPLAY
 	backend->bind_client_display_handle	= __tpl_gbm_display_bind_client_wayland_display;

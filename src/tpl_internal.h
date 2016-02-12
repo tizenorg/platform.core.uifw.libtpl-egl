@@ -46,6 +46,8 @@ struct _tpl_display_backend
 	tpl_bool_t		(*get_pixmap_info)(tpl_display_t *display, tpl_handle_t pixmap,
 						   int *width, int *height, tbm_format *format);
 
+	tbm_surface_h		(*get_native_buffer)(tpl_handle_t pixmap);
+
 	void			(*flush)(tpl_display_t *display);
 	void			(*wait_native)(tpl_display_t *display);
 

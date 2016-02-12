@@ -330,6 +330,12 @@ tpl_bool_t
 tpl_get_native_window_info(tpl_display_t *display, tpl_handle_t window,
 			   int *width, int *height, tbm_format *format, int depth, int a_size)
 {
+	if (display->backend.get_window_info == NULL)
+	{
+		TPL_ERR("Backend for display has not been initialized!");
+                return TPL_FALSE;
+	}
+
 	return display->backend.get_window_info(display, window, width, height, format, depth, a_size);
 }
 
@@ -337,5 +343,23 @@ tpl_bool_t
 tpl_get_native_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 			   int *width, int *height, tbm_format *format)
 {
+        if (display->backend.get_pixmap_info == NULL)
+	{
+		TPL_ERR("Backend for display has not been initialized!");
+                return TPL_FALSE;
+	}
+
 	return display->backend.get_pixmap_info(display, pixmap, width, height, format);
+}
+
+tbm_surface_h
+tpl_get_native_buffer(tpl_display_t *display, tpl_handle_t pixmap)
+{
+        if (display->backend.get_native_buffer == NULL)
+	{
+		TPL_ERR("Backend for display has not been initialized!");
+                return NULL;
+	}
+
+	return display->backend.get_native_buffer(pixmap);
 }

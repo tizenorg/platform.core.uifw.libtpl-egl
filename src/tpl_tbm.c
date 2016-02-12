@@ -153,6 +153,13 @@ __tpl_tbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 	return TPL_TRUE;
 }
 
+static tbm_surface_h
+__tpl_tbm_display_get_native_buffer(tpl_handle_t pixmap)
+{
+	TPL_ASSERT(pixmap);
+	return (tbm_surface_h)pixmap;
+}
+
 static void
 __tpl_tbm_display_flush(tpl_display_t *display)
 {
@@ -267,7 +274,7 @@ __tpl_tbm_surface_validate(tpl_surface_t *surface)
 }
 
 static tbm_surface_h
-__tpl_tbm_surface_dequeue_buffer_from_tbm_queue(tpl_surface_t *surface)
+__tpl_tbm_surface_dequeue_buffer(tpl_surface_t *surface)
 {
 	tbm_surface_h tbm_surface = NULL;
 	tbm_surface_queue_h tbm_queue = NULL;
@@ -290,28 +297,6 @@ __tpl_tbm_surface_dequeue_buffer_from_tbm_queue(tpl_surface_t *surface)
 			return NULL;
 		}
 	}
-
-	return tbm_surface;
-}
-
-static tbm_surface_h
-__tpl_tbm_surface_dequeue_buffer(tpl_surface_t *surface)
-{
-	tbm_surface_h tbm_surface = NULL;
-
-	TPL_ASSERT(surface);
-	TPL_ASSERT(surface->backend.data);
-
-	if (surface->type == TPL_SURFACE_TYPE_WINDOW)
-	{
-		tbm_surface = __tpl_tbm_surface_dequeue_buffer_from_tbm_queue(surface);
-	}
-	if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
-	{
-		tbm_surface = (tbm_surface_h)surface->native_handle;
-	}
-
-	TPL_ASSERT(tbm_surface);
 
 	/* Inc ref count about tbm_surface */
 	/* It will be dec when before tbm_surface_queue_enqueue called */
@@ -353,6 +338,7 @@ __tpl_display_init_backend_tbm(tpl_display_backend_t *backend)
 	backend->filter_config			= __tpl_tbm_display_filter_config;
 	backend->get_window_info		= __tpl_tbm_display_get_window_info;
 	backend->get_pixmap_info		= __tpl_tbm_display_get_pixmap_info;
+	backend->get_native_buffer		= __tpl_tbm_display_get_native_buffer;
 	backend->flush				= __tpl_tbm_display_flush;
 }
 
