@@ -569,13 +569,13 @@ tpl_bool_t tpl_surface_get_damage(tpl_surface_t *surface,
  * @param format pointer to receive format of the window.
  * @return TPL_TRUE if the window is valid, TPL_FALSE otherwise.
  */
-tpl_bool_t tpl_get_native_window_info(tpl_display_t *display,
-				      tpl_handle_t window,
-				      int *width,
-				      int *height,
-				      tbm_format *format,
-				      int depth,
-				      int a_size);
+tpl_bool_t tpl_display_get_native_window_info(tpl_display_t *display,
+					      tpl_handle_t window,
+					      int *width,
+					      int *height,
+					      tbm_format *format,
+					      int depth,
+					      int a_size);
 
 /**
  * Query information on the given native pixmap.
@@ -587,11 +587,11 @@ tpl_bool_t tpl_get_native_window_info(tpl_display_t *display,
  * @param format pointer to receive format of the pixmap.
  * @return TPL_TRUE if the pixmap is valid, TPL_FALSE otherwise.
  */
-tpl_bool_t tpl_get_native_pixmap_info(tpl_display_t *display,
-				      tpl_handle_t pixmap,
-				      int *width,
-				      int *height,
-				      tbm_format *format);
+tpl_bool_t tpl_display_get_native_pixmap_info(tpl_display_t *display,
+					      tpl_handle_t pixmap,
+					      int *width,
+					      int *height,
+					      tbm_format *format);
 
 /**
  * Get native buffer from the given native pixmap.
@@ -600,8 +600,8 @@ tpl_bool_t tpl_get_native_pixmap_info(tpl_display_t *display,
  * @param pixmap handle of the native pixmap.
  * @return tbm_surface_h native buffer.
  */
-tbm_surface_h tpl_get_native_buffer(tpl_display_t *display,
-				    tpl_handle_t pixmap);
+tbm_surface_h tpl_display_get_buffer_from_native_pixmap(tpl_display_t *display,
+							tpl_handle_t pixmap);
 
 
 void tpl_display_wait_native(tpl_display_t *display);
