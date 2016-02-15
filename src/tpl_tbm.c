@@ -154,7 +154,7 @@ __tpl_tbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 }
 
 static tbm_surface_h
-__tpl_tbm_display_get_native_buffer(tpl_handle_t pixmap)
+__tpl_tbm_display_get_native_pixmap_buffer(tpl_handle_t pixmap)
 {
 	TPL_ASSERT(pixmap);
 	return (tbm_surface_h)pixmap;
@@ -338,7 +338,7 @@ __tpl_display_init_backend_tbm(tpl_display_backend_t *backend)
 	backend->filter_config			= __tpl_tbm_display_filter_config;
 	backend->get_window_info		= __tpl_tbm_display_get_window_info;
 	backend->get_pixmap_info		= __tpl_tbm_display_get_pixmap_info;
-	backend->get_native_buffer		= __tpl_tbm_display_get_native_buffer;
+	backend->get_native_pixmap_buffer	= __tpl_tbm_display_get_native_pixmap_buffer;
 	backend->flush				= __tpl_tbm_display_flush;
 }
 
