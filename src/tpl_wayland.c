@@ -276,14 +276,6 @@ __tpl_wayland_display_get_window_info(tpl_display_t *display, tpl_handle_t windo
 }
 
 static void
-__tpl_wayland_display_flush(tpl_display_t *display)
-{
-	TPL_IGNORE(display);
-
-	/* Do nothing. */
-}
-
-static void
 __cb_client_window_resize_callback(struct wl_egl_window* wl_egl_window, void* private);
 
 static tpl_bool_t
@@ -608,10 +600,6 @@ __tpl_display_init_backend_wayland(tpl_display_backend_t *backend)
 	backend->query_config			= __tpl_wayland_display_query_config;
 	backend->filter_config			= __tpl_wayland_display_filter_config;
 	backend->get_window_info		= __tpl_wayland_display_get_window_info;
-	backend->get_pixmap_info		= NULL;
-	backend->flush				= __tpl_wayland_display_flush;
-	backend->bind_client_display_handle	= NULL;
-	backend->unbind_client_display_handle	= NULL;
 }
 
 void

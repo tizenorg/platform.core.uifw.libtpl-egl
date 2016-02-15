@@ -1,14 +1,5 @@
 #include "tpl_internal.h"
 
-void
-__tpl_display_flush(tpl_display_t *display)
-{
-	TPL_ASSERT(display);
-
-	if (display->backend.flush)
-		display->backend.flush(display);
-}
-
 static void
 __tpl_display_fini(tpl_display_t *display)
 {
@@ -27,12 +18,6 @@ __tpl_display_free(void *display)
 
 	__tpl_display_fini((tpl_display_t *)display);
 	free(display);
-}
-
-tpl_backend_type_t
-tpl_display_choose_backend_type(tpl_handle_t native_dpy)
-{
-	return __tpl_display_choose_backend(native_dpy);
 }
 
 tpl_display_t *
@@ -136,18 +121,6 @@ tpl_display_unbind_client_display_handle(tpl_display_t *display, tpl_handle_t na
 	return display->backend.unbind_client_display_handle(display, native_dpy);
 }
 
-tpl_backend_type_t
-tpl_display_get_backend_type(tpl_display_t *display)
-{
-	if(NULL == display || TPL_TRUE != __tpl_object_is_valid(&display->base))
-	{
-		TPL_ERR("display is invalid!");
-		return TPL_BACKEND_UNKNOWN;
-	}
-
-	return display->backend.type;
-}
-
 tpl_handle_t
 tpl_display_get_native_handle(tpl_display_t *display)
 {
@@ -192,30 +165,6 @@ tpl_display_filter_config(tpl_display_t *display, int *visual_id, int alpha_size
 	return display->backend.filter_config(display, visual_id, alpha_size);
 }
 
-void
-tpl_display_flush(tpl_display_t *display)
-{
-	if (display == NULL)
-		__tpl_runtime_flush_all_display();
-	else
-	{
-		TPL_OBJECT_LOCK(display);
-		__tpl_display_flush(display);
-		TPL_OBJECT_UNLOCK(display);
-	}
-}
-
-void
-tpl_display_wait_native(tpl_display_t *display)
-{
-	if(NULL == display || TPL_TRUE != __tpl_object_is_valid(&display->base))
-	{
-		TPL_ERR("display is invalid!");
-		return;
-	}
-
-	display->backend.wait_native(display);
-}
 
 tpl_bool_t
 tpl_display_get_native_window_info(tpl_display_t *display, tpl_handle_t window,

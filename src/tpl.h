@@ -267,7 +267,6 @@ tpl_bool_t tpl_object_set_user_data(tpl_object_t *object,
  */
 void * tpl_object_get_user_data(tpl_object_t *object);
 
-tpl_backend_type_t tpl_display_choose_backend_type(tpl_handle_t native_dpy);
 /**
  * Create or get TPL display object for the given native display.
  *
@@ -313,16 +312,6 @@ tpl_bool_t tpl_display_bind_client_display_handle(tpl_display_t *display,
  */
 tpl_bool_t tpl_display_unbind_client_display_handle(tpl_display_t *display,
 						    tpl_handle_t native_dpy);
-
-/**
- * Get the backend type of a TPL display.
- *
- * @param display display to get type.
- * @return backend type of the given display.
- *
- * @see tpl_display_get()
- */
-tpl_backend_type_t tpl_display_get_backend_type(tpl_display_t *display);
 
 /**
  * Get the native display handle which the given TPL display is created for.
@@ -377,16 +366,50 @@ tpl_bool_t tpl_display_filter_config(tpl_display_t *display,
 				     int *visual_id,
 				     int alpha_size);
 
+
 /**
- * Flush the TPL display.
+ * Query information on the given native window.
  *
- * @param display display to flush.
- *
- * There might be pending operations on the given TPL display such as X11
- * native rendering. Flushing TPL display ensures that those pending operations
- * are done.
+ * @param display display used for query.
+ * @param window handle to the native window.
+ * @param width pointer to receive width of the window.
+ * @param height pointer to receive height of the window.
+ * @param format pointer to receive format of the window.
+ * @return TPL_TRUE if the window is valid, TPL_FALSE otherwise.
  */
-void tpl_display_flush(tpl_display_t *display);
+tpl_bool_t tpl_display_get_native_window_info(tpl_display_t *display,
+				      tpl_handle_t window,
+				      int *width,
+				      int *height,
+				      tbm_format *format,
+				      int depth,
+				      int a_size);
+
+/**
+ * Query information on the given native pixmap.
+ *
+ * @param display display used for query.
+ * @param pixmap handle to the native pixmap.
+ * @param width pointer to receive width of the pixmap.
+ * @param height pointer to receive height of the pixmap.
+ * @param format pointer to receive format of the pixmap.
+ * @return TPL_TRUE if the pixmap is valid, TPL_FALSE otherwise.
+ */
+tpl_bool_t tpl_display_get_native_pixmap_info(tpl_display_t *display,
+				      tpl_handle_t pixmap,
+				      int *width,
+				      int *height,
+				      tbm_format *format);
+
+/**
+ * Get native buffer from the given native pixmap.
+ *
+ * @param display display used for query.
+ * @param pixmap handle of the native pixmap.
+ * @return tbm_surface_h native buffer.
+ */
+tbm_surface_h tpl_display_get_native_pixmap_buffer(tpl_display_t *display,
+				    tpl_handle_t pixmap);
 
 /**
  * Create a TPL surface for the given native surface.
@@ -559,51 +582,5 @@ tpl_bool_t tpl_surface_get_damage(tpl_surface_t *surface,
 			    int *num_rects,
 			    const int **rects);
 
-/**
- * Query information on the given native window.
- *
- * @param display display used for query.
- * @param window handle to the native window.
- * @param width pointer to receive width of the window.
- * @param height pointer to receive height of the window.
- * @param format pointer to receive format of the window.
- * @return TPL_TRUE if the window is valid, TPL_FALSE otherwise.
- */
-tpl_bool_t tpl_display_get_native_window_info(tpl_display_t *display,
-				      tpl_handle_t window,
-				      int *width,
-				      int *height,
-				      tbm_format *format,
-				      int depth,
-				      int a_size);
-
-/**
- * Query information on the given native pixmap.
- *
- * @param display display used for query.
- * @param pixmap handle to the native pixmap.
- * @param width pointer to receive width of the pixmap.
- * @param height pointer to receive height of the pixmap.
- * @param format pointer to receive format of the pixmap.
- * @return TPL_TRUE if the pixmap is valid, TPL_FALSE otherwise.
- */
-tpl_bool_t tpl_display_get_native_pixmap_info(tpl_display_t *display,
-				      tpl_handle_t pixmap,
-				      int *width,
-				      int *height,
-				      tbm_format *format);
-
-/**
- * Get native buffer from the given native pixmap.
- *
- * @param display display used for query.
- * @param pixmap handle of the native pixmap.
- * @return tbm_surface_h native buffer.
- */
-tbm_surface_h tpl_display_get_native_pixmap_buffer(tpl_display_t *display,
-				    tpl_handle_t pixmap);
-
-
-void tpl_display_wait_native(tpl_display_t *display);
 
 #endif /* TPL_H */

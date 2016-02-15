@@ -249,14 +249,6 @@ __tpl_gbm_display_get_native_pixmap_buffer(tpl_handle_t pixmap)
 	return tbm_surface;
 }
 
-static void
-__tpl_gbm_display_flush(tpl_display_t *display)
-{
-	TPL_IGNORE(display);
-
-	/* Do nothing. */
-}
-
 static tpl_bool_t
 __tpl_gbm_surface_init(tpl_surface_t *surface)
 {
@@ -442,7 +434,6 @@ __tpl_display_init_backend_gbm(tpl_display_backend_t *backend)
 	backend->get_window_info		= __tpl_gbm_display_get_window_info;
 	backend->get_pixmap_info		= __tpl_gbm_display_get_pixmap_info;
         backend->get_native_pixmap_buffer	= __tpl_gbm_display_get_native_pixmap_buffer;
-	backend->flush				= __tpl_gbm_display_flush;
 #ifdef EGL_BIND_WL_DISPLAY
 	backend->bind_client_display_handle	= __tpl_gbm_display_bind_client_wayland_display;
 	backend->unbind_client_display_handle	= __tpl_gbm_display_unbind_client_wayland_display;
