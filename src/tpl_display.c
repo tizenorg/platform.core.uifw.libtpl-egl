@@ -217,18 +217,6 @@ tpl_display_wait_native(tpl_display_t *display)
 	display->backend.wait_native(display);
 }
 
-int
-tpl_display_get_bufmgr_fd(tpl_display_t *display)
-{
-	if(NULL == display || TPL_TRUE != __tpl_object_is_valid(&display->base))
-	{
-		TPL_ERR("display is invalid!");
-		return -1;
-	}
-
-	return display->bufmgr_fd;
-}
-
 tpl_bool_t
 tpl_display_get_native_window_info(tpl_display_t *display, tpl_handle_t window,
 			   int *width, int *height, tbm_format *format, int depth, int a_size)

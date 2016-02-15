@@ -606,19 +606,4 @@ tbm_surface_h tpl_display_get_native_pixmap_buffer(tpl_display_t *display,
 
 void tpl_display_wait_native(tpl_display_t *display);
 
-/* Scheduled to deprecated API */
-/**
- * Get file descriptor of the buffer manager for the given TPL display.
- *
- * There might be native buffer manager device (ex. DRM). This function exports
- * such native buffer manager for users to be able to access buffers using the
- * buffer manager. How returned buffer manager fd is used is fully dependent on
- * native platform implementation.
- *
- * @param display display to get buffer manger fd.
- * @return file descriptor handle for the buffer manager.
- * @deprecated do not use tpl_display_get_bufmgr_fd().
- */
-int tpl_display_get_bufmgr_fd(tpl_display_t *display);
-
 #endif /* TPL_H */
