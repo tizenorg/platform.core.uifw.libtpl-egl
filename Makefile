@@ -27,7 +27,7 @@ ifneq ($(call is-feature-enabled,winsys_dri3),)
 endif
 
 ifneq ($(call is-feature-enabled,winsys_wl),)
-	CFLAGS += -DTPL_WINSYS_WL=1 -DEGL_BIND_WL_DISPLAY
+	CFLAGS += -DTPL_WINSYS_WL=1
 	CFLAGS += `pkg-config --cflags gbm`
 	LDFLAGS += `pkg-config --libs gbm wayland-tbm-client wayland-tbm-server`
 endif
@@ -41,9 +41,6 @@ ifneq ($(call is-feature-enabled,ttrace),)
 endif
 ifneq ($(call is-feature-enabled,dlog),)
 	CFLAGS += -DDLOG_DEFAULT_ENABLE
-endif
-ifneq ($(call is-feature-enabled,egl_bind_wl_display),)
-	CFLAGS += -DEGL_BIND_WL_DISPLAY
 endif
 ifneq ($(call is-feature-enabled,pngdump),)
 	CFLAGS += -DPNG_DUMP_ENABLE

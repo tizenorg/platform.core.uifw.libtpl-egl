@@ -296,38 +296,6 @@ tpl_display_t * tpl_display_create(tpl_backend_type_t type,
 tpl_display_t * tpl_display_get(tpl_handle_t native_dpy);
 
 /**
- * Bind a client connection(display handle) to the existed TPL display.
- *
- * After bound, The TPL display knows a handle of client connection display and
- * it can recognize client objects (e.g. pixmap surfaces from client
- * application) which were contained by the client connection. So this function
- * must be called by the server process (such as compositor) before using
- * client buffers.
- *
- * @param display display to bind a client connection.
- * @param native_dpy handle of the native client display connection.
- *
- * @see tpl_display_unbind_client_display_handle()
- */
-tpl_bool_t tpl_display_bind_client_display_handle(tpl_display_t *display,
-						  tpl_handle_t native_dpy);
-
-/**
- * Unbind a client connection(display handle) from the existed TPL display.
- *
- * After being unbound, the TPL display no longer knows about client
- * connection, and all resources from the connection can be unreferenced. If
- * the specified connection was not a bound handle, error occurs.
- *
- * @param display display to unbind a client connection.
- * @param native_dpy handle of the native client display connection.
- *
- * @see tpl_display_bind_client_display_handle()
- */
-tpl_bool_t tpl_display_unbind_client_display_handle(tpl_display_t *display,
-						    tpl_handle_t native_dpy);
-
-/**
  * Get the native display handle which the given TPL display is created for.
  *
  * @param display display to get native handle.

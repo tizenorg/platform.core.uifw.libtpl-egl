@@ -35,7 +35,6 @@ typedef struct _tpl_gbm_buffer        tpl_gbm_buffer_t;
 struct _tpl_gbm_display
 {
 	tbm_bufmgr	bufmgr;
-	tpl_bool_t	bound_client_display;
 };
 
 struct _tpl_gbm_surface
@@ -53,11 +52,6 @@ struct _tpl_gbm_buffer
         struct gbm_bo		*gbm_bo;
 	struct wl_listener	destroy_listener;
 };
-
-#ifdef EGL_BIND_WL_DISPLAY
-unsigned int __tpl_gbm_display_bind_client_wayland_display(tpl_display_t  *tpl_display,  tpl_handle_t native_dpy);
-unsigned int __tpl_gbm_display_unbind_client_wayland_display(tpl_display_t  *tpl_display, tpl_handle_t native_dpy);
-#endif
 
 static int tpl_gbm_buffer_key;
 #define KEY_TPL_GBM_BUFFER  (unsigned long)(&tpl_gbm_buffer_key)
@@ -113,8 +107,9 @@ __tpl_gbm_display_init(tpl_display_t *display)
 	if (gbm_display == NULL)
 		return TPL_FALSE;
 
+	display->bufmgr_fd = dup(gbm_device_get_fd(display->native_handle));
+	gbm_display->bufmgr = tbm_bufmgr_init(display->bufmgr_fd);
 	display->backend.data = gbm_display;
-	display->bufmgr_fd = -1;
 
 	return TPL_TRUE;
 }
@@ -129,11 +124,10 @@ __tpl_gbm_display_fini(tpl_display_t *display)
 	gbm_display = (tpl_gbm_display_t *)display->backend.data;
 	if (gbm_display != NULL)
 	{
-		if (gbm_display->bound_client_display)
-			__tpl_gbm_display_unbind_client_wayland_display(display, NULL);
-
+		tbm_bufmgr_deinit(gbm_display->bufmgr);
 		free(gbm_display);
 	}
+	close(display->bufmgr_fd);
 	display->backend.data = NULL;
 }
 
@@ -434,10 +428,6 @@ __tpl_display_init_backend_gbm(tpl_display_backend_t *backend)
 	backend->get_window_info		= __tpl_gbm_display_get_window_info;
 	backend->get_pixmap_info		= __tpl_gbm_display_get_pixmap_info;
 	backend->get_buffer_from_native_pixmap	= __tpl_gbm_display_get_buffer_from_native_pixmap;
-#ifdef EGL_BIND_WL_DISPLAY
-	backend->bind_client_display_handle	= __tpl_gbm_display_bind_client_wayland_display;
-	backend->unbind_client_display_handle	= __tpl_gbm_display_unbind_client_wayland_display;
-#endif
 }
 
 void
@@ -454,39 +444,3 @@ __tpl_surface_init_backend_gbm(tpl_surface_backend_t *backend)
 	backend->dequeue_buffer	= __tpl_gbm_surface_dequeue_buffer;
 	backend->enqueue_buffer = __tpl_gbm_surface_enqueue_buffer;
 }
-
-#ifdef EGL_BIND_WL_DISPLAY
-unsigned int __tpl_gbm_display_bind_client_wayland_display(tpl_display_t *tpl_display, tpl_handle_t native_dpy)
-{
-	tpl_gbm_display_t *tpl_gbm_display;
-
-	TPL_ASSERT(tpl_display);
-	TPL_ASSERT(native_dpy);
-
-	tpl_gbm_display = (tpl_gbm_display_t *) tpl_display->backend.data;
-	tpl_display->bufmgr_fd = dup(gbm_device_get_fd(tpl_display->native_handle));
-	tpl_gbm_display->bufmgr = tbm_bufmgr_init(tpl_display->bufmgr_fd);
-	if (tpl_gbm_display->bufmgr == NULL)
-	{
-		TPL_ERR("TBM buffer manager initialization failed!");
-		return TPL_FALSE;
-	}
-
-	tpl_gbm_display->bound_client_display = TPL_TRUE;
-	return TPL_TRUE;
-}
-
-unsigned int __tpl_gbm_display_unbind_client_wayland_display(tpl_display_t *tpl_display, tpl_handle_t native_dpy)
-{
-	tpl_gbm_display_t *tpl_gbm_display;
-
-	TPL_ASSERT(tpl_display);
-
-	tpl_gbm_display = (tpl_gbm_display_t *) tpl_display->backend.data;
-
-	tbm_bufmgr_deinit(tpl_gbm_display->bufmgr);
-	close(tpl_display->bufmgr_fd);
-	tpl_gbm_display->bound_client_display = TPL_FALSE;
-	return TPL_TRUE;
-}
-#endif
