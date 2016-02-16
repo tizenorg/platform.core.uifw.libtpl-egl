@@ -7,6 +7,11 @@
 #include <pthread.h>
 #define TPL_MIN_REGION_RECTS	16
 
+#if defined(__GNUC__) && __GNUC__ >= 4
+#   define TPL_API __attribute__ ((visibility("default")))
+#else
+#   define TPL_API
+#endif
 #define TPL_ASSERT(expr)		assert(expr)
 #define TPL_INLINE			__inline__
 #define TPL_IGNORE(x)			(void)x
@@ -849,4 +854,70 @@ tpl_list_pop_back(tpl_list_t *list, tpl_free_func_t func)
 	return data;
 }
 
+typedef struct tpl_util_map_entry tpl_util_map_entry_t;
+typedef struct tpl_util_map tpl_util_map_t;
+
+typedef int (*tpl_util_hash_func_t)(const void *key, int key_length);
+typedef int (*tpl_util_key_length_func_t)(const void *key);
+typedef int (*tpl_util_key_compare_func_t)(const void *key0, int key0_length,
+                                         const void *key1, int key1_length);
+
+struct tpl_util_map
+{
+    tpl_util_hash_func_t          hash_func;
+    tpl_util_key_length_func_t    key_length_func;
+    tpl_util_key_compare_func_t   key_compare_func;
+
+    int                         bucket_bits;
+    int                         bucket_size;
+    int                         bucket_mask;
+    tpl_util_map_entry_t        **buckets;
+};
+
+void
+tpl_util_map_init(tpl_util_map_t               *map,
+                int                         bucket_bits,
+                tpl_util_hash_func_t          hash_func,
+                tpl_util_key_length_func_t    key_length_func,
+                tpl_util_key_compare_func_t   key_compare_func,
+                void                       *buckets);
+
+void
+tpl_util_map_int32_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+
+void
+tpl_util_map_int64_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+
+void
+tpl_util_map_pointer_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+
+void
+tpl_util_map_fini(tpl_util_map_t *map);
+
+tpl_util_map_t *
+tpl_util_map_create(int                       bucket_bits,
+                  tpl_util_hash_func_t        hash_func,
+                  tpl_util_key_length_func_t  key_length_func,
+                  tpl_util_key_compare_func_t key_compare_func);
+
+tpl_util_map_t *
+tpl_util_map_int32_create(int bucket_bits);
+
+tpl_util_map_t *
+tpl_util_map_int64_create(int bucket_bits);
+
+tpl_util_map_t *
+tpl_util_map_pointer_create(int bucket_bits);
+
+void
+tpl_util_map_destroy(tpl_util_map_t *map);
+
+void
+tpl_util_map_clear(tpl_util_map_t *map);
+
+void *
+tpl_util_map_get(tpl_util_map_t *map, const void *key);
+
+void
+tpl_util_map_set(tpl_util_map_t *map, const void *key, void *data, tpl_free_func_t free_func);
 #endif /* TPL_UTILS_H */
