@@ -5,8 +5,6 @@ __tpl_surface_fini(tpl_surface_t *surface)
 {
 	TPL_ASSERT(surface);
 
-	__tpl_region_fini(&surface->damage);
-
 	surface->backend.fini(surface);
 }
 
@@ -43,9 +41,6 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type
 		return NULL;
 	}
 
-	TPL_LOG(5, "surface->damage:%p {%d, %p, %p, %d}", &surface->damage, surface->damage.num_rects,
-		surface->damage.rects, &surface->damage.rects_static[0], surface->damage.num_rects_allocated);
-
 	if (TPL_TRUE != __tpl_object_init(&surface->base, TPL_OBJECT_SURFACE, __tpl_surface_free))
 	{
 		TPL_ERR("Failed to initialize surface's base class!");
@@ -61,7 +56,6 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type
 	surface->post_interval = 1;
 
         surface->dump_count = 0;
-	__tpl_region_init(&surface->damage);
 
 	/* Intialize backend. */
 	__tpl_surface_init_backend(surface, display->backend.type);
@@ -228,7 +222,6 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 tpl_bool_t
 tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
-
 	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
 	{
 		TPL_ERR("Invalid surface!");
@@ -246,8 +239,38 @@ tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 		return TPL_FALSE;
 	}
 
-	/* Call backend post if it has not been called for the frame. */
-	surface->backend.enqueue_buffer(surface, tbm_surface);
+	/* Call backend post */
+	surface->backend.enqueue_buffer(surface, tbm_surface, 0, NULL);
+
+	TPL_OBJECT_UNLOCK(surface);
+	TRACE_END();
+
+	return TPL_TRUE;
+}
+
+tpl_bool_t
+tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface, tbm_surface_h tbm_surface,
+				       int num_rects, const int *rects)
+{
+	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
+	{
+		TPL_ERR("Invalid surface!");
+		return TPL_FALSE;
+	}
+
+	TRACE_BEGIN("TPL:POST");
+	TPL_OBJECT_LOCK(surface);
+
+	if (NULL == tbm_surface)
+	{
+		TPL_OBJECT_UNLOCK(surface);
+		TRACE_END();
+		TPL_ERR("tbm surface is invalid.");
+		return TPL_FALSE;
+	}
+
+	/* Call backend post */
+	surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects);
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();

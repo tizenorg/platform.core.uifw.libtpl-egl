@@ -231,12 +231,15 @@ __tpl_tbm_surface_fini(tpl_surface_t *surface)
 }
 
 static void
-__tpl_tbm_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
+__tpl_tbm_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface,
+				 int num_rects, const int *rects)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
 	TPL_ASSERT(surface->display->native_handle);
 	TPL_ASSERT(tbm_surface);
+	TPL_IGNORE(num_rects);
+	TPL_IGNORE(rects);
 
 	tbm_surface_internal_unref(tbm_surface);
 

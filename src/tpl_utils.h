@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
-#define TPL_MIN_REGION_RECTS	16
 
 #if defined(__GNUC__) && __GNUC__ >= 4
 #   define TPL_API __attribute__ ((visibility("default")))
@@ -487,7 +486,6 @@ __tpl_util_image_dump(const char * func, const void * data, int type, int width,
 
 typedef struct _tpl_list_node	tpl_list_node_t;
 typedef struct _tpl_list	tpl_list_t;
-typedef struct _tpl_region	tpl_region_t;
 
 enum _tpl_occurrence
 {
@@ -509,23 +507,6 @@ struct _tpl_list
 	tpl_list_node_t	head;
 	tpl_list_node_t	tail;
 	int		count;
-};
-
-/**
-* num_rects: number of rects.
-* rects: collection of rects where each rect is specified by 4 integers which
-*	are upper left (x, y) and lower right (x, y) coordinates.
-* rects_static: initial storage space for rects. will be replaced by heap heap
-*	memory if num_rects exceeds TPL_MIN_REGION_RECTS.
-* num_rects_allocated: number of rects currently allocated. minimum is
-*	TPL_MIN_REGION_RECTS (initial value).
-*/
-struct _tpl_region
-{
-	int	num_rects;
-	int	*rects;
-	int	rects_static[TPL_MIN_REGION_RECTS * 4];
-	int	num_rects_allocated;
 };
 
 static TPL_INLINE int

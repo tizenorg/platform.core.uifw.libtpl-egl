@@ -450,19 +450,42 @@ tbm_surface_h tpl_surface_dequeue_buffer(tpl_surface_t *surface);
 /**
  * Post a given tbm_surface.
  *
- * This function request display server to post a frame. This is the only
+ * This function request display server to post a frame. This is the
  * function which can enqueue a buffer to the tbm_surface_queue.
  *
  * Make sure this function is called exactly once for a frame.
  * Scheduling post calls on a separate thread is recommended.
- *
- * This function might implicitly end the current frame.
  *
  * @param surface surface to post a frame.
  * @param tbm_surface buffer to post.
  *
  */
 tpl_bool_t tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface);
+
+/**
+ * Post a given tbm_surface with region of damage.
+ *
+ * Damage information is used for reducing number of pixels composited in the
+ * compositor. Setting num_rects to 0 or rects to NULL means entire area is damaged.
+ *
+ * This function request display server to post a frame.
+ * This function is identical with tpl_surface_enqueue_buffer except delivering
+ * the damage information for updating.
+ *
+ * Make sure this function is called exactly once for a frame.
+ * Scheduling post calls on a separate thread is recommended.
+ *
+ * @param surface surface to post a frame.
+ * @param tbm_surface buffer to post.
+ * @param num_rects the number of rectangles of the damage region.
+ * @param rects pointer to coordinates of rectangles. x0, y0, w0, h0, x1, y1, w1, h1...
+ *
+ * @see tpl_surface_enqueue_buffer()
+ */
+tpl_bool_t tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
+						  tbm_surface_h tbm_surface,
+						  int num_rects,
+						  const int *rects);
 
 /**
  * Set frame interval of the given TPL surface.

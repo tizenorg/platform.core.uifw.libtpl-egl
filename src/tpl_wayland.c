@@ -383,7 +383,8 @@ __tpl_wayland_surface_fini(tpl_surface_t *surface)
 }
 
 static void
-__tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
+__tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface,
+				     int num_rects, const int *rects)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
@@ -430,20 +431,20 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_s
 	wl_egl_window->attached_height = wl_egl_window->height;
 
 
-	if (surface->damage.num_rects == 0)
+	if (num_rects < 1 || rects == NULL)
 	{
 		wl_surface_damage(wl_egl_window->surface,
 				wl_egl_window->dx, wl_egl_window->dy,
 				wl_egl_window->width, wl_egl_window->height);
 	} else {
                 int i;
-		for (i = 0; i < surface->damage.num_rects; i++)
+		for (i = 0; i < num_rects; i++)
 		{
 			wl_surface_damage(wl_egl_window->surface,
-					surface->damage.rects[i * 4 + 0],
-					surface->damage.rects[i * 4 + 1],
-					surface->damage.rects[i * 4 + 2],
-					surface->damage.rects[i * 4 + 3]);
+					rects[i * 4 + 0],
+					rects[i * 4 + 1],
+					rects[i * 4 + 2],
+					rects[i * 4 + 3]);
 		}
 	}
 

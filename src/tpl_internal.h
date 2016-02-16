@@ -59,7 +59,8 @@ struct _tpl_surface_backend
 	tpl_bool_t	(*validate)(tpl_surface_t *surface);
 
 	tbm_surface_h	(*dequeue_buffer)(tpl_surface_t *surface);
-	void		(*enqueue_buffer)(tpl_surface_t *surface, tbm_surface_h tbm_surface);
+	void		(*enqueue_buffer)(tpl_surface_t *surface, tbm_surface_h tbm_surface,
+					  int num_rects, const int *rects);
 };
 
 struct _tpl_object
@@ -95,10 +96,7 @@ struct _tpl_surface
 	tpl_surface_type_t		type;
 	tbm_format			format;
 	int				width, height;
-
 	int				post_interval;
-	tpl_region_t			damage;
-
 	int				dump_count;
 	tpl_surface_backend_t		backend;
 };
@@ -175,15 +173,6 @@ void __tpl_surface_init_backend_tbm(tpl_surface_backend_t *backend);
 void __tpl_surface_init_backend_wayland(tpl_surface_backend_t *backend);
 void __tpl_surface_init_backend_x11_dri2(tpl_surface_backend_t *backend);
 void __tpl_surface_init_backend_x11_dri3(tpl_surface_backend_t *backend);
-
-/* Region functions. */
-void __tpl_region_init(tpl_region_t *region);
-void __tpl_region_fini(tpl_region_t *region);
-tpl_region_t * __tpl_region_alloc();
-void __tpl_region_free(tpl_region_t **region);
-tpl_bool_t __tpl_region_is_empty(const tpl_region_t *region);
-tpl_bool_t __tpl_region_copy(tpl_region_t *dst, const tpl_region_t *src);
-tpl_bool_t __tpl_region_set_rects(tpl_region_t *region, int num_rects, const int *rects);
 
 /* OS related functions */
 void __tpl_util_sys_yield(void);
