@@ -245,8 +245,10 @@ tpl_object_type_t tpl_object_get_type(tpl_object_t *object);
  * Users want to relate some data with a TPL object. This function provides
  * registering a pointer to such data which can be retrieved later using
  * tpl_object_get_user_data().
+ * key should the pointer value itself as a key
  *
  * @param object object to set user data to.
+ * @param key pointer to the key.
  * @param data pointer to the user data.
  * @param free_func free function which is used for freeing the user data when the object is destroyed.
  * @return TPL_TRUE on success, TPL_FALSE on error.
@@ -254,6 +256,7 @@ tpl_object_type_t tpl_object_get_type(tpl_object_t *object);
  * @see tpl_object_get_user_data()
  */
 tpl_bool_t tpl_object_set_user_data(tpl_object_t *object,
+			      void *key,
 			      void *data,
 			      tpl_free_func_t free_func);
 
@@ -261,11 +264,12 @@ tpl_bool_t tpl_object_set_user_data(tpl_object_t *object,
  * Get registered user data of a TPL object.
  *
  * @param object object to get user data.
+ * @param key pointer to the key.
  * @return pointer to the registered user data on success, NULL on error.
  *
  * @see tpl_object_set_user_data()
  */
-void * tpl_object_get_user_data(tpl_object_t *object);
+void * tpl_object_get_user_data(tpl_object_t *object, void *key);
 
 tpl_backend_type_t tpl_display_choose_backend_type(tpl_handle_t native_dpy);
 /**
