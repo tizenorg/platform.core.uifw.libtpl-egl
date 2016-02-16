@@ -194,43 +194,6 @@ tpl_surface_get_post_interval(tpl_surface_t *surface)
 	return interval;
 }
 
-tpl_bool_t
-tpl_surface_set_damage(tpl_surface_t *surface, int num_rects, const int *rects)
-{
-	tpl_bool_t ret;
-
-	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
-	{
-		TPL_ERR("Invalid surface!");
-		return TPL_FALSE;
-	}
-
-	TPL_OBJECT_LOCK(surface);
-	ret = __tpl_region_set_rects(&surface->damage, num_rects, rects);
-	TPL_OBJECT_UNLOCK(surface);
-
-	return ret;
-}
-
-tpl_bool_t
-tpl_surface_get_damage(tpl_surface_t *surface, int *num_rects, const int **rects)
-{
-	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
-	{
-		TPL_ERR("Invalid surface!");
-		*num_rects = 0;
-		*rects = NULL;
-		return TPL_FALSE;
-	}
-
-	TPL_OBJECT_LOCK(surface);
-	*num_rects = surface->damage.num_rects;
-	*rects = surface->damage.rects;
-	TPL_OBJECT_UNLOCK(surface);
-
-	return TPL_TRUE;
-}
-
 tbm_surface_h
 tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 {

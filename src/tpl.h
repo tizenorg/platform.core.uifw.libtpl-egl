@@ -490,37 +490,6 @@ tpl_bool_t tpl_surface_set_post_interval(tpl_surface_t *surface,
 int tpl_surface_get_post_interval(tpl_surface_t *surface);
 
 /**
- * Set damaged region of the given TPL surface.
- *
- * Damage information is used for reducing number of pixels composited in the
- * compositor. When a frame ends, the frames' damage area is copied from the
- * surface's current damage region. Setting num_rects to 0 or rects to NULL
- * means entire area is damaged.
- *
- * @param surface surface to set damage region.
- * @param num_rects number of rectangles of the damage region.
- * @param rects pointer to coordinates of rectangles. x0, y0, w0, h0, x1, y1, w1, h1...
- *
- * @see tpl_surface_get_damage()
- */
-tpl_bool_t tpl_surface_set_damage(tpl_surface_t *surface,
-			    int num_rects,
-			    const int *rects);
-
-/**
- * Get damaged region of the given TPL surface.
- *
- * @param surface surface to get damage region.
- * @param num_rects Pointer to receive the number of rectangles.
- * @param rects Pointer to receive the pointer to rectangle coordinate array.
- *
- * @see tpl_surface_set_damage()
- */
-tpl_bool_t tpl_surface_get_damage(tpl_surface_t *surface,
-			    int *num_rects,
-			    const int **rects);
-
-/**
  * Query information on the given native window.
  *
  * @param display display used for query.
