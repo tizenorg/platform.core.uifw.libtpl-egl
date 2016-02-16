@@ -21,7 +21,7 @@ __tpl_display_free(void *display)
 }
 
 tpl_display_t *
-tpl_display_get(tpl_backend_type_t type, tpl_handle_t native_dpy)
+tpl_display_create(tpl_backend_type_t type, tpl_handle_t native_dpy)
 {
 	tpl_display_t *display;
 	tpl_bool_t ret;
@@ -29,9 +29,8 @@ tpl_display_get(tpl_backend_type_t type, tpl_handle_t native_dpy)
 	/* Search for an already connected display for the given native display. */
 	display = __tpl_runtime_find_display(type, native_dpy);
 
-	/* exact match found, can return immediately */
-	if (NULL != display)
-		return display;
+	/* If tpl_display already exists, then return NULL */
+	if (display) return NULL;
 
 	/* if backend is unknown, try to find the best match from the list of supported types */
 	if (TPL_BACKEND_UNKNOWN == type)
@@ -81,6 +80,17 @@ tpl_display_get(tpl_backend_type_t type, tpl_handle_t native_dpy)
 		tpl_object_unreference((tpl_object_t *) display);
 		return NULL;
 	}
+
+	return display;
+}
+
+tpl_display_t *
+tpl_display_get(tpl_handle_t native_dpy)
+{
+	tpl_display_t *display;
+
+	/* Search for an already connected display for the given native display. */
+	display = __tpl_runtime_find_display(TPL_BACKEND_UNKNOWN, native_dpy);
 
 	return display;
 }

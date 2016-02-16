@@ -29,7 +29,7 @@
  *
  * Here is a simple example
  *
- * dpy = tpl_display_get(NULL);
+ * dpy = tpl_display_create(...);
  * sfc = tpl_surface_create(dpy, ...);
  *
  * while (1)
@@ -178,10 +178,9 @@ typedef enum
  * TPL provides platform independent APIs by implementing platform dependent
  * things in a backend. These types represent types of such backends. One of
  * these types should be specified when creating a TPL display object when
- * calling tpl_display_get().
+ * calling tpl_display_create().
  *
- * @see tpl_display_get()
- * @see tpl_display_get_backend_type()
+ * @see tpl_display_create()
  */
 typedef enum
 {
@@ -268,7 +267,7 @@ tpl_bool_t tpl_object_set_user_data(tpl_object_t *object,
 void * tpl_object_get_user_data(tpl_object_t *object);
 
 /**
- * Create or get TPL display object for the given native display.
+ * Create TPL display object for the given native display.
  *
  * Create a TPL display if there's no already existing TPL display for the
  * given native display. If given NULL for native_dpy, this function will
@@ -278,8 +277,19 @@ void * tpl_object_get_user_data(tpl_object_t *object);
  * @param native_dpy handle to the native display.
  * @return pointer to the display on success, NULL on failure.
  */
-tpl_display_t * tpl_display_get(tpl_backend_type_t type,
-				tpl_handle_t native_dpy);
+tpl_display_t * tpl_display_create(tpl_backend_type_t type,
+				   tpl_handle_t native_dpy);
+
+/**
+ * Get TPL display object for the given native display.
+ *
+ * If there's already existing TPL display for the given native display,
+ * then return the TPL display.
+ *
+ * @param native_dpy handle to the native display.
+ * @return pointer to the display on success, NULL on failure.
+ */
+tpl_display_t * tpl_display_get(tpl_handle_t native_dpy);
 
 /**
  * Bind a client connection(display handle) to the existed TPL display.
