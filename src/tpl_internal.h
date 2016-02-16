@@ -47,10 +47,6 @@ struct _tpl_display_backend
 						   int *width, int *height, tbm_format *format);
 
 	tbm_surface_h		(*get_buffer_from_native_pixmap)(tpl_handle_t pixmap);
-
-	void			(*flush)(tpl_display_t *display);
-	void			(*wait_native)(tpl_display_t *display);
-
 };
 
 struct _tpl_surface_backend

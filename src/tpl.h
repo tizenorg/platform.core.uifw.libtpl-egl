@@ -267,7 +267,6 @@ tpl_bool_t tpl_object_set_user_data(tpl_object_t *object,
  */
 void * tpl_object_get_user_data(tpl_object_t *object);
 
-tpl_backend_type_t tpl_display_choose_backend_type(tpl_handle_t native_dpy);
 /**
  * Create or get TPL display object for the given native display.
  *
@@ -313,16 +312,6 @@ tpl_bool_t tpl_display_bind_client_display_handle(tpl_display_t *display,
  */
 tpl_bool_t tpl_display_unbind_client_display_handle(tpl_display_t *display,
 						    tpl_handle_t native_dpy);
-
-/**
- * Get the backend type of a TPL display.
- *
- * @param display display to get type.
- * @return backend type of the given display.
- *
- * @see tpl_display_get()
- */
-tpl_backend_type_t tpl_display_get_backend_type(tpl_display_t *display);
 
 /**
  * Get the native display handle which the given TPL display is created for.
@@ -377,16 +366,6 @@ tpl_bool_t tpl_display_filter_config(tpl_display_t *display,
 				     int *visual_id,
 				     int alpha_size);
 
-/**
- * Flush the TPL display.
- *
- * @param display display to flush.
- *
- * There might be pending operations on the given TPL display such as X11
- * native rendering. Flushing TPL display ensures that those pending operations
- * are done.
- */
-void tpl_display_flush(tpl_display_t *display);
 
 /**
  * Create a TPL surface for the given native surface.

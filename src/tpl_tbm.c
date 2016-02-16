@@ -161,14 +161,6 @@ __tpl_tbm_display_get_buffer_from_native_pixmap(tpl_handle_t pixmap)
 }
 
 static void
-__tpl_tbm_display_flush(tpl_display_t *display)
-{
-	TPL_IGNORE(display);
-
-	/* Do nothing. */
-}
-
-static void
 __tpl_tbm_surface_queue_notify_cb(tbm_surface_queue_h surface_queue, void *data)
 {
 	/* Do something */
@@ -339,7 +331,6 @@ __tpl_display_init_backend_tbm(tpl_display_backend_t *backend)
 	backend->get_window_info		= __tpl_tbm_display_get_window_info;
 	backend->get_pixmap_info		= __tpl_tbm_display_get_pixmap_info;
 	backend->get_buffer_from_native_pixmap	= __tpl_tbm_display_get_buffer_from_native_pixmap;
-	backend->flush				= __tpl_tbm_display_flush;
 }
 
 void
