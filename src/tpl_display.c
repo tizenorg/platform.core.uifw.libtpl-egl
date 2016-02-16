@@ -95,42 +95,6 @@ tpl_display_get(tpl_handle_t native_dpy)
 	return display;
 }
 
-tpl_bool_t
-tpl_display_bind_client_display_handle(tpl_display_t *display, tpl_handle_t native_dpy)
-{
-	if(NULL == display || TPL_TRUE != __tpl_object_is_valid(&display->base) || NULL == display->backend.bind_client_display_handle)
-	{
-		TPL_ERR("display is invalid!");
-		return TPL_FALSE;
-	}
-
-	if (NULL == native_dpy)
-	{
-		TPL_ERR("native_dpy is NULL!");
-		return TPL_FALSE;
-	}
-
-	return display->backend.bind_client_display_handle(display, native_dpy);
-}
-
-tpl_bool_t
-tpl_display_unbind_client_display_handle(tpl_display_t *display, tpl_handle_t native_dpy)
-{
-	if(NULL == display || TPL_TRUE != __tpl_object_is_valid(&display->base) || NULL == display->backend.unbind_client_display_handle)
-	{
-		TPL_ERR("display is invalid!");
-		return TPL_FALSE;
-	}
-
-	if (NULL == native_dpy)
-	{
-		TPL_ERR("native_dpy is NULL!");
-		return TPL_FALSE;
-	}
-
-	return display->backend.unbind_client_display_handle(display, native_dpy);
-}
-
 tpl_handle_t
 tpl_display_get_native_handle(tpl_display_t *display)
 {

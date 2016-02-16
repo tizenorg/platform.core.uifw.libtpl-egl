@@ -34,9 +34,6 @@ struct _tpl_display_backend
 	tpl_bool_t		(*init)(tpl_display_t *display);
 	void			(*fini)(tpl_display_t *display);
 
-	tpl_bool_t		(*bind_client_display_handle)(tpl_display_t *display, tpl_handle_t native_dpy);
-	tpl_bool_t		(*unbind_client_display_handle)(tpl_display_t *display, tpl_handle_t native_dpy);
-
 	tpl_bool_t		(*query_config)(tpl_display_t *display,
 						tpl_surface_type_t surface_type, int red_bits,
 						int green_bits, int blue_bits, int alpha_bits,

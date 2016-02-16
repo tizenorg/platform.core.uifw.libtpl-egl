@@ -140,8 +140,6 @@ TPL_OPTIONS=${TPL_OPTIONS}-pngdump
 TPL_OPTIONS=${TPL_OPTIONS}-arm_atomic_operation
 %endif
 
-TPL_OPTIONS=${TPL_OPTIONS}-egl_bind_wl_display
-
 # do not change the following line
 export TPL_OPTIONS=${TPL_OPTIONS}-
 
