@@ -15,6 +15,8 @@
 #include <tbm_surface.h>
 #include <tbm_surface_internal.h>
 
+#define TPL_OBJECT_BUCKET_BITS       5
+
 #define TPL_OBJECT_LOCK(object)		__tpl_object_lock((tpl_object_t *)(object))
 #define TPL_OBJECT_UNLOCK(object)	__tpl_object_unlock((tpl_object_t *)(object))
 
@@ -70,10 +72,8 @@ struct _tpl_object
 	tpl_free_func_t		free;
 	pthread_mutex_t		mutex;
 
-	struct {
-		void		*data;
-		tpl_free_func_t	free;
-	} user_data;
+	tpl_util_map_t user_data_map;
+	tpl_util_map_entry_t     *buckets[1 << TPL_OBJECT_BUCKET_BITS];
 };
 
 struct _tpl_display
