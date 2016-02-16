@@ -121,6 +121,8 @@ tpl_object_get_type(tpl_object_t *object)
 tpl_bool_t
 tpl_object_set_user_data(tpl_object_t *object, void *key, void *data, tpl_free_func_t free_func)
 {
+	tpl_util_key_t _key;
+
 	if (TPL_TRUE != __tpl_object_is_valid(object))
 	{
 		TPL_ERR("input object is invalid!");
@@ -128,7 +130,8 @@ tpl_object_set_user_data(tpl_object_t *object, void *key, void *data, tpl_free_f
 	}
 
 	__tpl_object_lock(object);
-	tpl_util_map_set(&object->user_data_map, key, data, free_func);
+	_key.ptr = key;
+	tpl_util_map_set(&object->user_data_map, _key, data, free_func);
 	__tpl_object_unlock(object);
 
 	return TPL_TRUE;
@@ -137,6 +140,7 @@ tpl_object_set_user_data(tpl_object_t *object, void *key, void *data, tpl_free_f
 void *
 tpl_object_get_user_data(tpl_object_t *object, void *key)
 {
+	tpl_util_key_t _key;
 	void *data;
 
 	if (TPL_TRUE != __tpl_object_is_valid(object))
@@ -146,7 +150,8 @@ tpl_object_get_user_data(tpl_object_t *object, void *key)
 	}
 
 	__tpl_object_lock(object);
-	data = tpl_util_map_get(&object->user_data_map, key);
+	_key.ptr = key;
+	data = tpl_util_map_get(&object->user_data_map, _key);
 	__tpl_object_unlock(object);
 
 	return data;

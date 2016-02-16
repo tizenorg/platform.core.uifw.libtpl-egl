@@ -429,7 +429,7 @@ secUtilDumpPng(const char *file, const void *data, int width, int height)
 }
 #endif
 
-static void
+static inline void
 __tpl_util_image_dump(const char * func, const void * data, int type, int width, int height, int num)
 {
         char name[200];
@@ -856,11 +856,19 @@ tpl_list_pop_back(tpl_list_t *list, tpl_free_func_t func)
 
 typedef struct tpl_util_map_entry tpl_util_map_entry_t;
 typedef struct tpl_util_map tpl_util_map_t;
+typedef union tpl_util_key tpl_util_key_t;
 
-typedef int (*tpl_util_hash_func_t)(const void *key, int key_length);
-typedef int (*tpl_util_key_length_func_t)(const void *key);
-typedef int (*tpl_util_key_compare_func_t)(const void *key0, int key0_length,
-                                         const void *key1, int key1_length);
+typedef int (*tpl_util_hash_func_t)(const tpl_util_key_t key, int key_length);
+typedef int (*tpl_util_key_length_func_t)(const tpl_util_key_t key);
+typedef int (*tpl_util_key_compare_func_t)(const tpl_util_key_t key0, int key0_length,
+                                         const tpl_util_key_t key1, int key1_length);
+
+union tpl_util_key
+{
+	uint32_t	key32;
+	uint64_t	key64;
+	void*		ptr;		/*pointer key or user defined key(string)*/
+};
 
 struct tpl_util_map
 {
@@ -916,8 +924,8 @@ void
 tpl_util_map_clear(tpl_util_map_t *map);
 
 void *
-tpl_util_map_get(tpl_util_map_t *map, const void *key);
+tpl_util_map_get(tpl_util_map_t *map, const tpl_util_key_t key);
 
 void
-tpl_util_map_set(tpl_util_map_t *map, const void *key, void *data, tpl_free_func_t free_func);
+tpl_util_map_set(tpl_util_map_t *map, const tpl_util_key_t key, void *data, tpl_free_func_t free_func);
 #endif /* TPL_UTILS_H */
