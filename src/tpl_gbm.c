@@ -92,7 +92,7 @@ __tpl_gbm_display_is_gbm_device(tpl_handle_t native_dpy)
 	return TPL_FALSE;
 }
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_gbm_display_init(tpl_display_t *display)
 {
 	tpl_gbm_display_t *gbm_display = NULL;
@@ -101,17 +101,17 @@ __tpl_gbm_display_init(tpl_display_t *display)
 
 	/* Do not allow default display in gbm. */
 	if (display->native_handle == NULL)
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 
 	gbm_display = (tpl_gbm_display_t *) calloc(1, sizeof(tpl_gbm_display_t));
 	if (gbm_display == NULL)
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 
 	display->bufmgr_fd = dup(gbm_device_get_fd(display->native_handle));
 	gbm_display->bufmgr = tbm_bufmgr_init(display->bufmgr_fd);
 	display->backend.data = gbm_display;
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
 static void
@@ -131,7 +131,7 @@ __tpl_gbm_display_fini(tpl_display_t *display)
 	display->backend.data = NULL;
 }
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_gbm_display_query_config(tpl_display_t *display, tpl_surface_type_t surface_type,
 				   int red_size, int green_size, int blue_size, int alpha_size,
 				   int color_depth, int *native_visual_id, tpl_bool_t *is_slow)
@@ -153,10 +153,10 @@ __tpl_gbm_display_query_config(tpl_display_t *display, tpl_surface_type_t surfac
 				if (native_visual_id != NULL) *native_visual_id = GBM_FORMAT_ARGB8888;
 			}
 			else
-				return TPL_FALSE;
+				return TPL_ERROR_INVALID_PARAMETER;
 
 			if (is_slow != NULL) *is_slow = TPL_FALSE;
-			return TPL_TRUE;
+			return TPL_ERROR_NONE;
 		}
 		if (alpha_size == 0)
 		{
@@ -167,17 +167,17 @@ __tpl_gbm_display_query_config(tpl_display_t *display, tpl_surface_type_t surfac
 				if (native_visual_id != NULL) *native_visual_id = GBM_FORMAT_XRGB8888;
 			}
 			else
-				return TPL_FALSE;
+				return TPL_ERROR_INVALID_PARAMETER;
 
 			if (is_slow != NULL) *is_slow = TPL_FALSE;
-			return TPL_TRUE;
+			return TPL_ERROR_NONE;
 		}
 	}
 
-	return TPL_FALSE;
+	return TPL_ERROR_INVALID_PARAMETER;
 }
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_gbm_display_filter_config(tpl_display_t *display,
 				   int *visual_id, int alpha_size)
 {
@@ -186,13 +186,13 @@ __tpl_gbm_display_filter_config(tpl_display_t *display,
 	if (visual_id != NULL && *visual_id == GBM_FORMAT_ARGB8888 && alpha_size == 0)
 	{
 		*visual_id = GBM_FORMAT_XRGB8888;
-		return TPL_TRUE;
+		return TPL_ERROR_NONE;
 	}
 
-	return TPL_FALSE;
+	return TPL_ERROR_INVALID_PARAMETER;
 }
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_gbm_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 				      int *width, int *height, tbm_format *format, int depth, int a_size)
 {
@@ -201,15 +201,20 @@ __tpl_gbm_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 
 	struct gbm_surface *gbm_surface = (struct gbm_surface *)window;
 	tbm_surface_queue_h surf_queue = (tbm_surface_queue_h)gbm_tbm_get_surface_queue(gbm_surface);
+	if (surf_queue == NULL)
+	{
+		TPL_ERR("Failed to get tbm_surface_queue from gbm_surface.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
 	if (width != NULL) *width = tbm_surface_queue_get_width(surf_queue);
 	if (height != NULL) *height = tbm_surface_queue_get_height(surf_queue);
 	if (format != NULL) *format = tbm_surface_queue_get_format(surf_queue);
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_gbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 				      int *width, int *height, tbm_format *format)
 {
@@ -217,13 +222,16 @@ __tpl_gbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 
 	tbm_surface = wayland_tbm_server_get_surface(NULL, (struct wl_resource*)pixmap);
 	if (tbm_surface == NULL)
-		return TPL_FALSE;
+	{
+		TPL_ERR("Failed to get tbm_surface_h from native pixmap.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
 	if (width) *width = tbm_surface_get_width(tbm_surface);
 	if (height) *height = tbm_surface_get_height(tbm_surface);
 	if (format) *format = tbm_surface_get_format(tbm_surface);
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
 static tbm_surface_h
@@ -236,22 +244,25 @@ __tpl_gbm_display_get_buffer_from_native_pixmap(tpl_handle_t pixmap)
 	tbm_surface = wayland_tbm_server_get_surface(NULL, (struct wl_resource*)pixmap);
 	if (tbm_surface == NULL)
 	{
-		TPL_ERR("Failed to get tbm surface from wayland_tbm.");
+		TPL_ERR("Failed to get tbm_surface_h from wayland_tbm.");
 		return NULL;
 	}
 
 	return tbm_surface;
 }
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_gbm_surface_init(tpl_surface_t *surface)
 {
 	tpl_gbm_surface_t *tpl_gbm_surface = NULL;
 	TPL_ASSERT(surface);
 
 	tpl_gbm_surface = (tpl_gbm_surface_t *) calloc(1, sizeof(tpl_gbm_surface_t));
-	if (NULL == tpl_gbm_surface)
-		return TPL_FALSE;
+	if (tpl_gbm_surface == NULL)
+	{
+		TPL_ERR("Failed to allocate new gbm backend surface.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
 	surface->backend.data = (void *)tpl_gbm_surface;
 	tpl_gbm_surface->tbm_queue = NULL;
@@ -261,27 +272,38 @@ __tpl_gbm_surface_init(tpl_surface_t *surface)
 	{
 		struct gbm_surface *gbm_surface = (struct gbm_surface*)surface->native_handle;
 		tpl_gbm_surface->tbm_queue = (tbm_surface_queue_h)gbm_tbm_get_surface_queue(gbm_surface);
-
-		if (TPL_TRUE != __tpl_gbm_display_get_window_info(surface->display, surface->native_handle,
-					&surface->width, &surface->height, NULL, 0, 0))
+		if (tpl_gbm_surface->tbm_queue == NULL)
+		{
+			TPL_ERR("Failed to get tbm_surface_queue from gbm_surface.");
 			goto error;
+		}
+
+		if (TPL_ERROR_NONE != __tpl_gbm_display_get_window_info(surface->display, surface->native_handle,
+					&surface->width, &surface->height, NULL, 0, 0))
+		{
+			TPL_ERR("Failed to get native window info.");
+			goto error;
+		}
 
 		TPL_LOG(3, "window(%p, %p) %dx%d", surface, surface->native_handle, surface->width, surface->height);
-		return TPL_TRUE;
+		return TPL_ERROR_NONE;
 	}
 	else if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
 	{
-		if (TPL_TRUE != __tpl_gbm_display_get_pixmap_info(surface->display, surface->native_handle,
+		if (TPL_ERROR_NONE != __tpl_gbm_display_get_pixmap_info(surface->display, surface->native_handle,
 					&surface->width, &surface->height, NULL))
+		{
+			TPL_ERR("Failed to get native pixmap info.");
 			goto error;
+		}
 
-		return TPL_TRUE;
+		return TPL_ERROR_NONE;
 	}
 
 error:
 	free(tpl_gbm_surface);
 
-	return TPL_FALSE;
+	return TPL_ERROR_INVALID_OPERATION;
 }
 
 static void
@@ -305,7 +327,7 @@ __tpl_gbm_surface_fini(tpl_surface_t *surface)
 	surface->backend.data = NULL;
 }
 
-static void
+static tpl_result_t
 __tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface,
 				 int num_rects, const int *rects)
 {
@@ -319,14 +341,28 @@ __tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surfa
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
 	tpl_gbm_surface_t *gbm_surface = (tpl_gbm_surface_t*)surface->backend.data;
+	if (gbm_surface == NULL)
+	{
+		TPL_ERR("tpl_gbm_surface_t is invalid. tpl_surface_t(%p)", surface);
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
 
 	tbm_surface_internal_unref(tbm_surface);
 
-	if (gbm_surface->tbm_queue)
+	if (gbm_surface->tbm_queue == NULL)
 	{
-		tbm_surface_queue_enqueue(gbm_surface->tbm_queue, tbm_surface);
-		TPL_LOG(6, "tbm_surface ENQUEUED!!");
+		TPL_ERR("tbm_surface_queue is invalid. tpl_gbm_surface_t(%p)", gbm_surface);
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
+
+	if (tbm_surface_queue_enqueue(gbm_surface->tbm_queue, tbm_surface) != TBM_SURFACE_QUEUE_ERROR_NONE)
+	{
+		TPL_ERR("tbm_surface_queue_enqueue failed. tbm_surface_queue(%p) tbm_surface(%p)",
+						gbm_surface->tbm_queue, tbm_surface);
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	return TPL_ERROR_NONE;
 }
 
 static tpl_bool_t

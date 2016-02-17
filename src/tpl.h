@@ -195,6 +195,17 @@ typedef enum
 } tpl_backend_type_t;
 
 /**
+ * Enumeration for TPL result type.
+ *
+ */
+typedef enum
+{
+	TPL_ERROR_NONE = 0, /* Successfull */
+	TPL_ERROR_INVALID_PARAMETER, /* Invalid parmeter */
+	TPL_ERROR_INVALID_OPERATION /* Invalid operation */
+} tpl_result_t;
+
+/**
  * Increase reference count of a TPL object.
  *
  * All TPL objects are reference-counted. They have reference count 1 on
@@ -254,7 +265,7 @@ tpl_object_type_t tpl_object_get_type(tpl_object_t *object);
  *
  * @see tpl_object_get_user_data()
  */
-tpl_bool_t tpl_object_set_user_data(tpl_object_t *object,
+tpl_result_t tpl_object_set_user_data(tpl_object_t *object,
 			      void *key,
 			      void *data,
 			      tpl_free_func_t free_func);
@@ -321,9 +332,9 @@ tpl_handle_t tpl_display_get_native_handle(tpl_display_t *display);
  * @param depth_size Size of a pixel in bits (Color depth).
  * @param native_visual_id Pointer to receive native visual id.
  * @param is_slow Pointer to receive whether the given config is slow.
- * @return TPL_TRUE is the given config is supported, TPL_FALSE otherwise.
+ * @return TPL_ERROR_NONE is the given config is supported, TPL_ERROR otherwise.
  */
-tpl_bool_t tpl_display_query_config(tpl_display_t *display,
+tpl_result_t tpl_display_query_config(tpl_display_t *display,
 				    tpl_surface_type_t surface_type,
 				    int red_size,
 				    int green_size,
@@ -342,9 +353,9 @@ tpl_bool_t tpl_display_query_config(tpl_display_t *display,
  * @param display display to query pixel formats.
  * @param visual_id Pointer to receive native visual id.
  * @param alpha_size Size of the alpha component in bits.
- * @return TPL_TRUE if the given config has been modified, TPL_FALSE otherwise.
+ * @return TPL_ERROR_NONE if the given config has been modified, TPL_ERROR otherwise.
  */
-tpl_bool_t tpl_display_filter_config(tpl_display_t *display,
+tpl_result_t tpl_display_filter_config(tpl_display_t *display,
 				     int *visual_id,
 				     int alpha_size);
 
@@ -405,7 +416,7 @@ tpl_surface_type_t tpl_surface_get_type(tpl_surface_t *surface);
  * @param width pointer to receive width value.
  * @param height pointer to receive height value.
  */
-tpl_bool_t tpl_surface_get_size(tpl_surface_t *surface,
+tpl_result_t tpl_surface_get_size(tpl_surface_t *surface,
 			  int *width,
 			  int *height);
 
@@ -460,7 +471,7 @@ tbm_surface_h tpl_surface_dequeue_buffer(tpl_surface_t *surface);
  * @param tbm_surface buffer to post.
  *
  */
-tpl_bool_t tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface);
+tpl_result_t tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface);
 
 /**
  * Post a given tbm_surface with region of damage.
@@ -482,7 +493,7 @@ tpl_bool_t tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_
  *
  * @see tpl_surface_enqueue_buffer()
  */
-tpl_bool_t tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
+tpl_result_t tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 						  tbm_surface_h tbm_surface,
 						  int num_rects,
 						  const int *rects);
@@ -499,8 +510,8 @@ tpl_bool_t tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
  *
  * @see tpl_surface_get_post_interval()
  */
-tpl_bool_t tpl_surface_set_post_interval(tpl_surface_t *surface,
-				   int interval);
+tpl_result_t tpl_surface_set_post_interval(tpl_surface_t *surface,
+	                                   int interval);
 
 /**
  * Get frame interval of the given TPL surface.
@@ -520,9 +531,9 @@ int tpl_surface_get_post_interval(tpl_surface_t *surface);
  * @param width pointer to receive width of the window.
  * @param height pointer to receive height of the window.
  * @param format pointer to receive format of the window.
- * @return TPL_TRUE if the window is valid, TPL_FALSE otherwise.
+ * @return TPL_ERROR_NONE if the window is valid, TPL_ERROR otherwise.
  */
-tpl_bool_t tpl_display_get_native_window_info(tpl_display_t *display,
+tpl_result_t tpl_display_get_native_window_info(tpl_display_t *display,
 					      tpl_handle_t window,
 					      int *width,
 					      int *height,
@@ -538,9 +549,9 @@ tpl_bool_t tpl_display_get_native_window_info(tpl_display_t *display,
  * @param width pointer to receive width of the pixmap.
  * @param height pointer to receive height of the pixmap.
  * @param format pointer to receive format of the pixmap.
- * @return TPL_TRUE if the pixmap is valid, TPL_FALSE otherwise.
+ * @return TPL_ERROR_NONE if the pixmap is valid, TPL_ERROR otherwise.
  */
-tpl_bool_t tpl_display_get_native_pixmap_info(tpl_display_t *display,
+tpl_result_t tpl_display_get_native_pixmap_info(tpl_display_t *display,
 					      tpl_handle_t pixmap,
 					      int *width,
 					      int *height,
@@ -555,8 +566,5 @@ tpl_bool_t tpl_display_get_native_pixmap_info(tpl_display_t *display,
  */
 tbm_surface_h tpl_display_get_buffer_from_native_pixmap(tpl_display_t *display,
 							tpl_handle_t pixmap);
-
-
-void tpl_display_wait_native(tpl_display_t *display);
 
 #endif /* TPL_H */

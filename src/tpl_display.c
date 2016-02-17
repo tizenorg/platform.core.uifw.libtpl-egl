@@ -5,7 +5,7 @@ __tpl_display_fini(tpl_display_t *display)
 {
 	TPL_ASSERT(display);
 
-	if (display->backend.fini)
+	if (display->backend.fini != NULL)
 		display->backend.fini(display);
 
 	__tpl_runtime_remove_display(display);
@@ -24,7 +24,7 @@ tpl_display_t *
 tpl_display_create(tpl_backend_type_t type, tpl_handle_t native_dpy)
 {
 	tpl_display_t *display;
-	tpl_bool_t ret;
+	tpl_result_t ret;
 
 	/* Search for an already connected display for the given native display. */
 	display = __tpl_runtime_find_display(type, native_dpy);
@@ -52,7 +52,7 @@ tpl_display_create(tpl_backend_type_t type, tpl_handle_t native_dpy)
 
 	/* Initialize object base class. */
 	ret = __tpl_object_init(&display->base, TPL_OBJECT_DISPLAY, __tpl_display_free);
-	if (TPL_TRUE != ret)
+	if (TPL_ERROR_NONE != ret)
 	{
 		TPL_ERR("Failed to initialize display's base class!");
 		free(display);
@@ -65,7 +65,7 @@ tpl_display_create(tpl_backend_type_t type, tpl_handle_t native_dpy)
 	/* Initialize backend. */
 	__tpl_display_init_backend(display, type);
 
-	if (!display->backend.init(display))
+	if (TPL_ERROR_NONE != display->backend.init(display))
 	{
 		TPL_ERR("Failed to initialize display's backend!");
 		tpl_object_unreference((tpl_object_t *) display);
@@ -74,7 +74,7 @@ tpl_display_create(tpl_backend_type_t type, tpl_handle_t native_dpy)
 
 	/* Add it to the runtime. */
 	ret = __tpl_runtime_add_display(display);
-	if (TPL_TRUE != ret)
+	if (TPL_ERROR_NONE != ret)
 	{
 		TPL_ERR("Failed to add display to runtime list!");
 		tpl_object_unreference((tpl_object_t *) display);
@@ -107,7 +107,7 @@ tpl_display_get_native_handle(tpl_display_t *display)
 	return display->native_handle;
 }
 
-tpl_bool_t
+tpl_result_t
 tpl_display_query_config(tpl_display_t *display,
 			 tpl_surface_type_t surface_type,
 			 int red_size,
@@ -121,45 +121,45 @@ tpl_display_query_config(tpl_display_t *display,
 	if(NULL == display || TPL_TRUE != __tpl_object_is_valid(&display->base) || NULL == display->backend.query_config)
 	{
 		TPL_ERR("display is invalid!");
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
 	return display->backend.query_config(display, surface_type, red_size, green_size, blue_size, alpha_size, depth_size, native_visual_id, is_slow);
 }
 
-tpl_bool_t
+tpl_result_t
 tpl_display_filter_config(tpl_display_t *display, int *visual_id, int alpha_size)
 {
 	if(NULL == display || TPL_TRUE != __tpl_object_is_valid(&display->base) || NULL == display->backend.filter_config)
 	{
 		TPL_ERR("display is invalid!");
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
 	return display->backend.filter_config(display, visual_id, alpha_size);
 }
 
-tpl_bool_t
+tpl_result_t
 tpl_display_get_native_window_info(tpl_display_t *display, tpl_handle_t window,
 			   int *width, int *height, tbm_format *format, int depth, int a_size)
 {
 	if (display->backend.get_window_info == NULL)
 	{
 		TPL_ERR("Backend for display has not been initialized!");
-                return TPL_FALSE;
+                return TPL_ERROR_INVALID_OPERATION;
 	}
 
 	return display->backend.get_window_info(display, window, width, height, format, depth, a_size);
 }
 
-tpl_bool_t
+tpl_result_t
 tpl_display_get_native_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 			   int *width, int *height, tbm_format *format)
 {
         if (display->backend.get_pixmap_info == NULL)
 	{
 		TPL_ERR("Backend for display has not been initialized!");
-                return TPL_FALSE;
+                return TPL_ERROR_INVALID_OPERATION;
 	}
 
 	return display->backend.get_pixmap_info(display, pixmap, width, height, format);

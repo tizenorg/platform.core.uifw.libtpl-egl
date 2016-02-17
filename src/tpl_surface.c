@@ -12,7 +12,6 @@ static void
 __tpl_surface_free(void *data)
 {
 	TPL_ASSERT(data);
-        TPL_LOG(9, "tpl_surface_t(%p)", data);
 	__tpl_surface_fini((tpl_surface_t *) data);
 	free(data);
 }
@@ -41,7 +40,7 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type
 		return NULL;
 	}
 
-	if (TPL_TRUE != __tpl_object_init(&surface->base, TPL_OBJECT_SURFACE, __tpl_surface_free))
+	if (TPL_ERROR_NONE != __tpl_object_init(&surface->base, TPL_OBJECT_SURFACE, __tpl_surface_free))
 	{
 		TPL_ERR("Failed to initialize surface's base class!");
 		free(surface);
@@ -60,7 +59,7 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type
 	/* Intialize backend. */
 	__tpl_surface_init_backend(surface, display->backend.type);
 
-	if (NULL == surface->backend.init || TPL_TRUE != surface->backend.init(surface))
+	if (NULL == surface->backend.init || TPL_ERROR_NONE != surface->backend.init(surface))
 	{
 		TPL_ERR("Failed to initialize surface's backend!");
 		tpl_object_unreference(&surface->base);
@@ -106,13 +105,13 @@ tpl_surface_get_type(tpl_surface_t *surface)
 	return surface->type;
 }
 
-tpl_bool_t
+tpl_result_t
 tpl_surface_get_size(tpl_surface_t *surface, int *width, int *height)
 {
 	if (NULL == surface)
 	{
 		TPL_ERR("Surface is NULL!");
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
 	if (width)
@@ -121,7 +120,7 @@ tpl_surface_get_size(tpl_surface_t *surface, int *width, int *height)
 	if (height)
 		*height = surface->height;
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
 
@@ -154,20 +153,20 @@ tpl_surface_validate(tpl_surface_t *surface)
 	return was_valid;
 }
 
-tpl_bool_t
+tpl_result_t
 tpl_surface_set_post_interval(tpl_surface_t *surface, int interval)
 {
 	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
 	{
 		TPL_ERR("Invalid surface!");
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
 	TPL_OBJECT_LOCK(surface);
 	surface->post_interval = interval;
 	TPL_OBJECT_UNLOCK(surface);
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
 int
@@ -219,13 +218,15 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 	return tbm_surface;
 }
 
-tpl_bool_t
+tpl_result_t
 tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
+	tpl_result_t ret = TPL_ERROR_INVALID_OPERATION;
+
 	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
 	{
 		TPL_ERR("Invalid surface!");
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
 	TRACE_BEGIN("TPL:POST");
@@ -236,26 +237,28 @@ tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 		TPL_OBJECT_UNLOCK(surface);
 		TRACE_END();
 		TPL_ERR("tbm surface is invalid.");
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
 	/* Call backend post */
-	surface->backend.enqueue_buffer(surface, tbm_surface, 0, NULL);
+	ret = surface->backend.enqueue_buffer(surface, tbm_surface, 0, NULL);
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
 
-	return TPL_TRUE;
+	return ret;
 }
 
-tpl_bool_t
+tpl_result_t
 tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface, tbm_surface_h tbm_surface,
 				       int num_rects, const int *rects)
 {
+	tpl_result_t ret = TPL_ERROR_INVALID_OPERATION;
+
 	if (NULL == surface || TPL_SURFACE_TYPE_WINDOW != surface->type)
 	{
 		TPL_ERR("Invalid surface!");
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
 	TRACE_BEGIN("TPL:POST");
@@ -266,14 +269,14 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface, tbm_surface_h tbm
 		TPL_OBJECT_UNLOCK(surface);
 		TRACE_END();
 		TPL_ERR("tbm surface is invalid.");
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
 	/* Call backend post */
-	surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects);
+	ret = surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects);
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
 
-	return TPL_TRUE;
+	return ret;
 }

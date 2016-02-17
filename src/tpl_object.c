@@ -10,7 +10,7 @@ __tpl_object_is_valid(tpl_object_t *object)
 	return (0 != __tpl_util_atomic_get(&object->reference));
 }
 
-tpl_bool_t
+tpl_result_t
 __tpl_object_init(tpl_object_t *object, tpl_object_type_t type, tpl_free_func_t free_func)
 {
 	TPL_ASSERT(object);
@@ -23,33 +23,41 @@ __tpl_object_init(tpl_object_t *object, tpl_object_type_t type, tpl_free_func_t 
 	__tpl_util_atomic_set(&object->reference, 1);
 
 	if (0 != pthread_mutex_init(&object->mutex, NULL))
-		return TPL_FALSE;
+	{
+		TPL_ERR("tpl_object_t pthread_mutex_init failed.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
-tpl_bool_t
+tpl_result_t
 __tpl_object_fini(tpl_object_t *object)
 {
 	TPL_ASSERT(object);
 
 	if (0 != pthread_mutex_destroy(&object->mutex))
-		return TPL_FALSE;
+	{
+		TPL_ERR("tpl_object_t pthread_mutex_destroy failed.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
 	tpl_util_map_fini(&object->user_data_map);
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
-tpl_bool_t
+tpl_result_t
 __tpl_object_lock(tpl_object_t *object)
 {
 	TPL_ASSERT(object);
 
 	if (0 != pthread_mutex_lock(&object->mutex))
-		return TPL_FALSE;
-
-	return TPL_TRUE;
+	{
+		TPL_ERR("tpl_object_t pthread_mutex_lock failed.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
+	return TPL_ERROR_NONE;
 }
 
 void
@@ -118,7 +126,7 @@ tpl_object_get_type(tpl_object_t *object)
 	return object->type;
 }
 
-tpl_bool_t
+tpl_result_t
 tpl_object_set_user_data(tpl_object_t *object, void *key, void *data, tpl_free_func_t free_func)
 {
 	tpl_util_key_t _key;
@@ -126,7 +134,7 @@ tpl_object_set_user_data(tpl_object_t *object, void *key, void *data, tpl_free_f
 	if (TPL_TRUE != __tpl_object_is_valid(object))
 	{
 		TPL_ERR("input object is invalid!");
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
 	__tpl_object_lock(object);
@@ -134,7 +142,7 @@ tpl_object_set_user_data(tpl_object_t *object, void *key, void *data, tpl_free_f
 	tpl_util_map_set(&object->user_data_map, _key, data, free_func);
 	__tpl_object_unlock(object);
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
 void *

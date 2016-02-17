@@ -22,7 +22,7 @@ struct _tpl_tbm_surface
 	int dummy;
 };
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_tbm_display_init(tpl_display_t *display)
 {
 	tpl_tbm_display_t *tbm_display = NULL;
@@ -36,12 +36,15 @@ __tpl_tbm_display_init(tpl_display_t *display)
 
 	tbm_display = (tpl_tbm_display_t *) calloc(1, sizeof(tpl_tbm_display_t));
 	if (tbm_display == NULL)
-		return TPL_FALSE;
+	{
+		TPL_ERR("Failed to allocate memory for new tpl_tbm_display_t.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
 	display->backend.data = tbm_display;
 	display->bufmgr_fd = -1;
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
 static void
@@ -61,7 +64,7 @@ __tpl_tbm_display_fini(tpl_display_t *display)
 	tbm_bufmgr_deinit((tbm_bufmgr)display->native_handle);
 }
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_tbm_display_query_config(tpl_display_t *display, tpl_surface_type_t surface_type,
 				   int red_size, int green_size, int blue_size, int alpha_size,
 				   int color_depth, int *native_visual_id, tpl_bool_t *is_slow)
@@ -82,7 +85,7 @@ __tpl_tbm_display_query_config(tpl_display_t *display, tpl_surface_type_t surfac
 			if (is_slow != NULL)
 				*is_slow = TPL_FALSE;
 
-			return TPL_TRUE;
+			return TPL_ERROR_NONE;
 		}
 		if (alpha_size == 0)
 		{
@@ -92,14 +95,14 @@ __tpl_tbm_display_query_config(tpl_display_t *display, tpl_surface_type_t surfac
 			if (is_slow != NULL)
 				*is_slow = TPL_FALSE;
 
-			return TPL_TRUE;
+			return TPL_ERROR_NONE;
 		}
 	}
 
-	return TPL_FALSE;
+	return TPL_ERROR_INVALID_PARAMETER;
 }
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_tbm_display_filter_config(tpl_display_t *display,
 				   int *visual_id, int alpha_size)
 {
@@ -108,13 +111,13 @@ __tpl_tbm_display_filter_config(tpl_display_t *display,
 	if (visual_id != NULL && *visual_id == TBM_FORMAT_ARGB8888 && alpha_size == 0)
 	{
 		*visual_id = TBM_FORMAT_XRGB8888;
-		return TPL_TRUE;
+		return TPL_ERROR_NONE;
 	}
 
-	return TPL_FALSE;
+	return TPL_ERROR_INVALID_PARAMETER;
 }
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_tbm_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 					  int *width, int *height, tbm_format *format, int depth, int a_size)
 {
@@ -122,6 +125,11 @@ __tpl_tbm_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 	TPL_ASSERT(window);
 
 	tbm_surface_queue_h surf_queue = (tbm_surface_queue_h)window;
+	if (surf_queue == NULL)
+	{
+		TPL_ERR("Native widow(%p) is invalid.", window);
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
 
 	if (width != NULL)
 		*width = tbm_surface_queue_get_width(surf_queue);
@@ -130,10 +138,10 @@ __tpl_tbm_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 	if (format != NULL)
 		*format = tbm_surface_queue_get_format(surf_queue);
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_tbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 					  int *width, int *height, tbm_format *format)
 {
@@ -141,7 +149,10 @@ __tpl_tbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 
 	tbm_surface = (tbm_surface_h)pixmap;
 	if (tbm_surface == NULL)
-		return TPL_FALSE;
+	{
+		TPL_ERR("Native pixmap(%p) is invalid.", pixmap);
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
 
 	if (width)
 		*width = tbm_surface_get_width(tbm_surface);
@@ -150,7 +161,7 @@ __tpl_tbm_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 	if (format)
 		*format = tbm_surface_get_format(tbm_surface);
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
 static tbm_surface_h
@@ -166,7 +177,7 @@ __tpl_tbm_surface_queue_notify_cb(tbm_surface_queue_h surface_queue, void *data)
 	/* Do something */
 }
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_tbm_surface_init(tpl_surface_t *surface)
 {
 	tpl_tbm_surface_t *tpl_tbm_surface = NULL;
@@ -174,39 +185,48 @@ __tpl_tbm_surface_init(tpl_surface_t *surface)
 
 	tpl_tbm_surface = (tpl_tbm_surface_t *) calloc(1, sizeof(tpl_tbm_surface_t));
 	if (NULL == tpl_tbm_surface)
-		return TPL_FALSE;
+	{
+		TPL_ERR("Failed to allocate memory for new tpl_tbm_surface_t");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
 	surface->backend.data = (void *)tpl_tbm_surface;
 
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW)
 	{
-		if (TPL_TRUE != __tpl_tbm_display_get_window_info(surface->display, surface->native_handle,
+		if (TPL_ERROR_NONE != __tpl_tbm_display_get_window_info(surface->display, surface->native_handle,
 					&surface->width, &surface->height, NULL, 0, 0))
+		{
+			TPL_ERR("Failed to get native window(%p) info.", surface->native_handle);
 			goto error;
+		}
 
 		tbm_surface_queue_set_destroy_cb((tbm_surface_queue_h)surface->native_handle,
 							__tpl_tbm_surface_queue_notify_cb, surface);
 
 		TPL_LOG(3, "window(%p, %p) %dx%d", surface, surface->native_handle, surface->width, surface->height);
-		return TPL_TRUE;
+		return TPL_ERROR_NONE;
 	}
 	else if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
 	{
 		if (TPL_TRUE != __tpl_tbm_display_get_pixmap_info(surface->display, surface->native_handle,
 					&surface->width, &surface->height, NULL))
+		{
+			TPL_ERR("Failed to get native pixmap(%p) info.", surface->native_handle);
 			goto error;
+		}
 
 		tbm_surface_internal_ref((tbm_surface_h)surface->native_handle);
 
 		TPL_LOG(3, "pixmap(%p, %p) %dx%d", surface, surface->native_handle, surface->width, surface->height);
-		return TPL_TRUE;
+		return TPL_ERROR_NONE;
 	}
 
 error:
 	free(tpl_tbm_surface);
 	surface->backend.data = NULL;
 
-	return TPL_FALSE;
+	return TPL_ERROR_INVALID_OPERATION;
 }
 
 static void
@@ -230,7 +250,7 @@ __tpl_tbm_surface_fini(tpl_surface_t *surface)
 	surface->backend.data = NULL;
 }
 
-static void
+static tpl_result_t
 __tpl_tbm_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface,
 				 int num_rects, const int *rects)
 {
@@ -245,19 +265,27 @@ __tpl_tbm_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surfa
 
 	if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
 	{
-		TPL_WARN("Pixmap cannot post(%p, %p)",surface, surface->native_handle);
-		return;
+		TPL_ERR("Pixmap cannot post(%p, %p)",surface, surface->native_handle);
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
 	tbm_surface_queue_h tbm_queue = (tbm_surface_queue_h)surface->native_handle;
-
-	if (tbm_queue)
+	if (tbm_queue == NULL)
 	{
-		tbm_surface_queue_enqueue(tbm_queue, tbm_surface);
-		TPL_LOG(6, "tbm_surface ENQUEUED!!");
+		TPL_ERR("tbm_surface_queue is invalid.");
+		return TPL_ERROR_INVALID_PARAMETER;
 	}
+
+	if (tbm_surface_queue_enqueue(tbm_queue, tbm_surface) != TBM_SURFACE_QUEUE_ERROR_NONE)
+	{
+		TPL_ERR("tbm_surface_queue_enqueue failed. tbm_queue(%p) tbm_surface(%p)",
+							tbm_queue, tbm_surface);
+		return TPL_ERROR_INVALID_OPERATION;
+	}
+
+	return TPL_ERROR_NONE;
 }
 
 static tpl_bool_t
