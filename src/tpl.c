@@ -3,8 +3,7 @@
 unsigned int tpl_log_lvl;
 unsigned int tpl_dump_lvl;
 
-struct _tpl_runtime
-{
+struct _tpl_runtime {
 	tpl_hlist_t *displays[TPL_BACKEND_COUNT];
 };
 
@@ -14,11 +13,9 @@ static pthread_mutex_t	runtime_mutex = PTHREAD_MUTEX_INITIALIZER;
 static tpl_result_t
 __tpl_runtime_init()
 {
-	if (runtime == NULL)
-	{
+	if (runtime == NULL) {
 		runtime = (tpl_runtime_t *) calloc(1, sizeof(tpl_runtime_t));
-		if (runtime == NULL)
-		{
+		if (runtime == NULL) {
 			TPL_ERR("Failed to allocate new tpl_runtime_t.");
 			return TPL_ERROR_INVALID_OPERATION;
 		}
@@ -30,12 +27,10 @@ __tpl_runtime_init()
 static void __attribute__((destructor))
 __tpl_runtime_fini()
 {
-	if (runtime != NULL)
-	{
+	if (runtime != NULL) {
 		int i;
 
-		for (i = 0; i < TPL_BACKEND_COUNT; i++)
-		{
+		for (i = 0; i < TPL_BACKEND_COUNT; i++) {
 			if (runtime->displays[i] != NULL)
 				__tpl_hashlist_destroy(&(runtime->displays[i]));
 		}
@@ -46,25 +41,27 @@ __tpl_runtime_fini()
 }
 
 /* Begin: OS dependent function definition */
-void __tpl_util_sys_yield(void)
+void
+__tpl_util_sys_yield(void)
 {
 	int status;
 
 	status = sched_yield();
 
-	if (0 != status)
-	{
+	if (status != 0) {
 		/* non-fatal on error, warning is enough */
 		TPL_WARN("Yield failed, ret=%.8x\n", status);
 	}
 }
 
-int __tpl_util_clz(int val)
+int
+__tpl_util_clz(int val)
 {
 	return __builtin_clz( val );
 }
 
-int __tpl_util_atomic_get(const tpl_util_atomic_uint * const atom)
+int
+__tpl_util_atomic_get(const tpl_util_atomic_uint * const atom)
 {
 	unsigned int ret;
 
@@ -77,7 +74,8 @@ int __tpl_util_atomic_get(const tpl_util_atomic_uint * const atom)
 	return ret;
 }
 
-void __tpl_util_atomic_set(tpl_util_atomic_uint * const atom, unsigned int val)
+void
+__tpl_util_atomic_set(tpl_util_atomic_uint * const atom, unsigned int val)
 {
 	TPL_ASSERT(atom);
 
@@ -86,13 +84,16 @@ void __tpl_util_atomic_set(tpl_util_atomic_uint * const atom, unsigned int val)
 	TPL_DMB();
 }
 
-unsigned int __tpl_util_atomic_inc(tpl_util_atomic_uint * const atom )
+unsigned int
+__tpl_util_atomic_inc(tpl_util_atomic_uint * const atom )
 {
 	TPL_ASSERT(atom);
 
 	return __sync_add_and_fetch(atom, 1);
 }
-unsigned int __tpl_util_atomic_dec( tpl_util_atomic_uint * const atom )
+
+unsigned int
+__tpl_util_atomic_dec( tpl_util_atomic_uint * const atom )
 {
 	TPL_ASSERT(atom);
 
@@ -110,24 +111,18 @@ __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
 
 	pthread_mutex_lock(&runtime_mutex);
 
-	if (type != TPL_BACKEND_UNKNOWN)
-	{
-		if (runtime->displays[type] != NULL)
-		{
+	if (type != TPL_BACKEND_UNKNOWN) {
+		if (runtime->displays[type] != NULL) {
 			display = (tpl_display_t *) __tpl_hashlist_lookup(runtime->displays[type],
-									(size_t) native_display);
+				(size_t) native_display);
 		}
-	}
-	else
-	{
+	} else {
 		int i;
 
-		for (i = 0; i < TPL_BACKEND_COUNT; i++)
-		{
-			if (runtime->displays[i] != NULL)
-			{
+		for (i = 0; i < TPL_BACKEND_COUNT; i++) {
+			if (runtime->displays[i] != NULL) {
 				display = (tpl_display_t *) __tpl_hashlist_lookup(runtime->displays[i],
-										(size_t) native_display);
+					(size_t) native_display);
 			}
 			if (display != NULL) break;
 		}
@@ -152,33 +147,29 @@ __tpl_runtime_add_display(tpl_display_t *display)
 
 	TPL_ASSERT(0 <= type && TPL_BACKEND_COUNT > type);
 
-	if (0 != pthread_mutex_lock(&runtime_mutex))
-	{
+	if (0 != pthread_mutex_lock(&runtime_mutex)) {
 		TPL_ERR("runtime_mutex pthread_mutex_lock filed.");
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
-	if (TPL_ERROR_NONE != __tpl_runtime_init())
-	{
+	if (TPL_ERROR_NONE != __tpl_runtime_init()) {
 		TPL_ERR("__tpl_runtime_init() failed.");
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
-	if (NULL == runtime->displays[type])
-	{
+	if (NULL == runtime->displays[type]) {
 		runtime->displays[type] = __tpl_hashlist_create();
-		if (NULL == runtime->displays[type])
-		{
+		if (NULL == runtime->displays[type]) {
 			TPL_ERR("__tpl_hashlist_create failed.");
 			return TPL_ERROR_INVALID_OPERATION;
 		}
 	}
 
-	ret = __tpl_hashlist_insert(runtime->displays[type], (size_t) handle, (void *) display);
-	if (TPL_ERROR_NONE != ret)
-	{
+	ret = __tpl_hashlist_insert(runtime->displays[type],
+		(size_t) handle, (void *) display);
+	if (TPL_ERROR_NONE != ret) {
 		TPL_ERR("__tpl_hashlist_insert failed. list(%p), handle(%d), display(%p)",
-				runtime->displays[type], handle, display);
+			runtime->displays[type], handle, display);
 		__tpl_hashlist_destroy(&runtime->displays[type]);
 		return TPL_ERROR_INVALID_OPERATION;
 	}
@@ -196,10 +187,10 @@ __tpl_runtime_remove_display(tpl_display_t *display)
 
 	pthread_mutex_lock(&runtime_mutex);
 
-	if (type != TPL_BACKEND_UNKNOWN)
-	{
+	if (type != TPL_BACKEND_UNKNOWN) {
 		if (runtime != NULL && runtime->displays[type] != NULL)
-			__tpl_hashlist_delete(runtime->displays[type], (size_t) handle);
+			__tpl_hashlist_delete(runtime->displays[type],
+				(size_t) handle);
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);
@@ -222,11 +213,10 @@ __tpl_runtime_flush_all_display()
 
 	pthread_mutex_lock(&runtime_mutex);
 
-	for (i = 0; i < TPL_BACKEND_COUNT; i++)
-	{
+	for (i = 0; i < TPL_BACKEND_COUNT; i++) {
 		if (runtime->displays[i] != NULL)
 			__tpl_hashlist_do_for_all_nodes(runtime->displays[i],
-						      __tpl_runtime_flush_cb);
+				__tpl_runtime_flush_cb);
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);
@@ -238,8 +228,7 @@ __tpl_display_choose_backend(tpl_handle_t native_dpy)
 	const char *plat_name = NULL;
 	plat_name = getenv("EGL_PLATFORM");
 
-	if (plat_name)
-	{
+	if (plat_name) {
 #ifdef TPL_WINSYS_DRI2
 		if (strcmp(plat_name, "x11") == 0) return TPL_BACKEND_X11_DRI2;
 #endif
@@ -255,7 +244,7 @@ __tpl_display_choose_backend(tpl_handle_t native_dpy)
 
 #ifdef TPL_WINSYS_WL
 	if (__tpl_display_choose_backend_tbm(native_dpy) == TPL_TRUE)
-	    return TPL_BACKEND_TBM;
+		return TPL_BACKEND_TBM;
 	if (__tpl_display_choose_backend_gbm(native_dpy) == TPL_TRUE)
 		return TPL_BACKEND_GBM;
 	if (__tpl_display_choose_backend_wayland(native_dpy) == TPL_TRUE)
@@ -278,8 +267,7 @@ __tpl_display_init_backend(tpl_display_t *display, tpl_backend_type_t type)
 	TPL_ASSERT(display);
 	TPL_ASSERT(0 <= type && TPL_BACKEND_COUNT > type);
 
-	switch (type)
-	{
+	switch (type) {
 #ifdef TPL_WINSYS_WL
 	case TPL_BACKEND_GBM:
 		__tpl_display_init_backend_gbm(&display->backend);
@@ -312,8 +300,7 @@ __tpl_surface_init_backend(tpl_surface_t *surface, tpl_backend_type_t type)
 	TPL_ASSERT(surface);
 	TPL_ASSERT(0 <= type && TPL_BACKEND_COUNT > type);
 
-	switch (type)
-	{
+	switch (type) {
 #ifdef TPL_WINSYS_WL
 	case TPL_BACKEND_GBM:
 		__tpl_surface_init_backend_gbm(&surface->backend);

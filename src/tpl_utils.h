@@ -11,12 +11,12 @@
 #else
 #   define TPL_API
 #endif
-#define TPL_ASSERT(expr)		assert(expr)
-#define TPL_INLINE			__inline__
-#define TPL_IGNORE(x)			(void)x
+#define TPL_ASSERT(expr) assert(expr)
+#define TPL_INLINE __inline__
+#define TPL_IGNORE(x) (void)x
 
 #ifdef ARM_ATOMIC_OPERATION
-#define TPL_DMB()			__asm__ volatile("dmb sy" : : : "memory")
+#define TPL_DMB() __asm__ volatile("dmb sy" : : : "memory")
 #else
 #define TPL_DMB()
 #endif
@@ -245,269 +245,90 @@ extern unsigned int tpl_dump_lvl;
 		}									\
 	}
 
-static int
-secUtilDumpBmp (const char * file, const void * data, int width, int height)
-{
-        int i;
-
-        struct
-        {
-                unsigned char magic[2];
-        } bmpfile_magic = { {'B', 'M'} };
-
-        struct
-        {
-                unsigned int filesz;
-                unsigned short creator1;
-                unsigned short creator2;
-                unsigned int bmp_offset;
-        } bmpfile_header = { 0, 0, 0, 0x36 };
-
-        struct
-        {
-                unsigned int header_sz;
-                unsigned int width;
-                unsigned int height;
-                unsigned short nplanes;
-                unsigned short bitspp;
-                unsigned int compress_type;
-                unsigned int bmp_bytesz;
-                unsigned int hres;
-                unsigned int vres;
-                unsigned int ncolors;
-                unsigned int nimpcolors;
-        } bmp_dib_v3_header_t = { 0x28, 0, 0, 1, 24, 0, 0, 0, 0, 0, 0 };
-        unsigned int * blocks;
-
-        if ( data == NULL )
-                return -1;
-
-        if ( width <= 0 || height <= 0)
-                return -1;
-
-        FILE * fp = NULL;
-        if ((fp = fopen (file, "wb")) == NULL)
-        {
-                printf("FILE ERROR:%s\t",strerror(errno));
-
-                return -2;
-        }
-        else
-        {
-                bmpfile_header.filesz = sizeof (bmpfile_magic) + sizeof (bmpfile_header) +
-                                  sizeof (bmp_dib_v3_header_t) + width * height * 3;
-                bmp_dib_v3_header_t.header_sz = sizeof (bmp_dib_v3_header_t);
-                bmp_dib_v3_header_t.width = width;
-                bmp_dib_v3_header_t.height = -height;
-                bmp_dib_v3_header_t.nplanes = 1;
-                bmp_dib_v3_header_t.bmp_bytesz = width * height * 3;
-
-                if ( fwrite (&bmpfile_magic, sizeof (bmpfile_magic), 1, fp) < 0 )
-                {
-                        fclose (fp);
-                        return -1;
-                }
-                if ( fwrite (&bmpfile_header, sizeof (bmpfile_header), 1, fp) < 0)
-                {
-                        fclose (fp);
-                        return -1;
-                }
-                if ( fwrite (&bmp_dib_v3_header_t, sizeof (bmp_dib_v3_header_t), 1, fp) < 0)
-                {
-                        fclose (fp);
-                        return -1;
-                }
-
-                blocks = (unsigned int*)data;
-                for (i=0; i<height * width; i++)
-                {
-                        if( fwrite (&blocks[i], 3, 1, fp) < 0 )
-                        {
-                                fclose(fp);
-                                return -1;
-                        }
-                }
-
-                fclose (fp);
-        }
-
-        return 0;
-}
-
-#ifdef PNG_DUMP_ENABLE
-#define PNG_DEPTH 8
-static int
-secUtilDumpPng(const char *file, const void *data, int width, int height)
-{
-	TPL_CHECK_ON_FALSE_RETURN_VAL(data != NULL, -1);
-	TPL_CHECK_ON_FALSE_RETURN_VAL(width > 0, -1);
-	TPL_CHECK_ON_FALSE_RETURN_VAL(height > 0, -1);
-
-	FILE *fp = fopen(file, "wb");
-	int res = -2;
-
-	if (fp)
-	{
-		res = -1;
-		png_structp pPngStruct =
-			png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-		if (pPngStruct)
-		{
-			png_infop pPngInfo = png_create_info_struct(pPngStruct);
-
-			if (pPngInfo)
-			{
-				png_init_io(pPngStruct, fp);
-				png_set_IHDR(pPngStruct,
-				pPngInfo,
-				width,
-				height,
-				PNG_DEPTH,
-				PNG_COLOR_TYPE_RGBA,
-				PNG_INTERLACE_NONE,
-				PNG_COMPRESSION_TYPE_DEFAULT,
-				PNG_FILTER_TYPE_DEFAULT);
-
-				png_set_bgr(pPngStruct);
-				png_write_info(pPngStruct, pPngInfo);
-
-				const int pixel_size = 4;       // RGBA
-				png_bytep *row_pointers =
-					png_malloc(pPngStruct, height * sizeof(png_byte *));
-				if (!row_pointers)
-				{
-					fclose(fp);
-					return res;
-				}
-
-				unsigned int *blocks = (unsigned int *) data;
-				int y = 0;
-				int x = 0;
-
-				for (; y < height; ++y)
-				{
-					png_bytep row = png_malloc(pPngStruct,
-							sizeof(png_byte) * width *
-							pixel_size);
-					if (!row)
-					{
-						fclose(fp);
-						return res;
-					}
-
-					row_pointers[y] = (png_bytep) row;
-
-					for (x = 0; x < width; ++x)
-					{
-						unsigned int curBlock = blocks[y * width + x];
-
-						row[x * pixel_size] = (curBlock & 0xFF);
-						row[1 + x * pixel_size] = (curBlock >> 8) & 0xFF;
-						row[2 + x * pixel_size] = (curBlock >> 16) & 0xFF;
-						row[3 + x * pixel_size] = (curBlock >> 24) & 0xFF;
-					}
-				}
-
-				png_write_image(pPngStruct, row_pointers);
-				png_write_end(pPngStruct, pPngInfo);
-
-				for (y = 0; y < height; y++) {
-					png_free(pPngStruct, row_pointers[y]);
-				}
-				png_free(pPngStruct, row_pointers);
-
-				png_destroy_write_struct(&pPngStruct, &pPngInfo);
-
-				res = 0;
-			}
-		}
-		fclose(fp);
-	}
-
-	return res;
-}
-#endif
-
-static inline void
-__tpl_util_image_dump(const char * func, const void * data, int type, int width, int height, int num)
-{
-        char name[200];
-        char path_name[20] = "/tmp/tpl_dump";
-
-	if(mkdir (path_name, 0755) == -1)
-	{
-		if (errno != EEXIST)
-		{
-			TPL_LOG(3,"Directory creation error!");
-			return;
-		}
-	}
-
-        if (type == 1)
-	{
-		snprintf(name, sizeof(name),"%s/[%d][%s][%d][%d][%04d].bmp", path_name, getpid(), func, width, height, num);
-
-		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
-		switch(secUtilDumpBmp(name, data, width, height))
-		{
-		case 0:
-			TPL_LOG(6,"%s file is dumped\n", name);
-			break;
-		case -1:
-			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n", data, width, height);
-			break;
-		case -2:
-			TPL_LOG(6, "Dump failed..file pointer error\n");
-			break;
-		}
-	}
-#ifdef PNG_DUMP_ENABLE
-	else
-	{
-		snprintf(name, sizeof(name),"%s/[%d][%s][%d][%d][%04d].png", path_name, getpid(), func, width, height, num);
-
-		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
-		switch(secUtilDumpPng(name, data, width, height))
-		{
-		case 0:
-			TPL_LOG(6,"%s file is dumped\n", name);
-			break;
-		case -1:
-			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n", data, width, height);
-			break;
-		case -2:
-			TPL_LOG(6, "Dump failed..file pointer error\n");
-			break;
-		}
-	}
-#endif
-}
 
 
 typedef struct _tpl_list_node	tpl_list_node_t;
 typedef struct _tpl_list	tpl_list_t;
+typedef struct tpl_util_map_entry tpl_util_map_entry_t;
+typedef struct tpl_util_map tpl_util_map_t;
+typedef union tpl_util_key tpl_util_key_t;
 
-enum _tpl_occurrence
-{
+typedef int (*tpl_util_hash_func_t)(const tpl_util_key_t key, int key_length);
+typedef int (*tpl_util_key_length_func_t)(const tpl_util_key_t key);
+typedef int (*tpl_util_key_compare_func_t)(const tpl_util_key_t key0,
+					   int key0_length,
+					   const tpl_util_key_t key1,
+					   int key1_length);
+
+enum _tpl_occurrence {
 	TPL_FIRST,
 	TPL_LAST,
 	TPL_ALL
 };
 
-struct _tpl_list_node
-{
-	tpl_list_node_t	*prev;
-	tpl_list_node_t *next;
-	void		*data;
-	tpl_list_t	*list;
+union tpl_util_key {
+	uint32_t key32;
+	uint64_t key64;
+	void *ptr; /*pointer key or user defined key(string)*/
 };
 
-struct _tpl_list
-{
-	tpl_list_node_t	head;
-	tpl_list_node_t	tail;
-	int		count;
+struct _tpl_list_node {
+	tpl_list_node_t *prev;
+	tpl_list_node_t *next;
+	void *data;
+	tpl_list_t *list;
 };
+
+struct _tpl_list {
+	tpl_list_node_t head;
+	tpl_list_node_t tail;
+	int count;
+};
+
+struct tpl_util_map {
+	tpl_util_hash_func_t hash_func;
+	tpl_util_key_length_func_t key_length_func;
+	tpl_util_key_compare_func_t key_compare_func;
+	int bucket_bits;
+	int bucket_size;
+	int bucket_mask;
+	tpl_util_map_entry_t **buckets;
+};
+
+void tpl_util_map_init(tpl_util_map_t *map, int bucket_bits,
+		       tpl_util_hash_func_t hash_func,
+		       tpl_util_key_length_func_t key_length_func,
+		       tpl_util_key_compare_func_t key_compare_func,
+		       void *buckets);
+
+void tpl_util_map_int32_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+
+void tpl_util_map_int64_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+
+void tpl_util_map_pointer_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+
+void tpl_util_map_fini(tpl_util_map_t *map);
+
+tpl_util_map_t *
+tpl_util_map_create(int bucket_bits, tpl_util_hash_func_t hash_func,
+		    tpl_util_key_length_func_t key_length_func,
+		    tpl_util_key_compare_func_t key_compare_func);
+
+tpl_util_map_t *tpl_util_map_int32_create(int bucket_bits);
+
+tpl_util_map_t *tpl_util_map_int64_create(int bucket_bits);
+
+tpl_util_map_t *tpl_util_map_pointer_create(int bucket_bits);
+
+void tpl_util_map_destroy(tpl_util_map_t *map);
+
+void tpl_util_map_clear(tpl_util_map_t *map);
+
+void *tpl_util_map_get(tpl_util_map_t *map, const tpl_util_key_t key);
+
+void
+tpl_util_map_set(tpl_util_map_t *map, const tpl_util_key_t key, void *data,
+		 tpl_free_func_t free_func);
 
 static TPL_INLINE int
 __tpl_list_get_count(const tpl_list_t *list)
@@ -550,15 +371,13 @@ __tpl_list_fini(tpl_list_t *list, tpl_free_func_t func)
 
 	node = list->head.next;
 
-	while (node != &list->tail)
-	{
+	while (node != &list->tail) {
 		tpl_list_node_t *free_node = node;
 		node = node->next;
 
 		TPL_ASSERT(free_node);
 
-		if (func)
-			func(free_node->data);
+		if (func) func(free_node->data);
 
 		free(free_node);
 	}
@@ -572,8 +391,7 @@ __tpl_list_alloc()
 	tpl_list_t *list;
 
 	list = (tpl_list_t *) malloc(sizeof(tpl_list_t));
-	if (NULL == list)
-		return NULL;
+	if (!list) return NULL;
 
 	__tpl_list_init(list);
 
@@ -602,8 +420,7 @@ __tpl_list_get_front_node(tpl_list_t *list)
 {
 	TPL_ASSERT(list);
 
-	if (__tpl_list_is_empty(list))
-		return NULL;
+	if (__tpl_list_is_empty(list)) return NULL;
 
 	return list->head.next;
 }
@@ -613,8 +430,7 @@ __tpl_list_get_back_node(tpl_list_t *list)
 {
 	TPL_ASSERT(list);
 
-	if (__tpl_list_is_empty(list))
-		return NULL;
+	if (__tpl_list_is_empty(list)) return NULL;
 
 	return list->tail.prev;
 }
@@ -661,8 +477,7 @@ __tpl_list_get_back(const tpl_list_t *list)
 {
 	TPL_ASSERT(list);
 
-	if (__tpl_list_is_empty(list))
-		return NULL;
+	if (__tpl_list_is_empty(list)) return NULL;
 
 	TPL_ASSERT(list->tail.prev);
 
@@ -679,8 +494,7 @@ __tpl_list_remove(tpl_list_node_t *node, tpl_free_func_t func)
 	node->prev->next = node->next;
 	node->next->prev = node->prev;
 
-	if (func)
-		func(node->data);
+	if (func) func(node->data);
 
 	node->list->count--;
 	free(node);
@@ -690,8 +504,7 @@ static TPL_INLINE tpl_result_t
 __tpl_list_insert(tpl_list_node_t *pos, void *data)
 {
 	tpl_list_node_t *node = (tpl_list_node_t *)malloc(sizeof(tpl_list_node_t));
-	if (NULL == node)
-	{
+	if (!node) {
 		TPL_ERR("Failed to allocate new tpl_list_node_t.");
 		return TPL_ERROR_INVALID_OPERATION;
 	}
@@ -711,42 +524,36 @@ __tpl_list_insert(tpl_list_node_t *pos, void *data)
 }
 
 static TPL_INLINE void
-__tpl_list_remove_data(tpl_list_t *list, void *data, int occurrence, tpl_free_func_t func)
+__tpl_list_remove_data(tpl_list_t *list, void *data, int occurrence,
+		       tpl_free_func_t func)
 {
 	tpl_list_node_t *node;
 
 	TPL_ASSERT(list);
 
-	if (occurrence == TPL_FIRST)
-	{
-	       node = list->head.next;
+	if (occurrence == TPL_FIRST) {
+		node = list->head.next;
 
-	       while (node != &list->tail)
-	       {
-		       tpl_list_node_t *curr;
+		while (node != &list->tail) {
+			tpl_list_node_t *curr;
 
-		       curr = node;
-		       node = node->next;
+			curr = node;
+			node = node->next;
 
-		       TPL_ASSERT(curr);
-		       TPL_ASSERT(node);
+			TPL_ASSERT(curr);
+			TPL_ASSERT(node);
 
-		       if (curr->data == data)
-		       {
-			       if (func)
-				       func(data);
+			if (curr->data == data) {
+				if (func) func(data);
 
-			       __tpl_list_remove(curr, func);
-			       return;
-		       }
-	       }
-	}
-	else if (occurrence == TPL_LAST)
-	{
+				__tpl_list_remove(curr, func);
+				return;
+			}
+		}
+	} else if (occurrence == TPL_LAST) {
 		node = list->tail.prev;
 
-		while (node != &list->head)
-		{
+		while (node != &list->head) {
 			tpl_list_node_t *curr;
 
 			curr = node;
@@ -755,38 +562,31 @@ __tpl_list_remove_data(tpl_list_t *list, void *data, int occurrence, tpl_free_fu
 			TPL_ASSERT(curr);
 			TPL_ASSERT(node);
 
-			if (curr->data == data)
-			{
-				if (func)
-					func(data);
+			if (curr->data == data) {
+				if (func) func(data);
 
 				__tpl_list_remove(curr, func);
 				return;
 			}
 		}
-	}
-	else if (occurrence == TPL_ALL)
-	{
-	       node = list->head.next;
+	} else if (occurrence == TPL_ALL) {
+		node = list->head.next;
 
-	       while (node != &list->tail)
-	       {
-		       tpl_list_node_t *curr;
+		while (node != &list->tail) {
+			tpl_list_node_t *curr;
 
-		       curr = node;
-		       node = node->next;
+			curr = node;
+			node = node->next;
 
-		       TPL_ASSERT(curr);
-		       TPL_ASSERT(node);
+			TPL_ASSERT(curr);
+			TPL_ASSERT(node);
 
-		       if (curr->data == data)
-		       {
-			       if (func)
-				       func(data);
+			if (curr->data == data) {
+				if (func) func(data);
 
-			       __tpl_list_remove(curr, func);
-		       }
-	       }
+				__tpl_list_remove(curr, func);
+			}
+		}
 	}
 }
 
@@ -813,8 +613,7 @@ __tpl_list_pop_front(tpl_list_t *list, tpl_free_func_t func)
 
 	TPL_ASSERT(list);
 
-	if (__tpl_list_is_empty(list))
-		return NULL;
+	if (__tpl_list_is_empty(list)) return NULL;
 
 	data = list->head.next->data;
 	__tpl_list_remove(list->head.next, func);
@@ -829,8 +628,7 @@ tpl_list_pop_back(tpl_list_t *list, tpl_free_func_t func)
 
 	TPL_ASSERT(list);
 
-	if (__tpl_list_is_empty(list))
-		return NULL;
+	if (__tpl_list_is_empty(list)) return NULL;
 
 	data = list->tail.prev->data;
 	__tpl_list_remove(list->tail.prev, func);
@@ -838,78 +636,221 @@ tpl_list_pop_back(tpl_list_t *list, tpl_free_func_t func)
 	return data;
 }
 
-typedef struct tpl_util_map_entry tpl_util_map_entry_t;
-typedef struct tpl_util_map tpl_util_map_t;
-typedef union tpl_util_key tpl_util_key_t;
-
-typedef int (*tpl_util_hash_func_t)(const tpl_util_key_t key, int key_length);
-typedef int (*tpl_util_key_length_func_t)(const tpl_util_key_t key);
-typedef int (*tpl_util_key_compare_func_t)(const tpl_util_key_t key0, int key0_length,
-                                         const tpl_util_key_t key1, int key1_length);
-
-union tpl_util_key
+static TPL_INLINE int
+__tpl_util_image_dump_bmp(const char * file, const void * data, int width,
+			  int height)
 {
-	uint32_t	key32;
-	uint64_t	key64;
-	void*		ptr;		/*pointer key or user defined key(string)*/
-};
+	int i;
 
-struct tpl_util_map
+	struct {
+		unsigned char magic[2];
+	} bmpfile_magic = { {'B', 'M'} };
+
+	struct {
+		unsigned int filesz;
+		unsigned short creator1;
+		unsigned short creator2;
+		unsigned int bmp_offset;
+	} bmpfile_header = { 0, 0, 0, 0x36 };
+
+	struct {
+		unsigned int header_sz;
+		unsigned int width;
+		unsigned int height;
+		unsigned short nplanes;
+		unsigned short bitspp;
+		unsigned int compress_type;
+		unsigned int bmp_bytesz;
+		unsigned int hres;
+		unsigned int vres;
+		unsigned int ncolors;
+		unsigned int nimpcolors;
+	} bmp_dib_v3_header_t = { 0x28, 0, 0, 1, 24, 0, 0, 0, 0, 0, 0 };
+	unsigned int * blocks;
+
+	if (data == NULL) return -1;
+
+	if (width <= 0 || height <= 0) return -1;
+
+	FILE * fp = NULL;
+	if ((fp = fopen (file, "wb")) == NULL) {
+		printf("FILE ERROR:%s\t",strerror(errno));
+		return -2;
+	} else {
+		bmpfile_header.filesz = sizeof (bmpfile_magic) + sizeof (bmpfile_header) +
+					sizeof (bmp_dib_v3_header_t) + width * height * 3;
+		bmp_dib_v3_header_t.header_sz = sizeof (bmp_dib_v3_header_t);
+		bmp_dib_v3_header_t.width = width;
+		bmp_dib_v3_header_t.height = -height;
+		bmp_dib_v3_header_t.nplanes = 1;
+		bmp_dib_v3_header_t.bmp_bytesz = width * height * 3;
+
+		if (fwrite(&bmpfile_magic, sizeof (bmpfile_magic), 1, fp) < 0) {
+			fclose (fp);
+			return -1;
+		}
+		if (fwrite(&bmpfile_header, sizeof (bmpfile_header), 1, fp) < 0) {
+			fclose (fp);
+			return -1;
+		}
+		if (fwrite (&bmp_dib_v3_header_t, sizeof (bmp_dib_v3_header_t), 1, fp) < 0) {
+			fclose (fp);
+			return -1;
+		}
+
+		blocks = (unsigned int*)data;
+		for (i=0; i<height * width; i++) {
+			if (fwrite (&blocks[i], 3, 1, fp) < 0) {
+				fclose(fp);
+				return -1;
+			}
+		}
+
+		fclose (fp);
+	}
+
+	return 0;
+}
+
+#ifdef PNG_DUMP_ENABLE
+#define PNG_DEPTH 8
+static TPL_INLINE int
+__tpl_util_image_dump_png(const char *file, const void *data, int width,
+			  int height)
 {
-    tpl_util_hash_func_t          hash_func;
-    tpl_util_key_length_func_t    key_length_func;
-    tpl_util_key_compare_func_t   key_compare_func;
+	TPL_CHECK_ON_FALSE_RETURN_VAL(data != NULL, -1);
+	TPL_CHECK_ON_FALSE_RETURN_VAL(width > 0, -1);
+	TPL_CHECK_ON_FALSE_RETURN_VAL(height > 0, -1);
 
-    int                         bucket_bits;
-    int                         bucket_size;
-    int                         bucket_mask;
-    tpl_util_map_entry_t        **buckets;
-};
+	FILE *fp = fopen(file, "wb");
+	int res = -2;
 
-void
-tpl_util_map_init(tpl_util_map_t               *map,
-                int                         bucket_bits,
-                tpl_util_hash_func_t          hash_func,
-                tpl_util_key_length_func_t    key_length_func,
-                tpl_util_key_compare_func_t   key_compare_func,
-                void                       *buckets);
+	if (fp) {
+		res = -1;
+		png_structp pPngStruct =
+			png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+		if (pPngStruct) {
+			png_infop pPngInfo = png_create_info_struct(pPngStruct);
 
-void
-tpl_util_map_int32_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+			if (pPngInfo) {
+				png_init_io(pPngStruct, fp);
+				png_set_IHDR(pPngStruct,
+				pPngInfo,
+				width,
+				height,
+				PNG_DEPTH,
+				PNG_COLOR_TYPE_RGBA,
+				PNG_INTERLACE_NONE,
+				PNG_COMPRESSION_TYPE_DEFAULT,
+				PNG_FILTER_TYPE_DEFAULT);
 
-void
-tpl_util_map_int64_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+				png_set_bgr(pPngStruct);
+				png_write_info(pPngStruct, pPngInfo);
 
-void
-tpl_util_map_pointer_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+				const int pixel_size = 4;       // RGBA
+				png_bytep *row_pointers =
+					png_malloc(pPngStruct, height * sizeof(png_byte *));
+				if (!row_pointers) {
+					fclose(fp);
+					return res;
+				}
 
-void
-tpl_util_map_fini(tpl_util_map_t *map);
+				unsigned int *blocks = (unsigned int *) data;
+				int y = 0;
+				int x = 0;
 
-tpl_util_map_t *
-tpl_util_map_create(int                       bucket_bits,
-                  tpl_util_hash_func_t        hash_func,
-                  tpl_util_key_length_func_t  key_length_func,
-                  tpl_util_key_compare_func_t key_compare_func);
+				for (; y < height; ++y) {
+					png_bytep row = png_malloc(pPngStruct,
+							sizeof(png_byte) * width *
+							pixel_size);
+					if (!row) {
+						fclose(fp);
+						return res;
+					}
 
-tpl_util_map_t *
-tpl_util_map_int32_create(int bucket_bits);
+					row_pointers[y] = (png_bytep) row;
 
-tpl_util_map_t *
-tpl_util_map_int64_create(int bucket_bits);
+					for (x = 0; x < width; ++x) {
+						unsigned int curBlock = blocks[y * width + x];
 
-tpl_util_map_t *
-tpl_util_map_pointer_create(int bucket_bits);
+						row[x * pixel_size] = (curBlock & 0xFF);
+						row[1 + x * pixel_size] = (curBlock >> 8) & 0xFF;
+						row[2 + x * pixel_size] = (curBlock >> 16) & 0xFF;
+						row[3 + x * pixel_size] = (curBlock >> 24) & 0xFF;
+					}
+				}
 
-void
-tpl_util_map_destroy(tpl_util_map_t *map);
+				png_write_image(pPngStruct, row_pointers);
+				png_write_end(pPngStruct, pPngInfo);
 
-void
-tpl_util_map_clear(tpl_util_map_t *map);
+				for (y = 0; y < height; y++) {
+					png_free(pPngStruct, row_pointers[y]);
+				}
+				png_free(pPngStruct, row_pointers);
 
-void *
-tpl_util_map_get(tpl_util_map_t *map, const tpl_util_key_t key);
+				png_destroy_write_struct(&pPngStruct, &pPngInfo);
 
-void
-tpl_util_map_set(tpl_util_map_t *map, const tpl_util_key_t key, void *data, tpl_free_func_t free_func);
+				res = 0;
+			}
+		}
+		fclose(fp);
+	}
+
+	return res;
+}
+#endif
+
+static TPL_INLINE void
+__tpl_util_image_dump(const char * func, const void * data, int type,
+		      int width, int height, int num)
+{
+	char name[200];
+	char path_name[20] = "/tmp/tpl_dump";
+
+	if (mkdir (path_name, 0755) == -1) {
+		if (errno != EEXIST) {
+			TPL_LOG(3,"Directory creation error!");
+			return;
+		}
+	}
+
+	if (type == 1) {
+		snprintf(name, sizeof(name),"%s/[%d][%s][%d][%d][%04d].bmp",
+			path_name, getpid(), func, width, height, num);
+
+		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
+		switch(__tpl_util_image_dump_bmp(name, data, width, height)) {
+		case 0:
+			TPL_LOG(6,"%s file is dumped\n", name);
+			break;
+		case -1:
+			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n",
+				data, width, height);
+			break;
+		case -2:
+			TPL_LOG(6, "Dump failed..file pointer error\n");
+			break;
+		}
+	}
+#ifdef PNG_DUMP_ENABLE
+	else {
+		snprintf(name, sizeof(name),"%s/[%d][%s][%d][%d][%04d].png",
+			path_name, getpid(), func, width, height, num);
+
+		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
+		switch(__tpl_util_image_dump_png(name, data, width, height)) {
+		case 0:
+			TPL_LOG(6,"%s file is dumped\n", name);
+			break;
+		case -1:
+			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n",
+				data, width, height);
+			break;
+		case -2:
+			TPL_LOG(6, "Dump failed..file pointer error\n");
+			break;
+		}
+	}
+#endif
+}
 #endif /* TPL_UTILS_H */
