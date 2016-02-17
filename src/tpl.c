@@ -11,17 +11,20 @@ struct _tpl_runtime
 static tpl_runtime_t	*runtime = NULL;
 static pthread_mutex_t	runtime_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static tpl_bool_t
+static tpl_result_t
 __tpl_runtime_init()
 {
 	if (runtime == NULL)
 	{
 		runtime = (tpl_runtime_t *) calloc(1, sizeof(tpl_runtime_t));
 		if (runtime == NULL)
-			return TPL_FALSE;
+		{
+			TPL_ERR("Failed to allocate new tpl_runtime_t.");
+			return TPL_ERROR_INVALID_OPERATION;
+		}
 	}
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
 static void __attribute__((destructor))
@@ -135,10 +138,10 @@ __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
 	return display;
 }
 
-tpl_bool_t
+tpl_result_t
 __tpl_runtime_add_display(tpl_display_t *display)
 {
-	tpl_bool_t ret;
+	tpl_result_t ret;
 	tpl_handle_t handle;
 	tpl_backend_type_t type;
 
@@ -150,28 +153,39 @@ __tpl_runtime_add_display(tpl_display_t *display)
 	TPL_ASSERT(0 <= type && TPL_BACKEND_COUNT > type);
 
 	if (0 != pthread_mutex_lock(&runtime_mutex))
-		return TPL_FALSE;
+	{
+		TPL_ERR("runtime_mutex pthread_mutex_lock filed.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
-	if (TPL_TRUE != __tpl_runtime_init())
-		return TPL_FALSE;
+	if (TPL_ERROR_NONE != __tpl_runtime_init())
+	{
+		TPL_ERR("__tpl_runtime_init() failed.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
 	if (NULL == runtime->displays[type])
 	{
 		runtime->displays[type] = __tpl_hashlist_create();
 		if (NULL == runtime->displays[type])
-			return TPL_FALSE;
+		{
+			TPL_ERR("__tpl_hashlist_create failed.");
+			return TPL_ERROR_INVALID_OPERATION;
+		}
 	}
 
 	ret = __tpl_hashlist_insert(runtime->displays[type], (size_t) handle, (void *) display);
-	if (TPL_TRUE != ret)
+	if (TPL_ERROR_NONE != ret)
 	{
+		TPL_ERR("__tpl_hashlist_insert failed. list(%p), handle(%d), display(%p)",
+				runtime->displays[type], handle, display);
 		__tpl_hashlist_destroy(&runtime->displays[type]);
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_OPERATION;
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
 void

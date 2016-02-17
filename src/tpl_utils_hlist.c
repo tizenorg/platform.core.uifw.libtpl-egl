@@ -118,7 +118,9 @@ tpl_hlist_node_t * __tpl_hlist_get_tail_node(tpl_hlist_t *list, size_t key)
 	hash = CALC_HASH(key);
 
 	if (__tpl_hlist_empty(&list->heads[hash]))
+	{
 		return NULL;
+	}
 
 	/* iterate until next node is NULL */
 	for (pos = list->heads[hash].first; pos->next; pos = pos->next);
@@ -181,24 +183,30 @@ void __tpl_hashlist_destroy(tpl_hlist_t **list)
 	*list = NULL;
 }
 
-tpl_bool_t __tpl_hashlist_insert(tpl_hlist_t *list, size_t key, void *data)
+tpl_result_t __tpl_hashlist_insert(tpl_hlist_t *list, size_t key, void *data)
 {
 	size_t hash;
 	tpl_hlist_node_t *prev_node;
 	tpl_hlist_node_t *new_node;
 
 	if (list == NULL)
-		return TPL_FALSE;
+		return TPL_ERROR_INVALID_PARAMETER;
 
 	/* check if key already exists in the list */
 	prev_node = __tpl_hlist_get_node(list, key);
 	if (prev_node != NULL)
-		return TPL_FALSE;
+	{
+		TPL_ERR("key(%d) already exists in tpl_hlist_t(%p).", key, list);
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
 
 	/* create new node and assign given values */
 	new_node = (tpl_hlist_node_t *) malloc(sizeof(tpl_hlist_node_t));
 	if (new_node == NULL)
-		return TPL_FALSE;
+	{
+		TPL_ERR("Failed to allocate new tpl_hlist_node_t.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
 	hash = CALC_HASH(key);
 	__tpl_hlist_init_node(new_node);
@@ -208,7 +216,7 @@ tpl_bool_t __tpl_hashlist_insert(tpl_hlist_t *list, size_t key, void *data)
 	/* add new node to head */
 	__tpl_hlist_add_head(new_node, &list->heads[hash]);
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
 void __tpl_hashlist_delete(tpl_hlist_t *list, size_t key)

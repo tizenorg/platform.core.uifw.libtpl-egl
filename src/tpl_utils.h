@@ -686,12 +686,15 @@ __tpl_list_remove(tpl_list_node_t *node, tpl_free_func_t func)
 	free(node);
 }
 
-static TPL_INLINE tpl_bool_t
+static TPL_INLINE tpl_result_t
 __tpl_list_insert(tpl_list_node_t *pos, void *data)
 {
 	tpl_list_node_t *node = (tpl_list_node_t *)malloc(sizeof(tpl_list_node_t));
 	if (NULL == node)
-		return TPL_FALSE;
+	{
+		TPL_ERR("Failed to allocate new tpl_list_node_t.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
 	node->data = data;
 	node->list = pos->list;
@@ -704,7 +707,7 @@ __tpl_list_insert(tpl_list_node_t *pos, void *data)
 
 	pos->list->count++;
 
-	return TPL_TRUE;
+	return TPL_ERROR_NONE;
 }
 
 static TPL_INLINE void
@@ -795,7 +798,7 @@ __tpl_list_push_front(tpl_list_t *list, void *data)
 	__tpl_list_insert(&list->head, data);
 }
 
-static TPL_INLINE tpl_bool_t
+static TPL_INLINE tpl_result_t
 __tpl_list_push_back(tpl_list_t *list, void *data)
 {
 	TPL_ASSERT(list);
