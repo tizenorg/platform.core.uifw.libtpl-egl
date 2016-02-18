@@ -42,3 +42,6 @@
 	   value of -1
 	2) *ALL* enums *MUST* have identifier named 'xxx_MAX' to signify the end
 	   of the enum list (i.e. 'TPL_OBJECT_MAX')
+
+7. Indentation, Brace
+	1) basically, follows wayland style.
