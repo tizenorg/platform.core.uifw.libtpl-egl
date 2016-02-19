@@ -61,7 +61,7 @@ __tpl_util_clz(int val)
 }
 
 int
-__tpl_util_atomic_get(const tpl_util_atomic_uint * const atom)
+__tpl_util_atomic_get(const tpl_util_atomic_uint *const atom)
 {
 	unsigned int ret;
 
@@ -75,7 +75,7 @@ __tpl_util_atomic_get(const tpl_util_atomic_uint * const atom)
 }
 
 void
-__tpl_util_atomic_set(tpl_util_atomic_uint * const atom, unsigned int val)
+__tpl_util_atomic_set(tpl_util_atomic_uint *const atom, unsigned int val)
 {
 	TPL_ASSERT(atom);
 
@@ -85,7 +85,7 @@ __tpl_util_atomic_set(tpl_util_atomic_uint * const atom, unsigned int val)
 }
 
 unsigned int
-__tpl_util_atomic_inc(tpl_util_atomic_uint * const atom )
+__tpl_util_atomic_inc(tpl_util_atomic_uint *const atom )
 {
 	TPL_ASSERT(atom);
 
@@ -93,7 +93,7 @@ __tpl_util_atomic_inc(tpl_util_atomic_uint * const atom )
 }
 
 unsigned int
-__tpl_util_atomic_dec( tpl_util_atomic_uint * const atom )
+__tpl_util_atomic_dec( tpl_util_atomic_uint *const atom )
 {
 	TPL_ASSERT(atom);
 
@@ -114,7 +114,7 @@ __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
 	if (type != TPL_BACKEND_UNKNOWN) {
 		if (runtime->displays[type] != NULL) {
 			display = (tpl_display_t *) __tpl_hashlist_lookup(runtime->displays[type],
-				(size_t) native_display);
+					(size_t) native_display);
 		}
 	} else {
 		int i;
@@ -122,7 +122,7 @@ __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
 		for (i = 0; i < TPL_BACKEND_COUNT; i++) {
 			if (runtime->displays[i] != NULL) {
 				display = (tpl_display_t *) __tpl_hashlist_lookup(runtime->displays[i],
-					(size_t) native_display);
+						(size_t) native_display);
 			}
 			if (display != NULL) break;
 		}
@@ -166,7 +166,7 @@ __tpl_runtime_add_display(tpl_display_t *display)
 	}
 
 	ret = __tpl_hashlist_insert(runtime->displays[type],
-		(size_t) handle, (void *) display);
+				    (size_t) handle, (void *) display);
 	if (TPL_ERROR_NONE != ret) {
 		TPL_ERR("__tpl_hashlist_insert failed. list(%p), handle(%d), display(%p)",
 			runtime->displays[type], handle, display);
@@ -190,7 +190,7 @@ __tpl_runtime_remove_display(tpl_display_t *display)
 	if (type != TPL_BACKEND_UNKNOWN) {
 		if (runtime != NULL && runtime->displays[type] != NULL)
 			__tpl_hashlist_delete(runtime->displays[type],
-				(size_t) handle);
+					      (size_t) handle);
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);
@@ -216,7 +216,7 @@ __tpl_runtime_flush_all_display()
 	for (i = 0; i < TPL_BACKEND_COUNT; i++) {
 		if (runtime->displays[i] != NULL)
 			__tpl_hashlist_do_for_all_nodes(runtime->displays[i],
-				__tpl_runtime_flush_cb);
+							__tpl_runtime_flush_cb);
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);

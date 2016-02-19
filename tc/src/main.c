@@ -13,8 +13,7 @@
 
 typedef struct _ProgOption ProgOption;
 
-typedef struct _ProgOption
-{
+typedef struct _ProgOption {
 	int egl_r;
 	int egl_g;
 	int egl_b;
@@ -34,8 +33,7 @@ typedef struct _ProgOption
 	bool show_names;
 };
 
-ProgOption g_option =
-{
+ProgOption g_option = {
 	8, 8, 8, 8,
 	24,
 	0,
@@ -53,7 +51,7 @@ ProgOption g_option =
 /* log related */
 #ifdef TPL_ENABLE_LOG
 bool
-__LOG( const char* func, int line, const char* fmt, ... )
+__LOG( const char *func, int line, const char *fmt, ... )
 {
 	char buff[NUM_ERR_STR] = { (char)0, };
 	char str[NUM_ERR_STR] = { (char)0, };
@@ -71,7 +69,7 @@ __LOG( const char* func, int line, const char* fmt, ... )
 }
 
 void
-__LOG_BEGIN( const char* func )
+__LOG_BEGIN( const char *func )
 {
 	char str[NUM_ERR_STR] = { (char)0, };
 	sprintf( str, "[tpl_test][B] %s", func );
@@ -80,7 +78,7 @@ __LOG_BEGIN( const char* func )
 }
 
 void
-__LOG_END( const char* func )
+__LOG_END( const char *func )
 {
 	char str[NUM_ERR_STR] = { (char)0, };
 	sprintf( str, "[tpl_test][E] %s", func );
@@ -89,7 +87,7 @@ __LOG_END( const char* func )
 }
 
 bool
-__tpl_test_log_display_msg( const char* msg )
+__tpl_test_log_display_msg( const char *msg )
 {
 	fprintf( DEFAULT_LOG_STREAM, "%s\n", msg );
 	fflush( DEFAULT_LOG_STREAM );
@@ -97,7 +95,7 @@ __tpl_test_log_display_msg( const char* msg )
 }
 
 bool
-__LOG_ERR( const char* func, int line, const char* fmt, ... )
+__LOG_ERR( const char *func, int line, const char *fmt, ... )
 {
 	char buff[NUM_ERR_STR] = { (char)0, };
 	char str[NUM_ERR_STR] = { (char)0, };
@@ -117,20 +115,16 @@ __LOG_ERR( const char* func, int line, const char* fmt, ... )
 #endif /* TPL_ENABLE_LOG */
 
 /* wayland native related */
-registry_handle_global(void *data, struct wl_registry *registry,uint32_t id, const char *interface,uint32_t version)
+registry_handle_global(void *data, struct wl_registry *registry, uint32_t id,
+		       const char *interface, uint32_t version)
 {
-	TPLNativeWnd* that = (TPLNativeWnd *)(data);
+	TPLNativeWnd *that = (TPLNativeWnd *)(data);
 
-	if (strcmp(interface, "wl_compositor") == 0)
-	{
-		that->compositor = wl_registry_bind(registry,id, &wl_compositor_interface, 1);
-	}
-	else if (strcmp(interface, "wl_shell") == 0)
-	{
-		that->shell = wl_registry_bind(registry,id, &wl_shell_interface, 1);
-	}
-	else if (strcmp(interface, "wl_output") == 0)
-	{
+	if (strcmp(interface, "wl_compositor") == 0) {
+		that->compositor = wl_registry_bind(registry, id, &wl_compositor_interface, 1);
+	} else if (strcmp(interface, "wl_shell") == 0) {
+		that->shell = wl_registry_bind(registry, id, &wl_shell_interface, 1);
+	} else if (strcmp(interface, "wl_output") == 0) {
 		/*struct my_output *my_output = new struct my_output;
 		memset(my_output, 0, sizeof(*my_output));
 		my_output->output = wl_registry_bind(registry,id, &wl_output_interface, 2);*/
@@ -138,28 +132,32 @@ registry_handle_global(void *data, struct wl_registry *registry,uint32_t id, con
 }
 
 void
-registry_handle_global_remove(void * data,struct wl_registry * registry,uint32_t name)
+registry_handle_global_remove(void *data, struct wl_registry *registry,
+			      uint32_t name)
 {
 }
 
-const struct wl_registry_listener registry_listener_ =
-{
+const struct wl_registry_listener registry_listener_ = {
 	registry_handle_global,
 	registry_handle_global_remove
 };
 
-shell_surface_handle_ping(void * data, struct wl_shell_surface *shell_surface,uint32_t serial)
+shell_surface_handle_ping(void *data, struct wl_shell_surface *shell_surface,
+			  uint32_t serial)
 {
 	wl_shell_surface_pong(shell_surface, serial);
 }
 
 void
-shell_surface_handle_popup_done(void * data,struct wl_shell_surface * shell_surface)
+shell_surface_handle_popup_done(void *data,
+				struct wl_shell_surface *shell_surface)
 {
 }
 
 void
-shell_surface_handle_configure(void *data, struct wl_shell_surface * shell_surface,uint32_t edges, int32_t width, int32_t height)
+shell_surface_handle_configure(void *data,
+			       struct wl_shell_surface *shell_surface, uint32_t edges, int32_t width,
+			       int32_t height)
 {
 	TPLNativeWnd *that = (TPLNativeWnd *)(data);
 	that->width = width;
@@ -168,8 +166,7 @@ shell_surface_handle_configure(void *data, struct wl_shell_surface * shell_surfa
 }
 
 
-const struct wl_shell_surface_listener shell_surface_listener_ =
-{
+const struct wl_shell_surface_listener shell_surface_listener_ = {
 	shell_surface_handle_ping,
 	shell_surface_handle_configure,
 	shell_surface_handle_popup_done
@@ -177,34 +174,35 @@ const struct wl_shell_surface_listener shell_surface_listener_ =
 /* wayland native end */
 
 /* tpl_test related */
-TPLNativeWnd*
+TPLNativeWnd *
 tpl_test_native_wnd_create( void )
 {
-	TPLNativeWnd* wnd = NULL;
+	TPLNativeWnd *wnd = NULL;
 
 	TPL_RSM_MALLOC( wnd, TPLNativeWnd );
 
 	//wnd->dpy = (NativeDisplayType)NULL;
-	wnd->dpy = (void*)NULL;
+	wnd->dpy = (void *)NULL;
 	wnd->screen = 0;
 	//wnd->root = (NativeWindowType)NULL;
-	wnd->root = (void*)NULL;
+	wnd->root = (void *)NULL;
 	//wnd->wnd = (NativeWindowType)NULL;
-	wnd->wnd = (void*)NULL;
+	wnd->wnd = (void *)NULL;
 	wnd->x = 0;
 	wnd->y = 0;
 	wnd->width = 0;
 	wnd->height = 0;
 	wnd->depth = 0;
-	tpl_display_t * tpl_display = NULL;
-	tpl_surface_t * tpl_surf = NULL;
-	tpl_buffer_t * tpl_buf = NULL;
+	tpl_display_t *tpl_display = NULL;
+	tpl_surface_t *tpl_surf = NULL;
+	tpl_buffer_t *tpl_buf = NULL;
 finish:
 	return wnd;
 }
 
 bool
-tpl_test_native_wnd_initialize( TPLNativeWnd* wnd, int x, int y, int width, int height )
+tpl_test_native_wnd_initialize( TPLNativeWnd *wnd, int x, int y, int width,
+				int height )
 {
 	bool res = false;
 
@@ -215,9 +213,8 @@ tpl_test_native_wnd_initialize( TPLNativeWnd* wnd, int x, int y, int width, int 
 	TPL_CHK_PARAM( height <= 0 );
 
 	//wnd->dpy = (NativeDisplayType)wl_display_connect(NULL);
-	wnd->dpy = (void*)wl_display_connect(NULL);
-	if( !wnd->dpy )
-	{
+	wnd->dpy = (void *)wl_display_connect(NULL);
+	if ( !wnd->dpy ) {
 		__log_err( "wl_display_connect() is failed.");
 		return res;
 	}
@@ -234,15 +231,15 @@ tpl_test_native_wnd_initialize( TPLNativeWnd* wnd, int x, int y, int width, int 
 	wnd->height = height;
 	wnd->depth = 32;
 
-	wnd->surface= wl_compositor_create_surface(wnd->compositor);
-	wnd->wnd = wl_egl_window_create(wnd->surface,wnd->width, wnd->height);
+	wnd->surface = wl_compositor_create_surface(wnd->compositor);
+	wnd->wnd = wl_egl_window_create(wnd->surface, wnd->width, wnd->height);
 
-	wnd->shell_surface = wl_shell_get_shell_surface(wnd->shell,wnd->surface);
+	wnd->shell_surface = wl_shell_get_shell_surface(wnd->shell, wnd->surface);
 
 	wl_shell_surface_set_toplevel(wnd->shell_surface);
-	if (wnd->shell_surface)
-	{
-		wl_shell_surface_add_listener(wnd->shell_surface,&shell_surface_listener_, wnd);
+	if (wnd->shell_surface) {
+		wl_shell_surface_add_listener(wnd->shell_surface, &shell_surface_listener_,
+					      wnd);
 	}
 
 	wl_shell_surface_set_title(wnd->shell_surface, "tpl_testtest");
@@ -253,7 +250,7 @@ finish:
 }
 
 bool
-tpl_test_native_wnd_finalize( TPLNativeWnd* wnd )
+tpl_test_native_wnd_finalize( TPLNativeWnd *wnd )
 {
 	bool res = false;
 
@@ -282,19 +279,17 @@ finish:
 }
 
 bool
-tpl_test_finalize( TPLNativeWnd* wnd )
+tpl_test_finalize( TPLNativeWnd *wnd )
 {
 	bool res = true;
 
 	TPL_CHK_PARAM( !wnd );
 
-	if(NULL != wnd->tpl_display)
-	{
-		 tpl_object_unreference((tpl_object_t*)wnd->tpl_display);
+	if (NULL != wnd->tpl_display) {
+		tpl_object_unreference((tpl_object_t *)wnd->tpl_display);
 	}
-	if(NULL != wnd->tpl_surf)
-	{
-		tpl_object_unreference((tpl_object_t*)wnd->tpl_surf);
+	if (NULL != wnd->tpl_surf) {
+		tpl_object_unreference((tpl_object_t *)wnd->tpl_surf);
 	}
 
 	res = true;
@@ -304,7 +299,7 @@ finish:
 
 
 void
-tpl_test_native_wnd_release( TPLNativeWnd* wnd )
+tpl_test_native_wnd_release( TPLNativeWnd *wnd )
 {
 	TPL_CHK_PARAM( !wnd );
 
@@ -345,93 +340,91 @@ print_usage( char *name )
 	fprintf( stderr, "\n" );
 	fprintf( stderr, "Options:\n" );
 
-	fprintf( stderr, "  -w	Set width size of the window		 default: %d\n", g_option.wnd_w );
-	fprintf( stderr, "  -h	Set height size of the window		 default: %d\n", g_option.wnd_h );
+	fprintf( stderr, "  -w	Set width size of the window		 default: %d\n",
+		 g_option.wnd_w );
+	fprintf( stderr, "  -h	Set height size of the window		 default: %d\n",
+		 g_option.wnd_h );
 
-	fprintf( stderr, "  -t	Specify the test case number		 default: %d\n", g_option.tc_num );
-	fprintf( stderr, "  -a	Run all test cases			 default: %s\n", g_option.all ? "true" : "false" );
-	fprintf( stderr, "  -l	Show TC name				 default: %s\n", g_option.show_names ? "true" : "false" );
+	fprintf( stderr, "  -t	Specify the test case number		 default: %d\n",
+		 g_option.tc_num );
+	fprintf( stderr, "  -a	Run all test cases			 default: %s\n",
+		 g_option.all ? "true" : "false" );
+	fprintf( stderr, "  -l	Show TC name				 default: %s\n",
+		 g_option.show_names ? "true" : "false" );
 	fprintf( stderr, "\n" );
 	exit( 1 );
 }
 
 static void
-check_option( int argc, char** argv )
+check_option( int argc, char **argv )
 {
 	int c;
-	char* opt_str = NULL;
+	char *opt_str = NULL;
 
-	while( (c = getopt(argc, argv, "alc:d:s:p:x:y:w:h:f:t:F:i:")) != EOF )
-	{
-		switch( c )
-		{
-			case 'c':
-				opt_str = optarg;
-				if( strcmp(opt_str, "888") == 0 )
-				{
-					g_option.egl_r = 8;
-					g_option.egl_g = 8;
-					g_option.egl_b = 8;
-					g_option.egl_a = 0;
-				}
-				else if( strcmp(opt_str, "8888") == 0 )
-				{
-					g_option.egl_r = 8;
-					g_option.egl_g = 8;
-					g_option.egl_b = 8;
-					g_option.egl_a = 8;
-				}
-				else if( strcmp(opt_str, "565") == 0 )
-				{
-					g_option.egl_r = 5;
-					g_option.egl_g = 6;
-					g_option.egl_b = 5;
-					g_option.egl_a = 0;
-				}
-				break;
-			case 'd':
-				g_option.egl_d = atol( optarg );
-				break;
-			case 's':
-				g_option.egl_s = atol( optarg );
-				break;
-			case 'p':
-				g_option.egl_preserved = atol( optarg );
-				break;
-			case 'i':
-				g_option.egl_swap_interval = atol( optarg );
-				break;
-			case 'x':
-				g_option.wnd_x = atol( optarg );
-				break;
-			case 'y':
-				g_option.wnd_y = atol( optarg );
-				break;
-			case 'w':
-				g_option.wnd_w = atol( optarg );
-				break;
-			case 'h':
-				g_option.wnd_h = atol( optarg );
-				break;
-			case 'f':
-				g_option.frames = atol( optarg );
-				break;
-			case 't':
-				g_option.tc_num = atol( optarg );
-				g_option.all = false;
-				break;
-			case 'F':
-				g_option.fps = atol( optarg );
-				break;
-			case 'a':
-				g_option.all = true;
-				break;
-			case 'l':
-				g_option.show_names = true;
-				break;
-			default:
-				print_usage( argv[0] );
-				break;
+	while ( (c = getopt(argc, argv, "alc:d:s:p:x:y:w:h:f:t:F:i:")) != EOF ) {
+		switch ( c ) {
+		case 'c':
+			opt_str = optarg;
+			if ( strcmp(opt_str, "888") == 0 ) {
+				g_option.egl_r = 8;
+				g_option.egl_g = 8;
+				g_option.egl_b = 8;
+				g_option.egl_a = 0;
+			} else if ( strcmp(opt_str, "8888") == 0 ) {
+				g_option.egl_r = 8;
+				g_option.egl_g = 8;
+				g_option.egl_b = 8;
+				g_option.egl_a = 8;
+			} else if ( strcmp(opt_str, "565") == 0 ) {
+				g_option.egl_r = 5;
+				g_option.egl_g = 6;
+				g_option.egl_b = 5;
+				g_option.egl_a = 0;
+			}
+			break;
+		case 'd':
+			g_option.egl_d = atol( optarg );
+			break;
+		case 's':
+			g_option.egl_s = atol( optarg );
+			break;
+		case 'p':
+			g_option.egl_preserved = atol( optarg );
+			break;
+		case 'i':
+			g_option.egl_swap_interval = atol( optarg );
+			break;
+		case 'x':
+			g_option.wnd_x = atol( optarg );
+			break;
+		case 'y':
+			g_option.wnd_y = atol( optarg );
+			break;
+		case 'w':
+			g_option.wnd_w = atol( optarg );
+			break;
+		case 'h':
+			g_option.wnd_h = atol( optarg );
+			break;
+		case 'f':
+			g_option.frames = atol( optarg );
+			break;
+		case 't':
+			g_option.tc_num = atol( optarg );
+			g_option.all = false;
+			break;
+		case 'F':
+			g_option.fps = atol( optarg );
+			break;
+		case 'a':
+			g_option.all = true;
+			break;
+		case 'l':
+			g_option.show_names = true;
+			break;
+		default:
+			print_usage( argv[0] );
+			break;
 		}
 	}
 
@@ -440,11 +433,12 @@ check_option( int argc, char** argv )
 int tpl_test_log_level = 5;
 
 int
-main( int argc, char** argv )
+main( int argc, char **argv )
 {
-	TPLNativeWnd* wnd = NULL;
+	TPLNativeWnd *wnd = NULL;
 	bool res = false;
-	int i = 0;int k=0;
+	int i = 0;
+	int k = 0;
 	int total_num_test = ( sizeof(tpl_test) / sizeof(TPLTest) ) - 1;
 	int tc_num = 0;
 	char *log_env;
@@ -454,30 +448,25 @@ main( int argc, char** argv )
 	check_option( argc, argv );
 
 	log_env = getenv("TPL_TEST_LOG_LEVEL");
-	if (log_env != NULL)
-	{
+	if (log_env != NULL) {
 		tpl_test_log_level = atoi(log_env);
 	}
 
-	LOG("INFO",LOG_LEVEL_LOW,"tpl_test_log_level = %d",tpl_test_log_level);
+	LOG("INFO", LOG_LEVEL_LOW, "tpl_test_log_level = %d", tpl_test_log_level);
 
 	env = getenv("TEST_SLEEP");
-	if (env && !strcmp(env,"yes"))
-	{
-		while(k<20)
-		{
-			usleep(1000*1000);
-			printf("sleep %d\n",k++);
+	if (env && !strcmp(env, "yes")) {
+		while (k < 20) {
+			usleep(1000 * 1000);
+			printf("sleep %d\n", k++);
 		}
 	}
 
-	if( g_option.show_names )
-	{
+	if ( g_option.show_names ) {
 		printf( "-------------------------------------------------\n" );
 		printf( "  number of test cass: %d		       \n", total_num_test );
 		printf( "-------------------------------------------------\n" );
-		while( tpl_test[i].name )
-		{
+		while ( tpl_test[i].name ) {
 			printf( "  [%2d] %s\n", i, tpl_test[i].name );
 			i++;
 		}
@@ -487,51 +476,46 @@ main( int argc, char** argv )
 	}
 
 	wnd = tpl_test_native_wnd_create();
-	if( !wnd ) goto finish;
+	if ( !wnd ) goto finish;
 
 	res = tpl_test_native_wnd_initialize( wnd,
-			g_option.wnd_x,
-			g_option.wnd_y,
-			g_option.wnd_w,
-			g_option.wnd_h );
-	if( !res ) goto finish;
+					      g_option.wnd_x,
+					      g_option.wnd_y,
+					      g_option.wnd_w,
+					      g_option.wnd_h );
+	if ( !res ) goto finish;
 
 	printf( "-------------------tpl test begin!!!-----------------------------------\n");
 
-	if( g_option.all )
-	{
+	if ( g_option.all ) {
 		i = 0;
 
-		while( tpl_test[i].name )
-		{
+		while ( tpl_test[i].name ) {
 			printf( "[%4d] %-50s", i, tpl_test[i].name );
 
-			if( tpl_test[i].run )
-			{
-				if(true == tpl_test[i].run( wnd ))
+			if ( tpl_test[i].run ) {
+				if (true == tpl_test[i].run( wnd ))
 					printf("[PASS]\n");
 				else
 					printf("[FAIL]\n");
 			}
 			i++;
 		}
-	}
-	else
-	{
+	} else {
 		tc_num = g_option.tc_num;
 
-		if( tc_num < 0 || tc_num > total_num_test-1 ) goto finish;
+		if ( tc_num < 0 || tc_num > total_num_test - 1 ) goto finish;
 
 		//printf( "----------------------------------------------\n\n" );
-		if( tpl_test[tc_num].name ) printf( "[%4d] %-50s", tc_num, tpl_test[tc_num].name );
+		if ( tpl_test[tc_num].name ) printf( "[%4d] %-50s", tc_num,
+							     tpl_test[tc_num].name );
 		else printf( "[%4d] No test name\n", tc_num );
 
-		if( tpl_test[tc_num].run )
-		{
-		if(true == tpl_test[tc_num].run( wnd ))
-			printf("[PASS]\n");
-		else
-			printf("[FAIL]\n");
+		if ( tpl_test[tc_num].run ) {
+			if (true == tpl_test[tc_num].run( wnd ))
+				printf("[PASS]\n");
+			else
+				printf("[FAIL]\n");
 		}
 		//printf( "\n----------------------------------------------\n\n" );
 	}
@@ -539,12 +523,11 @@ main( int argc, char** argv )
 	printf("-------------------tpl test end!!!-------------------------------------\n");
 
 finish:
-		if( wnd )
-		{
-			tpl_test_native_wnd_finalize( wnd );
-			tpl_test_native_wnd_release( wnd );
-			tpl_test_finalize( wnd );
-		}
+	if ( wnd ) {
+		tpl_test_native_wnd_finalize( wnd );
+		tpl_test_native_wnd_release( wnd );
+		tpl_test_finalize( wnd );
+	}
 
 
 	return 0;

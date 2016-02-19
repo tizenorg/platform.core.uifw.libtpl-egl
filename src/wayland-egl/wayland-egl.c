@@ -59,8 +59,7 @@ wl_egl_window_resize(struct wl_egl_window *egl_window,
 		     int width, int height,
 		     int dx, int dy)
 {
-	if (egl_window == NULL)
-	{
+	if (egl_window == NULL) {
 		WL_EGL_ERR("egl_window is NULL");
 		return;
 	}
@@ -74,8 +73,8 @@ wl_egl_window_resize(struct wl_egl_window *egl_window,
 		egl_window->resize_callback(egl_window, egl_window->private);
 
 	WL_EGL_LOG(2, "egl_win:%10p WxH:%dx%d dx:%d dy:%d rsz_cb:%10p",
-		egl_window, egl_window->width, egl_window->height,
-		egl_window->dx, egl_window->dy, egl_window->resize_callback);
+		   egl_window, egl_window->width, egl_window->height,
+		   egl_window->dx, egl_window->dy, egl_window->resize_callback);
 }
 
 WL_EGL_EXPORT struct wl_egl_window *
@@ -84,9 +83,8 @@ wl_egl_window_create(struct wl_surface *surface,
 {
 	struct wl_egl_window *egl_window;
 
-	egl_window = malloc(sizeof *egl_window);
-	if (!egl_window)
-	{
+	egl_window = malloc(sizeof * egl_window);
+	if (!egl_window) {
 		WL_EGL_ERR("failed to allocate memory for egl_window");
 		return NULL;
 	}
@@ -99,7 +97,7 @@ wl_egl_window_create(struct wl_surface *surface,
 	egl_window->attached_height = 0;
 
 	WL_EGL_LOG(2, "surf:%10p WxH:%dx%d egl_win:%10p priv:%10p",
-		surface, width, height, egl_window, egl_window->private);
+		   surface, width, height, egl_window, egl_window->private);
 
 	return egl_window;
 }
@@ -107,8 +105,7 @@ wl_egl_window_create(struct wl_surface *surface,
 WL_EGL_EXPORT void
 wl_egl_window_destroy(struct wl_egl_window *egl_window)
 {
-	if(egl_window == NULL)
-	{
+	if (egl_window == NULL) {
 		WL_EGL_ERR("egl_window is NULL");
 		return;
 	}
@@ -128,6 +125,6 @@ wl_egl_window_get_attached_size(struct wl_egl_window *egl_window,
 		*height = egl_window->attached_height;
 
 	WL_EGL_LOG(2, "egl_win:%10p w:%10p h:%10p att_w:%d att_h:%d",
-		egl_window, width, height, egl_window->attached_width,
-		egl_window->attached_height);
+		   egl_window, width, height, egl_window->attached_width,
+		   egl_window->attached_height);
 }

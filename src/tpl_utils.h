@@ -256,9 +256,9 @@ typedef union tpl_util_key tpl_util_key_t;
 typedef int (*tpl_util_hash_func_t)(const tpl_util_key_t key, int key_length);
 typedef int (*tpl_util_key_length_func_t)(const tpl_util_key_t key);
 typedef int (*tpl_util_key_compare_func_t)(const tpl_util_key_t key0,
-					   int key0_length,
-					   const tpl_util_key_t key1,
-					   int key1_length);
+		int key0_length,
+		const tpl_util_key_t key1,
+		int key1_length);
 
 enum _tpl_occurrence {
 	TPL_FIRST,
@@ -301,11 +301,14 @@ void tpl_util_map_init(tpl_util_map_t *map, int bucket_bits,
 		       tpl_util_key_compare_func_t key_compare_func,
 		       void *buckets);
 
-void tpl_util_map_int32_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+void tpl_util_map_int32_init(tpl_util_map_t *map, int bucket_bits,
+			     void *buckets);
 
-void tpl_util_map_int64_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+void tpl_util_map_int64_init(tpl_util_map_t *map, int bucket_bits,
+			     void *buckets);
 
-void tpl_util_map_pointer_init(tpl_util_map_t *map, int bucket_bits, void *buckets);
+void tpl_util_map_pointer_init(tpl_util_map_t *map, int bucket_bits,
+			       void *buckets);
 
 void tpl_util_map_fini(tpl_util_map_t *map);
 
@@ -637,7 +640,7 @@ tpl_list_pop_back(tpl_list_t *list, tpl_free_func_t func)
 }
 
 static TPL_INLINE int
-__tpl_util_image_dump_bmp(const char * file, const void * data, int width,
+__tpl_util_image_dump_bmp(const char *file, const void *data, int width,
 			  int height)
 {
 	int i;
@@ -666,15 +669,15 @@ __tpl_util_image_dump_bmp(const char * file, const void * data, int width,
 		unsigned int ncolors;
 		unsigned int nimpcolors;
 	} bmp_dib_v3_header_t = { 0x28, 0, 0, 1, 24, 0, 0, 0, 0, 0, 0 };
-	unsigned int * blocks;
+	unsigned int *blocks;
 
 	if (data == NULL) return -1;
 
 	if (width <= 0 || height <= 0) return -1;
 
-	FILE * fp = NULL;
+	FILE *fp = NULL;
 	if ((fp = fopen (file, "wb")) == NULL) {
-		printf("FILE ERROR:%s\t",strerror(errno));
+		printf("FILE ERROR:%s\t", strerror(errno));
 		return -2;
 	} else {
 		bmpfile_header.filesz = sizeof (bmpfile_magic) + sizeof (bmpfile_header) +
@@ -698,8 +701,8 @@ __tpl_util_image_dump_bmp(const char * file, const void * data, int width,
 			return -1;
 		}
 
-		blocks = (unsigned int*)data;
-		for (i=0; i<height * width; i++) {
+		blocks = (unsigned int *)data;
+		for (i = 0; i < height * width; i++) {
 			if (fwrite (&blocks[i], 3, 1, fp) < 0) {
 				fclose(fp);
 				return -1;
@@ -735,14 +738,14 @@ __tpl_util_image_dump_png(const char *file, const void *data, int width,
 			if (pPngInfo) {
 				png_init_io(pPngStruct, fp);
 				png_set_IHDR(pPngStruct,
-				pPngInfo,
-				width,
-				height,
-				PNG_DEPTH,
-				PNG_COLOR_TYPE_RGBA,
-				PNG_INTERLACE_NONE,
-				PNG_COMPRESSION_TYPE_DEFAULT,
-				PNG_FILTER_TYPE_DEFAULT);
+					     pPngInfo,
+					     width,
+					     height,
+					     PNG_DEPTH,
+					     PNG_COLOR_TYPE_RGBA,
+					     PNG_INTERLACE_NONE,
+					     PNG_COMPRESSION_TYPE_DEFAULT,
+					     PNG_FILTER_TYPE_DEFAULT);
 
 				png_set_bgr(pPngStruct);
 				png_write_info(pPngStruct, pPngInfo);
@@ -761,8 +764,8 @@ __tpl_util_image_dump_png(const char *file, const void *data, int width,
 
 				for (; y < height; ++y) {
 					png_bytep row = png_malloc(pPngStruct,
-							sizeof(png_byte) * width *
-							pixel_size);
+								   sizeof(png_byte) * width *
+								   pixel_size);
 					if (!row) {
 						fclose(fp);
 						return res;
@@ -801,7 +804,7 @@ __tpl_util_image_dump_png(const char *file, const void *data, int width,
 #endif
 
 static TPL_INLINE void
-__tpl_util_image_dump(const char * func, const void * data, int type,
+__tpl_util_image_dump(const char *func, const void *data, int type,
 		      int width, int height, int num)
 {
 	char name[200];
@@ -809,19 +812,19 @@ __tpl_util_image_dump(const char * func, const void * data, int type,
 
 	if (mkdir (path_name, 0755) == -1) {
 		if (errno != EEXIST) {
-			TPL_LOG(3,"Directory creation error!");
+			TPL_LOG(3, "Directory creation error!");
 			return;
 		}
 	}
 
 	if (type == 1) {
-		snprintf(name, sizeof(name),"%s/[%d][%s][%d][%d][%04d].bmp",
-			path_name, getpid(), func, width, height, num);
+		snprintf(name, sizeof(name), "%s/[%d][%s][%d][%d][%04d].bmp",
+			 path_name, getpid(), func, width, height, num);
 
 		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
-		switch(__tpl_util_image_dump_bmp(name, data, width, height)) {
+		switch (__tpl_util_image_dump_bmp(name, data, width, height)) {
 		case 0:
-			TPL_LOG(6,"%s file is dumped\n", name);
+			TPL_LOG(6, "%s file is dumped\n", name);
 			break;
 		case -1:
 			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n",
@@ -834,13 +837,13 @@ __tpl_util_image_dump(const char * func, const void * data, int type,
 	}
 #ifdef PNG_DUMP_ENABLE
 	else {
-		snprintf(name, sizeof(name),"%s/[%d][%s][%d][%d][%04d].png",
-			path_name, getpid(), func, width, height, num);
+		snprintf(name, sizeof(name), "%s/[%d][%s][%d][%d][%04d].png",
+			 path_name, getpid(), func, width, height, num);
 
 		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
-		switch(__tpl_util_image_dump_png(name, data, width, height)) {
+		switch (__tpl_util_image_dump_png(name, data, width, height)) {
 		case 0:
-			TPL_LOG(6,"%s file is dumped\n", name);
+			TPL_LOG(6, "%s file is dumped\n", name);
 			break;
 		case -1:
 			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n",

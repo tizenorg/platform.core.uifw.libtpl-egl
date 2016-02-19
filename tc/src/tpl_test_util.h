@@ -28,16 +28,15 @@ extern "C" {
 typedef struct _TPLNativeWnd TPLNativeWnd;
 
 
-struct _TPLNativeWnd
-{
-	void* dpy;
+struct _TPLNativeWnd {
+	void *dpy;
 	struct wl_registry *registry;
 	struct wl_compositor *compositor;
 	struct wl_shell *shell;
 	int screen;
 
-	void* root;
-	void* wnd;
+	void *root;
+	void *wnd;
 	struct wl_surface *surface;
 	struct wl_shell_surface *shell_surface;
 	int x;
@@ -45,17 +44,16 @@ struct _TPLNativeWnd
 	int width;
 	int height;
 	int depth;
-	tpl_display_t * tpl_display;
-	tpl_surface_t * tpl_surf;
-	tpl_buffer_t * tpl_buf;
+	tpl_display_t *tpl_display;
+	tpl_surface_t *tpl_surf;
+	tpl_buffer_t *tpl_buf;
 };
 
 typedef struct _TPLTest TPLTest;
 
-struct _TPLTest
-{
-	char* name;
-	bool (*run) (TPLNativeWnd*);
+struct _TPLTest {
+	char *name;
+	bool (*run) (TPLNativeWnd *);
 };
 
 extern int tpl_test_log_level;
@@ -80,65 +78,64 @@ extern int tpl_test_log_level;
 
 
 /* for tpl test */
-bool tpl_buffer_map_unmap_test(TPLNativeWnd* wnd );
-bool tpl_buffer_lock_unlock_test(TPLNativeWnd* wnd );
-bool tpl_buffer_get_arg_test(TPLNativeWnd* wnd );
-bool tpl_buffer_create_native_buffer_test(TPLNativeWnd* wnd );
+bool tpl_buffer_map_unmap_test(TPLNativeWnd *wnd );
+bool tpl_buffer_lock_unlock_test(TPLNativeWnd *wnd );
+bool tpl_buffer_get_arg_test(TPLNativeWnd *wnd );
+bool tpl_buffer_create_native_buffer_test(TPLNativeWnd *wnd );
 
-bool tpl_display_get_test (TPLNativeWnd* wnd);
-bool tpl_display_bind_client_display_test(TPLNativeWnd* wnd);
-bool tpl_display_get_arg_test (TPLNativeWnd* wnd);
-bool tpl_display_query_config_test (TPLNativeWnd* wnd);
-bool tpl_display_filter_config_test (TPLNativeWnd* wnd);
+bool tpl_display_get_test (TPLNativeWnd *wnd);
+bool tpl_display_bind_client_display_test(TPLNativeWnd *wnd);
+bool tpl_display_get_arg_test (TPLNativeWnd *wnd);
+bool tpl_display_query_config_test (TPLNativeWnd *wnd);
+bool tpl_display_filter_config_test (TPLNativeWnd *wnd);
 
-bool tpl_object_get_type_test(TPLNativeWnd* wnd );
-bool tpl_object_userdata_test(TPLNativeWnd* wnd );
-bool tpl_object_reference_test(TPLNativeWnd* wnd );
+bool tpl_object_get_type_test(TPLNativeWnd *wnd );
+bool tpl_object_userdata_test(TPLNativeWnd *wnd );
+bool tpl_object_reference_test(TPLNativeWnd *wnd );
 
-bool tpl_surface_create_test(TPLNativeWnd* wnd);
-bool tpl_surface_get_arg_test(TPLNativeWnd* wnd);
-bool tpl_surface_frame_test(TPLNativeWnd* wnd);
-bool tpl_surface_get_buffer_test(TPLNativeWnd* wnd );
-bool tpl_surface_post_test(TPLNativeWnd* wnd );
+bool tpl_surface_create_test(TPLNativeWnd *wnd);
+bool tpl_surface_get_arg_test(TPLNativeWnd *wnd);
+bool tpl_surface_frame_test(TPLNativeWnd *wnd);
+bool tpl_surface_get_buffer_test(TPLNativeWnd *wnd );
+bool tpl_surface_post_test(TPLNativeWnd *wnd );
 
-bool tpl_surface_abnormal_test(TPLNativeWnd* wnd);
-bool tpl_object_abnormal_test(TPLNativeWnd* wnd);
-bool tpl_display_abnormal_test(TPLNativeWnd* wnd);
-bool tpl_buffer_abnormal_test(TPLNativeWnd* wnd);
+bool tpl_surface_abnormal_test(TPLNativeWnd *wnd);
+bool tpl_object_abnormal_test(TPLNativeWnd *wnd);
+bool tpl_display_abnormal_test(TPLNativeWnd *wnd);
+bool tpl_buffer_abnormal_test(TPLNativeWnd *wnd);
 
-bool tpl_surface_stress_test(TPLNativeWnd* wnd );
-bool tpl_buffer_stress_test(TPLNativeWnd* wnd );
+bool tpl_surface_stress_test(TPLNativeWnd *wnd );
+bool tpl_buffer_stress_test(TPLNativeWnd *wnd );
 
-static TPLTest tpl_test[] =
-{
+static TPLTest tpl_test[] = {
 	{ "Check TPL buffer map and unmap", tpl_buffer_map_unmap_test },
 	{ "Check TPL buffer lock and unlock",  tpl_buffer_lock_unlock_test },
 	{ "Check TPL buffer get args",	      tpl_buffer_get_arg_test },
-	{ "TPL buffer create native buffer test",tpl_buffer_create_native_buffer_test },
-	{ "TPL buffer stress test",tpl_buffer_stress_test },
+	{ "TPL buffer create native buffer test", tpl_buffer_create_native_buffer_test },
+	{ "TPL buffer stress test", tpl_buffer_stress_test },
 
-	{ "TPL display get test",tpl_display_get_test },
+	{ "TPL display get test", tpl_display_get_test },
 	//{ "Check TPL display bind client display",tpl_display_bind_client_display_test },/*5*/
-	{ "Check TPL display get args",tpl_display_get_arg_test },
-	{ "TPL display query config test",tpl_display_query_config_test },
-	{ "TPL display filter config test",tpl_display_filter_config_test },
+	{ "Check TPL display get args", tpl_display_get_arg_test },
+	{ "TPL display query config test", tpl_display_query_config_test },
+	{ "TPL display filter config test", tpl_display_filter_config_test },
 
-	{ "Check TPL object get types",tpl_object_get_type_test },
-	{ "Check TPL object set and get userdate",tpl_object_userdata_test },
-	{ "Check TPL object reference and unreference",tpl_object_reference_test },
+	{ "Check TPL object get types", tpl_object_get_type_test },
+	{ "Check TPL object set and get userdate", tpl_object_userdata_test },
+	{ "Check TPL object reference and unreference", tpl_object_reference_test },
 
-	{ "Check TPL surface create",tpl_surface_create_test },
-	{ "Check TPL surface get args",tpl_surface_get_arg_test },
+	{ "Check TPL surface create", tpl_surface_create_test },
+	{ "Check TPL surface get args", tpl_surface_get_arg_test },
 	{ "Check TPL surface frame operation" ,  tpl_surface_frame_test },
-	{ "TPL surface get buffer test",tpl_surface_get_buffer_test },/*15*/
-	{ "TPL surface post test",tpl_surface_post_test },
-	{ "TPL surface stress test",tpl_surface_stress_test },
-/*
-	{ "TPL surface abnormal test",tpl_surface_abnormal_test },
-	{ "TPL object abnormal test",tpl_object_abnormal_test },
-	{ "TPL display abnormal test",tpl_display_abnormal_test },
-	{ "TPL buffer abnormal test",tpl_buffer_abnormal_test },
-*/
+	{ "TPL surface get buffer test", tpl_surface_get_buffer_test }, /*15*/
+	{ "TPL surface post test", tpl_surface_post_test },
+	{ "TPL surface stress test", tpl_surface_stress_test },
+	/*
+		{ "TPL surface abnormal test",tpl_surface_abnormal_test },
+		{ "TPL object abnormal test",tpl_object_abnormal_test },
+		{ "TPL display abnormal test",tpl_display_abnormal_test },
+		{ "TPL buffer abnormal test",tpl_buffer_abnormal_test },
+	*/
 	{ NULL, NULL }
 
 };
@@ -158,7 +155,7 @@ static TPLTest tpl_test[] =
 #define __USEC_TO_SEC( usec ) ((float)(usec) * 1.0e-6f)
 #define __MSEC_TO_SEC( usec ) ((float)(usec) * 1.0e-3f)
 long int tpl_test_util_get_systime( void );
-void tpl_test_util_init_fps( long int* s_time );
+void tpl_test_util_init_fps( long int *s_time );
 float tpl_test_util_get_fps( long int s_time, int frame );
 
 /*-----------------------------------------------------------------
@@ -172,8 +169,7 @@ float tpl_test_util_get_fps( long int s_time, int frame );
 typedef struct _GfxUtilTimer GfxUtilTimer;
 
 #define USE_GETTIME 1
-struct _GfxUtilTimer
-{
+struct _GfxUtilTimer {
 	bool is_begin;
 	bool is_measured;
 	char func[1024];
@@ -202,11 +198,14 @@ struct _GfxUtilTimer
 	tpl_test_util_timer_end( &__timer, __func__, __LINE__, msg );
 
 void		tpl_test_util_timer_list_display( void );
-void		tpl_test_util_timer_release( GfxUtilTimer* timer );
-GfxUtilTimer*	tpl_test_util_timer_copy( GfxUtilTimer* src, const char* func, int line, const char* msg );
+void		tpl_test_util_timer_release( GfxUtilTimer *timer );
+GfxUtilTimer	*tpl_test_util_timer_copy( GfxUtilTimer *src, const char *func,
+		int line, const char *msg );
 void		tpl_test_util_timer_list_clear( void );
-void		tpl_test_util_timer_begin( GfxUtilTimer* timer, const char* func, int line, const char* msg );
-void		tpl_test_util_timer_end( GfxUtilTimer* timer, const char* func, int line, const char* msg );
+void		tpl_test_util_timer_begin( GfxUtilTimer *timer, const char *func,
+		int line, const char *msg );
+void		tpl_test_util_timer_end( GfxUtilTimer *timer, const char *func, int line,
+		const char *msg );
 #else
 # define __TPL_TIMER_GLOBAL_BEGIN( ... ) { ; }
 # define __TPL_TIMER_GLOBAL_END( ... ) { ; }
@@ -230,8 +229,8 @@ void		tpl_test_util_timer_end( GfxUtilTimer* timer, const char* func, int line, 
 #define DEFAULT_LOG_STREAM stderr
 
 #define __log_err(fmt, args...) __LOG_ERR(__func__, __LINE__, fmt, ##args)
-bool __LOG_ERR( const char* func, int line, const char* fmt, ... );
-bool __tpl_test_log_display_msg( const char* msg );
+bool __LOG_ERR( const char *func, int line, const char *fmt, ... );
+bool __tpl_test_log_display_msg( const char *msg );
 
 
 
@@ -239,9 +238,9 @@ bool __tpl_test_log_display_msg( const char* msg );
 # define __log(fmt, args...) __LOG(__func__, __LINE__, fmt, ##args)
 # define __log_begin( ... ) __LOG_BEGIN(__func__);
 # define __log_end( ... ) __LOG_END(__func__);
-bool __LOG( const char* func, int line, const char* fmt, ... );
-void __LOG_BEGIN( const char* func );
-void __LOG_END( const char* func );
+bool __LOG( const char *func, int line, const char *fmt, ... );
+void __LOG_BEGIN( const char *func );
+void __LOG_END( const char *func );
 #else
 # define __log( ... ) { ; }
 # define __log_begin( ... ) { ; }
@@ -293,13 +292,11 @@ void __LOG_END( const char* func );
 
 typedef struct _GfxMatrix GfxMatrix_t;
 
-struct _GfxMatrix
-{
+struct _GfxMatrix {
 	//GLfloat m[4][4];
 };
 
-typedef enum
-{
+typedef enum {
 	TPL_TEX_COLOR_BLACK,
 	TPL_TEX_COLOR_WHITE,
 	TPL_TEX_COLOR_GREY,

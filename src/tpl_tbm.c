@@ -70,8 +70,8 @@ __tpl_tbm_display_query_config(tpl_display_t *display,
 	TPL_ASSERT(display);
 
 	if (surface_type == TPL_SURFACE_TYPE_WINDOW && red_size == 8
-		&& green_size == 8 && blue_size == 8
-		&& (color_depth == 32 || color_depth == 24)) {
+	    && green_size == 8 && blue_size == 8
+	    && (color_depth == 32 || color_depth == 24)) {
 		if (alpha_size == 8) {
 			if (native_visual_id)
 				*native_visual_id = TBM_FORMAT_ARGB8888;
@@ -176,16 +176,16 @@ __tpl_tbm_surface_init(tpl_surface_t *surface)
 
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW) {
 		if (__tpl_tbm_display_get_window_info(surface->display,
-			surface->native_handle, &surface->width,
-			&surface->height, NULL, 0, 0) != TPL_ERROR_NONE) {
+						      surface->native_handle, &surface->width,
+						      &surface->height, NULL, 0, 0) != TPL_ERROR_NONE) {
 			TPL_ERR("Failed to get native window(%p) info.",
 				surface->native_handle);
 			goto error;
 		}
 
 		tbm_surface_queue_set_destroy_cb((tbm_surface_queue_h)surface->native_handle,
-							__tpl_tbm_surface_queue_notify_cb,
-							surface);
+						 __tpl_tbm_surface_queue_notify_cb,
+						 surface);
 
 		TPL_LOG(3, "window(%p, %p) %dx%d", surface,
 			surface->native_handle, surface->width, surface->height);
@@ -193,8 +193,8 @@ __tpl_tbm_surface_init(tpl_surface_t *surface)
 		return TPL_ERROR_NONE;
 	} else if (surface->type == TPL_SURFACE_TYPE_PIXMAP) {
 		if (__tpl_tbm_display_get_pixmap_info(surface->display,
-			surface->native_handle, &surface->width,
-			&surface->height, NULL) != TPL_TRUE) {
+						      surface->native_handle, &surface->width,
+						      &surface->height, NULL) != TPL_TRUE) {
 			TPL_ERR("Failed to get native pixmap(%p) info.",
 				surface->native_handle);
 
@@ -222,7 +222,7 @@ __tpl_tbm_surface_fini(tpl_surface_t *surface)
 	TPL_ASSERT(surface->display);
 
 	TPL_LOG(3, "%s(%p, %p)",
-		((surface->type == TPL_SURFACE_TYPE_WINDOW)?"window":"pixmap"),
+		((surface->type == TPL_SURFACE_TYPE_WINDOW) ? "window" : "pixmap"),
 		surface, surface->native_handle);
 
 	if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
@@ -251,7 +251,7 @@ __tpl_tbm_surface_enqueue_buffer(tpl_surface_t *surface,
 	tbm_surface_internal_unref(tbm_surface);
 
 	if (surface->type == TPL_SURFACE_TYPE_PIXMAP) {
-		TPL_ERR("Pixmap cannot post(%p, %p)",surface,
+		TPL_ERR("Pixmap cannot post(%p, %p)", surface,
 			surface->native_handle);
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
@@ -266,7 +266,7 @@ __tpl_tbm_surface_enqueue_buffer(tpl_surface_t *surface,
 	}
 
 	if (tbm_surface_queue_enqueue(tbm_queue, tbm_surface)
-		!= TBM_SURFACE_QUEUE_ERROR_NONE) {
+	    != TBM_SURFACE_QUEUE_ERROR_NONE) {
 		TPL_ERR("tbm_surface_queue_enqueue failed. tbm_queue(%p) tbm_surface(%p)",
 			tbm_queue, tbm_surface);
 		return TPL_ERROR_INVALID_OPERATION;
@@ -301,7 +301,8 @@ __tpl_tbm_surface_dequeue_buffer(tpl_surface_t *surface)
 	if (!tbm_surface  && tbm_surface_queue_can_dequeue(tbm_queue, 1) == 1) {
 		tsq_err = tbm_surface_queue_dequeue(tbm_queue, &tbm_surface);
 		if (!tbm_surface) {
-			TPL_ERR("Failed to get tbm_surface from tbm_surface_queue | tsq_err = %d",tsq_err);
+			TPL_ERR("Failed to get tbm_surface from tbm_surface_queue | tsq_err = %d",
+				tsq_err);
 			return NULL;
 		}
 	}
@@ -344,7 +345,8 @@ __tpl_display_init_backend_tbm(tpl_display_backend_t *backend)
 	backend->filter_config = __tpl_tbm_display_filter_config;
 	backend->get_window_info = __tpl_tbm_display_get_window_info;
 	backend->get_pixmap_info = __tpl_tbm_display_get_pixmap_info;
-	backend->get_buffer_from_native_pixmap = __tpl_tbm_display_get_buffer_from_native_pixmap;
+	backend->get_buffer_from_native_pixmap =
+		__tpl_tbm_display_get_buffer_from_native_pixmap;
 }
 
 void

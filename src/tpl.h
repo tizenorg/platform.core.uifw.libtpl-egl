@@ -76,7 +76,7 @@ typedef unsigned int tpl_bool_t;
  * Represent a handle to a native object like pixmap, window, wl_display and
  * etc.
  */
-typedef void * tpl_handle_t;
+typedef void *tpl_handle_t;
 
 /**
  * Structure containing function pointers to DDK's EGL layer.
@@ -212,7 +212,8 @@ typedef enum {
  * @see tpl_object_unreference()
  * @see tpl_object_get_reference()
  */
-int tpl_object_reference(tpl_object_t *object);
+int
+tpl_object_reference(tpl_object_t *object);
 
 /**
  * Decrease reference count of a TPL object.
@@ -223,7 +224,8 @@ int tpl_object_reference(tpl_object_t *object);
  * @see tpl_object_reference()
  * @see tpl_object_get_reference()
  */
-int tpl_object_unreference(tpl_object_t *object);
+int
+tpl_object_unreference(tpl_object_t *object);
 
 /**
  * Get reference count of a TPL object.
@@ -234,7 +236,8 @@ int tpl_object_unreference(tpl_object_t *object);
  * @see tpl_object_reference()
  * @see tpl_object_get_reference()
  */
-int tpl_object_get_reference(tpl_object_t *object);
+int
+tpl_object_get_reference(tpl_object_t *object);
 
 /**
  * Get the type of a TPL object.
@@ -260,8 +263,9 @@ tpl_object_type_t tpl_object_get_type(tpl_object_t *object);
  *
  * @see tpl_object_get_user_data()
  */
-tpl_result_t tpl_object_set_user_data(tpl_object_t *object, void *key,
-				      void *data, tpl_free_func_t free_func);
+tpl_result_t
+tpl_object_set_user_data(tpl_object_t *object, void *key,
+			 void *data, tpl_free_func_t free_func);
 
 /**
  * Get registered user data of a TPL object.
@@ -272,7 +276,8 @@ tpl_result_t tpl_object_set_user_data(tpl_object_t *object, void *key,
  *
  * @see tpl_object_set_user_data()
  */
-void * tpl_object_get_user_data(tpl_object_t *object, void *key);
+void *
+tpl_object_get_user_data(tpl_object_t *object, void *key);
 
 /**
  * Create TPL display object for the given native display.
@@ -297,7 +302,8 @@ tpl_display_create(tpl_backend_type_t type, tpl_handle_t native_dpy);
  * @param native_dpy handle to the native display.
  * @return pointer to the display on success, NULL on failure.
  */
-tpl_display_t * tpl_display_get(tpl_handle_t native_dpy);
+tpl_display_t *
+tpl_display_get(tpl_handle_t native_dpy);
 
 /**
  * Get the native display handle which the given TPL display is created for.
@@ -307,7 +313,8 @@ tpl_display_t * tpl_display_get(tpl_handle_t native_dpy);
  *
  * @see tpl_display_get()
  */
-tpl_handle_t tpl_display_get_native_handle(tpl_display_t *display);
+tpl_handle_t
+tpl_display_get_native_handle(tpl_display_t *display);
 
 /**
  * Query supported pixel formats for the given TPL display.
@@ -328,7 +335,8 @@ tpl_handle_t tpl_display_get_native_handle(tpl_display_t *display);
  * @return TPL_ERROR_NONE is the given config is supported, TPL_ERROR otherwise.
  */
 tpl_result_t
-tpl_display_query_config(tpl_display_t *display, tpl_surface_type_t surface_type,
+tpl_display_query_config(tpl_display_t *display,
+			 tpl_surface_type_t surface_type,
 			 int red_size, int green_size, int blue_size,
 			 int alpha_size, int depth_size, int *native_visual_id,
 			 tpl_bool_t *is_slow);
@@ -345,7 +353,8 @@ tpl_display_query_config(tpl_display_t *display, tpl_surface_type_t surface_type
  * @return TPL_ERROR_NONE if the given config has been modified, TPL_ERROR otherwise.
  */
 tpl_result_t
-tpl_display_filter_config(tpl_display_t *display, int *visual_id, int alpha_size);
+tpl_display_filter_config(tpl_display_t *display, int *visual_id,
+			  int alpha_size);
 
 /**
  * Create a TPL surface for the given native surface.
@@ -368,7 +377,8 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle,
  *
  * @see tpl_surface_create()
  */
-tpl_display_t * tpl_surface_get_display(tpl_surface_t *surface);
+tpl_display_t *
+tpl_surface_get_display(tpl_surface_t *surface);
 
 /**
  * Get the native surface handle of the given TPL surface.
@@ -378,7 +388,8 @@ tpl_display_t * tpl_surface_get_display(tpl_surface_t *surface);
  *
  * @see tpl_surface_create()
  */
-tpl_handle_t tpl_surface_get_native_handle(tpl_surface_t *surface);
+tpl_handle_t
+tpl_surface_get_native_handle(tpl_surface_t *surface);
 
 /**
  * Get the type of the given TPL surface.
@@ -388,7 +399,8 @@ tpl_handle_t tpl_surface_get_native_handle(tpl_surface_t *surface);
  *
  * @see tpl_surface_create()
  */
-tpl_surface_type_t tpl_surface_get_type(tpl_surface_t *surface);
+tpl_surface_type_t
+tpl_surface_get_type(tpl_surface_t *surface);
 
 /**
  * Get the current size of the given TPL surface.
@@ -418,7 +430,8 @@ tpl_surface_get_size(tpl_surface_t *surface, int *width, int *height);
  *
  * @see tpl_surface_dequeue_buffer()
  */
-tpl_bool_t tpl_surface_validate(tpl_surface_t *surface);
+tpl_bool_t
+tpl_surface_validate(tpl_surface_t *surface);
 
 /**
  * Get the buffer of the current frame for the given TPL surface.
@@ -440,7 +453,8 @@ tpl_bool_t tpl_surface_validate(tpl_surface_t *surface);
  *
  * @see tpl_surface_validate()
  */
-tbm_surface_h tpl_surface_dequeue_buffer(tpl_surface_t *surface);
+tbm_surface_h
+tpl_surface_dequeue_buffer(tpl_surface_t *surface);
 
 /**
  * Post a given tbm_surface.
@@ -506,7 +520,8 @@ tpl_surface_set_post_interval(tpl_surface_t *surface, int interval);
  *
  * @see tpl_surface_set_post_interval()
  */
-int tpl_surface_get_post_interval(tpl_surface_t *surface);
+int
+tpl_surface_get_post_interval(tpl_surface_t *surface);
 
 /**
  * Query information on the given native window.

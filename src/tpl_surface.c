@@ -17,7 +17,8 @@ __tpl_surface_free(void *data)
 }
 
 tpl_surface_t *
-tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type_t type, tbm_format format)
+tpl_surface_create(tpl_display_t *display, tpl_handle_t handle,
+		   tpl_surface_type_t type, tbm_format format)
 {
 	tpl_surface_t *surface;
 
@@ -38,7 +39,7 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type
 	}
 
 	if (__tpl_object_init(&surface->base, TPL_OBJECT_SURFACE,
-		__tpl_surface_free) != TPL_ERROR_NONE) {
+			      __tpl_surface_free) != TPL_ERROR_NONE) {
 		TPL_ERR("Failed to initialize surface's base class!");
 		free(surface);
 		return NULL;
@@ -57,7 +58,7 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle, tpl_surface_type
 	__tpl_surface_init_backend(surface, display->backend.type);
 
 	if ((!surface->backend.init)
-		|| (surface->backend.init(surface) != TPL_ERROR_NONE)) {
+	    || (surface->backend.init(surface) != TPL_ERROR_NONE)) {
 		TPL_ERR("Failed to initialize surface's backend!");
 		tpl_object_unreference(&surface->base);
 		return NULL;
@@ -190,7 +191,7 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 
 	tbm_surface = surface->backend.dequeue_buffer(surface);
 
-	if(tbm_surface) {
+	if (tbm_surface) {
 		/* Update size of the surface. */
 		surface->width = tbm_surface_get_width(tbm_surface);
 		surface->height = tbm_surface_get_height(tbm_surface);

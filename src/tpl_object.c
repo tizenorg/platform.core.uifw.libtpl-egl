@@ -11,14 +11,16 @@ __tpl_object_is_valid(tpl_object_t *object)
 }
 
 tpl_result_t
-__tpl_object_init(tpl_object_t *object, tpl_object_type_t type, tpl_free_func_t free_func)
+__tpl_object_init(tpl_object_t *object, tpl_object_type_t type,
+		  tpl_free_func_t free_func)
 {
 	TPL_ASSERT(object);
 	TPL_ASSERT(type >= 0 && type < TPL_OBJECT_MAX);
 
 	object->type = type;
 	object->free = free_func;
-	tpl_util_map_pointer_init(&object->user_data_map, TPL_OBJECT_BUCKET_BITS, &object->buckets[0]);
+	tpl_util_map_pointer_init(&object->user_data_map, TPL_OBJECT_BUCKET_BITS,
+				  &object->buckets[0]);
 
 	__tpl_util_atomic_set(&object->reference, 1);
 

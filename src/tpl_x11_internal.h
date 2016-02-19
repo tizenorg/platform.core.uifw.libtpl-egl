@@ -29,8 +29,7 @@
 
 typedef struct _tpl_x11_global	tpl_x11_global_t;
 
-typedef enum
-{
+typedef enum {
 	TPL_X11_SWAP_TYPE_ERROR = -1,
 	TPL_X11_SWAP_TYPE_SYNC = 0,
 	TPL_X11_SWAP_TYPE_ASYNC,
@@ -38,8 +37,7 @@ typedef enum
 	TPL_X11_SWAP_TYPE_MAX
 } tpl_x11_swap_type_t;
 
-struct _tpl_x11_global
-{
+struct _tpl_x11_global {
 	int		display_count;
 
 	Display		*worker_display;
@@ -57,11 +55,14 @@ void
 __tpl_x11_swap_str_to_swap_type(char *str, tpl_x11_swap_type_t *type);
 
 tpl_buffer_t *
-__tpl_x11_surface_buffer_cache_find(tpl_list_t	 *buffer_cache, unsigned int name);
+__tpl_x11_surface_buffer_cache_find(tpl_list_t	 *buffer_cache,
+				    unsigned int name);
 void
-__tpl_x11_surface_buffer_cache_remove(tpl_list_t 	*buffer_cache, unsigned int name);
+__tpl_x11_surface_buffer_cache_remove(tpl_list_t 	*buffer_cache,
+				      unsigned int name);
 tpl_bool_t
-__tpl_x11_surface_buffer_cache_add(tpl_list_t	*buffer_cache, tpl_buffer_t *buffer);
+__tpl_x11_surface_buffer_cache_add(tpl_list_t	*buffer_cache,
+				   tpl_buffer_t *buffer);
 void
 __tpl_x11_surface_buffer_cache_clear(tpl_list_t	*buffer_cache);
 tpl_bool_t
@@ -71,7 +72,7 @@ __tpl_x11_display_query_config(tpl_display_t *display,
 			       int color_depth, int *native_visual_id, tpl_bool_t *is_slow);
 tpl_bool_t
 __tpl_x11_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
-				  int *width, int *height, tpl_format_t *format,int depth,int a_size);
+				  int *width, int *height, tpl_format_t *format, int depth, int a_size);
 tpl_bool_t
 __tpl_x11_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 				  int *width, int *height, tpl_format_t *format);

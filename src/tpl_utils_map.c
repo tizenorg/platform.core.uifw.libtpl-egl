@@ -97,7 +97,7 @@ __pointer_hash(const tpl_util_key_t key, int key_length)
 
 	return (int)_key;
 #else
-	#error "Not 32 or 64bit system"
+#error "Not 32 or 64bit system"
 #endif
 
 	return 0;
@@ -132,21 +132,21 @@ void
 tpl_util_map_int32_init(tpl_util_map_t *map, int bucket_bits, void *buckets)
 {
 	tpl_util_map_init(map, bucket_bits, __int32_hash, NULL,
-		__int32_key_compare, buckets);
+			  __int32_key_compare, buckets);
 }
 
 void
 tpl_util_map_int64_init(tpl_util_map_t *map, int bucket_bits, void *buckets)
 {
 	tpl_util_map_init(map, bucket_bits, __int64_hash, NULL,
-		__int64_key_compare, buckets);
+			  __int64_key_compare, buckets);
 }
 
 void
 tpl_util_map_pointer_init(tpl_util_map_t *map, int bucket_bits, void *buckets)
 {
 	tpl_util_map_init(map, bucket_bits, __pointer_hash, NULL,
-		__pointer_key_compare, buckets);
+			  __pointer_key_compare, buckets);
 }
 
 void
@@ -164,11 +164,11 @@ tpl_util_map_create(int bucket_bits, tpl_util_hash_func_t hash_func,
 	int bucket_size = 1 << bucket_bits;
 
 	map = calloc(1,
-		sizeof(tpl_util_map_t) + bucket_size * sizeof(tpl_util_map_entry_t *));
+		     sizeof(tpl_util_map_t) + bucket_size * sizeof(tpl_util_map_entry_t *));
 	TPL_CHECK_ON_FALSE_RETURN_VAL(map, NULL);
 
 	tpl_util_map_init(map, bucket_bits, hash_func, key_length_func,
-		key_compare_func, map + 1);
+			  key_compare_func, map + 1);
 
 	return map;
 }
@@ -177,21 +177,21 @@ tpl_util_map_t *
 tpl_util_map_int32_create(int bucket_bits)
 {
 	return tpl_util_map_create(bucket_bits, __int32_hash, NULL,
-		__int32_key_compare);
+				   __int32_key_compare);
 }
 
 tpl_util_map_t *
 tpl_util_map_int64_create(int bucket_bits)
 {
 	return tpl_util_map_create(bucket_bits, __int64_hash, NULL,
-		__int64_key_compare);
+				   __int64_key_compare);
 }
 
 tpl_util_map_t *
 tpl_util_map_pointer_create(int bucket_bits)
 {
 	return tpl_util_map_create(bucket_bits, __pointer_hash, NULL,
-		__pointer_key_compare);
+				   __pointer_key_compare);
 }
 
 void

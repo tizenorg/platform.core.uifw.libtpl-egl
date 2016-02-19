@@ -24,8 +24,8 @@ __tpl_hlist_add_before(tpl_hlist_node_t *n, tpl_hlist_node_t *next);
 static TPL_INLINE void
 __tpl_hlist_add_behind(tpl_hlist_node_t *n, tpl_hlist_node_t *prev);
 
-tpl_hlist_node_t * __tpl_hlist_get_node(tpl_hlist_t *list, size_t key);
-tpl_hlist_node_t * __tpl_hlist_get_tail_node(tpl_hlist_t *list, size_t key);
+tpl_hlist_node_t *__tpl_hlist_get_node(tpl_hlist_t *list, size_t key);
+tpl_hlist_node_t *__tpl_hlist_get_tail_node(tpl_hlist_t *list, size_t key);
 
 struct tpl_hlist {
 	tpl_hlist_head_t *heads;
@@ -113,7 +113,7 @@ __tpl_hlist_get_node(tpl_hlist_t *list, size_t key)
 
 	for (pos = list->heads[hash].first; pos; pos = pos->next) {
 		if (pos->key == key)
-		return pos;
+			return pos;
 	}
 
 	return NULL;
@@ -147,7 +147,8 @@ __tpl_hashlist_create()
 	if (list == NULL)
 		return NULL;
 
-	list->heads = (tpl_hlist_head_t *) malloc(sizeof(tpl_hlist_head_t) * NUM_OF_HEADS);
+	list->heads = (tpl_hlist_head_t *) malloc(sizeof(tpl_hlist_head_t) *
+			NUM_OF_HEADS);
 	if (list->heads == NULL) {
 		free(list);
 		return NULL;

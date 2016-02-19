@@ -40,9 +40,9 @@ struct _tpl_display_backend {
 	tpl_result_t (*filter_config)(tpl_display_t *display, int *visual_id,
 				      int alpha_bits);
 	tpl_result_t (*get_window_info)(tpl_display_t *display,
-	                                tpl_handle_t window, int *width,
+					tpl_handle_t window, int *width,
 					int *height, tbm_format *format,
-					int depth,int a_size);
+					int depth, int a_size);
 	tpl_result_t (*get_pixmap_info)(tpl_display_t *display,
 					tpl_handle_t pixmap, int *width,
 					int *height, tbm_format *format);
@@ -139,7 +139,8 @@ void *__tpl_surface_get_backend_data(tpl_surface_t *surface);
 
 /* Runtime functions. */
 tpl_display_t *
-__tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display);
+__tpl_runtime_find_display(tpl_backend_type_t type,
+			   tpl_handle_t native_display);
 tpl_result_t __tpl_runtime_add_display(tpl_display_t *display);
 void __tpl_runtime_remove_display(tpl_display_t *display);
 void __tpl_runtime_flush_all_display();
@@ -151,8 +152,10 @@ tpl_bool_t __tpl_display_choose_backend_tbm(tpl_handle_t native_dpy);
 tpl_bool_t __tpl_display_choose_backend_wayland(tpl_handle_t native_dpy);
 tpl_bool_t __tpl_display_choose_backend_x11_dri2(tpl_handle_t native_dpy);
 tpl_bool_t __tpl_display_choose_backend_x11_dri3(tpl_handle_t native_dpy);
-void __tpl_display_init_backend(tpl_display_t *display, tpl_backend_type_t type);
-void __tpl_surface_init_backend(tpl_surface_t *surface, tpl_backend_type_t type);
+void __tpl_display_init_backend(tpl_display_t *display,
+				tpl_backend_type_t type);
+void __tpl_surface_init_backend(tpl_surface_t *surface,
+				tpl_backend_type_t type);
 void __tpl_display_init_backend_gbm(tpl_display_backend_t *backend);
 void __tpl_display_init_backend_tbm(tpl_display_backend_t *backend);
 void __tpl_display_init_backend_wayland(tpl_display_backend_t *backend);
@@ -172,23 +175,24 @@ int __tpl_util_clz(int input);
  * @param atom storage for the value to retrieve of
  * @return value stored on success, 0 or error
 */
-int __tpl_util_atomic_get(const tpl_util_atomic_uint * const atom);
+int __tpl_util_atomic_get(const tpl_util_atomic_uint *const atom);
 
 /** brief set the atomic variable's value
  * @param atom storage for the value to set of
  * @param val the value to set
  * @return TPL_TRUE on succes, TPL_FALSE on error
 */
-void __tpl_util_atomic_set(tpl_util_atomic_uint * const atom, unsigned int val);
-unsigned int __tpl_util_atomic_inc(tpl_util_atomic_uint * const atom );
-unsigned int __tpl_util_atomic_dec(tpl_util_atomic_uint * const atom );
+void __tpl_util_atomic_set(tpl_util_atomic_uint *const atom, unsigned int val);
+unsigned int __tpl_util_atomic_inc(tpl_util_atomic_uint *const atom );
+unsigned int __tpl_util_atomic_dec(tpl_util_atomic_uint *const atom );
 
 /* Data structure functions */
-tpl_hlist_t * __tpl_hashlist_create();
+tpl_hlist_t *__tpl_hashlist_create();
 void __tpl_hashlist_destroy(tpl_hlist_t **list);
 tpl_result_t __tpl_hashlist_insert(tpl_hlist_t *list, size_t key, void *data);
 void __tpl_hashlist_delete(tpl_hlist_t *list, size_t key);
-void __tpl_hashlist_do_for_all_nodes(tpl_hlist_t *list, void (*cb_func)(void *));
-void * __tpl_hashlist_lookup(tpl_hlist_t *list, size_t key);
+void __tpl_hashlist_do_for_all_nodes(tpl_hlist_t *list,
+				     void (*cb_func)(void *));
+void *__tpl_hashlist_lookup(tpl_hlist_t *list, size_t key);
 
 #endif /* TPL_INTERNAL_H */

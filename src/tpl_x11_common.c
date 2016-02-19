@@ -40,8 +40,7 @@ __tpl_x11_swap_str_to_swap_type(char *str, tpl_x11_swap_type_t *type)
 
 	swap_type = strtol(str, NULL, 0);
 
-	switch (swap_type)
-	{
+	switch (swap_type) {
 	case TPL_X11_SWAP_TYPE_SYNC:
 	case TPL_X11_SWAP_TYPE_ASYNC:
 	case TPL_X11_SWAP_TYPE_LAZY:
@@ -53,7 +52,8 @@ __tpl_x11_swap_str_to_swap_type(char *str, tpl_x11_swap_type_t *type)
 }
 
 tpl_buffer_t *
-__tpl_x11_surface_buffer_cache_find(tpl_list_t	 *buffer_cache, unsigned int name)
+__tpl_x11_surface_buffer_cache_find(tpl_list_t	 *buffer_cache,
+				    unsigned int name)
 {
 	tpl_list_node_t *node;
 
@@ -61,8 +61,7 @@ __tpl_x11_surface_buffer_cache_find(tpl_list_t	 *buffer_cache, unsigned int name
 
 	node = __tpl_list_get_front_node(buffer_cache);
 
-	while (node)
-	{
+	while (node) {
 		tpl_buffer_t *buffer = (tpl_buffer_t *) __tpl_list_node_get_data(node);
 
 		TPL_ASSERT(buffer);
@@ -77,7 +76,8 @@ __tpl_x11_surface_buffer_cache_find(tpl_list_t	 *buffer_cache, unsigned int name
 }
 
 void
-__tpl_x11_surface_buffer_cache_remove(tpl_list_t *buffer_cache, unsigned int name)
+__tpl_x11_surface_buffer_cache_remove(tpl_list_t *buffer_cache,
+				      unsigned int name)
 {
 	tpl_list_node_t *node;
 
@@ -85,14 +85,12 @@ __tpl_x11_surface_buffer_cache_remove(tpl_list_t *buffer_cache, unsigned int nam
 
 	node = __tpl_list_get_front_node(buffer_cache);
 
-	while (node)
-	{
+	while (node) {
 		tpl_buffer_t *buffer = (tpl_buffer_t *) __tpl_list_node_get_data(node);
 
 		TPL_ASSERT(buffer);
 
-		if (buffer->key == name)
-		{
+		if (buffer->key == name) {
 			tpl_object_unreference(&buffer->base);
 			__tpl_list_remove(node, NULL);
 			return;
@@ -103,13 +101,13 @@ __tpl_x11_surface_buffer_cache_remove(tpl_list_t *buffer_cache, unsigned int nam
 }
 
 tpl_bool_t
-__tpl_x11_surface_buffer_cache_add(tpl_list_t *buffer_cache, tpl_buffer_t *buffer)
+__tpl_x11_surface_buffer_cache_add(tpl_list_t *buffer_cache,
+				   tpl_buffer_t *buffer)
 {
 	TPL_ASSERT(buffer_cache);
 	TPL_ASSERT(buffer);
 
-	if (__tpl_list_get_count(buffer_cache) >= TPL_BUFFER_CACHE_MAX_ENTRIES)
-	{
+	if (__tpl_list_get_count(buffer_cache) >= TPL_BUFFER_CACHE_MAX_ENTRIES) {
 		tpl_buffer_t *evict = __tpl_list_pop_front(buffer_cache, NULL);
 
 		TPL_ASSERT(evict);
@@ -148,10 +146,8 @@ __tpl_x11_display_query_config(tpl_display_t *display,
 	native_display = (Display *)display->native_handle;
 
 	if (red_size != TPL_DONT_CARE || green_size != TPL_DONT_CARE ||
-	    blue_size != TPL_DONT_CARE || color_depth != TPL_DONT_CARE)
-	{
-		if (surface_type == TPL_SURFACE_TYPE_WINDOW)
-		{
+	    blue_size != TPL_DONT_CARE || color_depth != TPL_DONT_CARE) {
+		if (surface_type == TPL_SURFACE_TYPE_WINDOW) {
 			XVisualInfo *visual_formats;
 			int num_visual_formats;
 			int i;
@@ -159,8 +155,7 @@ __tpl_x11_display_query_config(tpl_display_t *display,
 			visual_formats = XGetVisualInfo(native_display, 0, NULL,
 							&num_visual_formats);
 			TPL_ASSERT(visual_formats);
-			for (i = 0; i < num_visual_formats; i++)
-			{
+			for (i = 0; i < num_visual_formats; i++) {
 				int clz[3];
 				int col_size[3];
 
@@ -174,8 +169,7 @@ __tpl_x11_display_query_config(tpl_display_t *display,
 
 				if ((red_size == TPL_DONT_CARE || col_size[0] == red_size) &&
 				    (green_size == TPL_DONT_CARE || col_size[1] == green_size) &&
-				    (blue_size == TPL_DONT_CARE || col_size[2] == blue_size))
-				{
+				    (blue_size == TPL_DONT_CARE || col_size[2] == blue_size)) {
 					if (native_visual_id != NULL)
 						*native_visual_id = visual_formats[i].visualid;
 
@@ -189,19 +183,16 @@ __tpl_x11_display_query_config(tpl_display_t *display,
 			visual_formats = NULL;
 		}
 
-		if (surface_type == TPL_SURFACE_TYPE_PIXMAP)
-		{
+		if (surface_type == TPL_SURFACE_TYPE_PIXMAP) {
 			XPixmapFormatValues *pixmap_formats;
 			int num_pixmap_formats;
 			int i;
 
 			pixmap_formats = XListPixmapFormats(native_display, &num_pixmap_formats);
 			TPL_ASSERT(pixmap_formats);
-			for (i = 0; i < num_pixmap_formats; i++)
-			{
+			for (i = 0; i < num_pixmap_formats; i++) {
 				if (color_depth == TPL_DONT_CARE ||
-				    pixmap_formats[i].depth == color_depth)
-				{
+				    pixmap_formats[i].depth == color_depth) {
 					if (is_slow != NULL)
 						*is_slow = TPL_FALSE;
 
@@ -220,42 +211,39 @@ __tpl_x11_display_query_config(tpl_display_t *display,
 }
 
 #if 0
-static void tpl_handle_and_free_error( Display *dpy, xcb_generic_error_t *error, const char* request_string )
+static void tpl_handle_and_free_error( Display *dpy, xcb_generic_error_t *error,
+				       const char *request_string )
 {
 	char error_txt[256];
 
-	if( error )
-	{
-		int len = sizeof(error_txt)/sizeof(error_txt[0]);
+	if ( error ) {
+		int len = sizeof(error_txt) / sizeof(error_txt[0]);
 
 		XGetErrorText( dpy, error->error_code, error_txt, len );
 		error_txt[ len - 1] = '\0';
-		TPL_WARN("%s failed \"[%d]:%s\"", request_string, error->error_code, error_txt );
+		TPL_WARN("%s failed \"[%d]:%s\"", request_string, error->error_code,
+			 error_txt );
 		free(error);
-	}
-	else
-	{
+	} else {
 		TPL_WARN("%s failed \"Unknown error\"", request_string );
 	}
 }
 
-static tpl_bool_t tpl_check_reply_for_error(Display *dpy, xcb_generic_reply_t *reply, xcb_generic_error_t *error,
+static tpl_bool_t tpl_check_reply_for_error(Display *dpy,
+		xcb_generic_reply_t *reply, xcb_generic_error_t *error,
 		const char *request_string)
 {
 	tpl_bool_t retval = TPL_FALSE;
 
-	if (error || reply == NULL)
-	{
+	if (error || reply == NULL) {
 		tpl_handle_and_free_error( dpy, error, request_string );
-	}
-	else
-	{
+	} else {
 		retval = TPL_TRUE;
 	}
 
 	return retval;
 }
-static XVisualInfo* tpl_find_visual( Display *dpy, xcb_visualid_t visual_id )
+static XVisualInfo *tpl_find_visual( Display *dpy, xcb_visualid_t visual_id )
 {
 	XVisualInfo *visual_info;
 	XVisualInfo visual_info_template;
@@ -263,28 +251,27 @@ static XVisualInfo* tpl_find_visual( Display *dpy, xcb_visualid_t visual_id )
 
 	visual_info_template.visualid = visual_id;
 
-	visual_info = XGetVisualInfo(dpy, VisualIDMask, &visual_info_template, &matching_count);
+	visual_info = XGetVisualInfo(dpy, VisualIDMask, &visual_info_template,
+				     &matching_count);
 
 
 	return visual_info;
 }
-static int tpl_get_alpha_offset( int offset_r, int offset_g, int offset_b, int bpp )
+static int tpl_get_alpha_offset( int offset_r, int offset_g, int offset_b,
+				 int bpp )
 {
 	int ret = -1;
 
-	TPL_CHECK_ON_FALSE_ASSERT_FAIL( bpp == 32, "alpha only supported for 32bits pixel formats");
+	TPL_CHECK_ON_FALSE_ASSERT_FAIL( bpp == 32,
+					"alpha only supported for 32bits pixel formats");
 
-	if( offset_r != 0 && offset_g != 0 && offset_b != 0 )
-	{
+	if ( offset_r != 0 && offset_g != 0 && offset_b != 0 ) {
 		ret = 0;
-	}
-	else if( offset_r != 24 && offset_g != 24 && offset_b != 24 )
-	{
+	} else if ( offset_r != 24 && offset_g != 24 && offset_b != 24 ) {
 		ret = 24;
-	}
-	else
-	{
-		TPL_CHECK_ON_FALSE_ASSERT_FAIL(TPL_FALSE, "Alpha component has to be at either the offset 0 or 24");
+	} else {
+		TPL_CHECK_ON_FALSE_ASSERT_FAIL(TPL_FALSE,
+					       "Alpha component has to be at either the offset 0 or 24");
 	}
 
 	return ret;
@@ -294,10 +281,8 @@ static int tpl_get_offset( unsigned long mask, int depth )
 	int res = -1;
 	int count;
 
-	for (count = 0; count < depth; count++)
-	{
-		if (mask & 1)
-		{
+	for (count = 0; count < depth; count++) {
+		if (mask & 1) {
 			res = count;
 			break;
 		}
@@ -307,100 +292,86 @@ static int tpl_get_offset( unsigned long mask, int depth )
 	return res;
 }
 /* Convert the given combination of offsets and bpp into a color buffer format */
-static tpl_format_t tpl_offsets_to_color_buffer_format( int offset_r, int offset_g, int offset_b, int offset_a, int bpp )
+static tpl_format_t tpl_offsets_to_color_buffer_format( int offset_r,
+		int offset_g, int offset_b, int offset_a, int bpp )
 {
 	tpl_format_t retval = TPL_FORMAT_INVALID;
 
-	if ( offset_b == 11 && offset_g == 5  && offset_r == 0  && offset_a == -1 && bpp == 16)
-	{
+	if ( offset_b == 11 && offset_g == 5  && offset_r == 0  && offset_a == -1 &&
+	     bpp == 16) {
 		retval = TPL_FORMAT_BGR565;
-	}
-	else if( offset_r == 11 && offset_g == 5  && offset_b == 0  && offset_a == -1 && bpp == 16)
-	{
+	} else if ( offset_r == 11 && offset_g == 5  && offset_b == 0  &&
+		    offset_a == -1 && bpp == 16) {
 		retval = TPL_FORMAT_RGB565;
 	}
 
-	else if( offset_a == 24 && offset_b == 16 && offset_g == 8  && offset_r == 0  && bpp == 32)
-	{
+	else if ( offset_a == 24 && offset_b == 16 && offset_g == 8  &&
+		  offset_r == 0  && bpp == 32) {
 		retval = TPL_FORMAT_ABGR8888;
-	}
-	else if( offset_a == 24 && offset_r == 16 && offset_g == 8  && offset_b == 0  && bpp == 32)
-	{
+	} else if ( offset_a == 24 && offset_r == 16 && offset_g == 8  &&
+		    offset_b == 0  && bpp == 32) {
 		retval = TPL_FORMAT_ARGB8888;
-	}
-	else if( offset_b == 24 && offset_g == 16 && offset_r == 8  && offset_a == 0  && bpp == 32)
-	{
+	} else if ( offset_b == 24 && offset_g == 16 && offset_r == 8  &&
+		    offset_a == 0  && bpp == 32) {
 		retval = TPL_FORMAT_BGRA8888;
-	}
-	else if( offset_r == 24 && offset_g == 16 && offset_b == 8  && offset_a == 0  && bpp == 32)
-	{
+	} else if ( offset_r == 24 && offset_g == 16 && offset_b == 8  &&
+		    offset_a == 0  && bpp == 32) {
 		retval = TPL_FORMAT_RGBA8888;
 	}
 
-	else if( offset_b == 16 && offset_g == 8  && offset_r == 0  && offset_a == -1 && bpp == 32)
-	{
+	else if ( offset_b == 16 && offset_g == 8  && offset_r == 0  &&
+		  offset_a == -1 && bpp == 32) {
 		retval = TPL_FORMAT_XBGR8888;
-	}
-	else if( offset_r == 16 && offset_g == 8  && offset_b == 0  && offset_a == -1 && bpp == 32)
-	{
+	} else if ( offset_r == 16 && offset_g == 8  && offset_b == 0  &&
+		    offset_a == -1 && bpp == 32) {
 		retval = TPL_FORMAT_XRGB8888;
-	}
-	else if( offset_b == 24 && offset_g == 16 && offset_r == 8  && offset_a == -1 && bpp == 32)
-	{
+	} else if ( offset_b == 24 && offset_g == 16 && offset_r == 8  &&
+		    offset_a == -1 && bpp == 32) {
 		retval = TPL_FORMAT_BGRX8888;
-	}
-	else if( offset_r == 24 && offset_g == 16 && offset_b == 8  && offset_a == -1 && bpp == 32)
-	{
+	} else if ( offset_r == 24 && offset_g == 16 && offset_b == 8  &&
+		    offset_a == -1 && bpp == 32) {
 		retval = TPL_FORMAT_RGBX8888;
 	}
 
-	else if( offset_b == 16 && offset_g == 8  && offset_r == 0  && offset_a == -1 && bpp == 24)
-	{
+	else if ( offset_b == 16 && offset_g == 8  && offset_r == 0  &&
+		  offset_a == -1 && bpp == 24) {
 		retval = TPL_FORMAT_BGR888;
-	}
-	else if( offset_r == 16 && offset_g == 8  && offset_b == 0  && offset_a == -1 && bpp == 24)
-	{
+	} else if ( offset_r == 16 && offset_g == 8  && offset_b == 0  &&
+		    offset_a == -1 && bpp == 24) {
 		retval = TPL_FORMAT_RGB888;
 	}
 
-	else if( offset_a == 12 && offset_b == 8  && offset_g == 4  && offset_r == 0  && bpp == 16)
-	{
+	else if ( offset_a == 12 && offset_b == 8  && offset_g == 4  &&
+		  offset_r == 0  && bpp == 16) {
 		retval = TPL_FORMAT_ABGR4444;
-	}
-	else if( offset_a == 12 && offset_r == 8  && offset_g == 4  && offset_b == 0  && bpp == 16)
-	{
+	} else if ( offset_a == 12 && offset_r == 8  && offset_g == 4  &&
+		    offset_b == 0  && bpp == 16) {
 		retval = TPL_FORMAT_ARGB4444;
-	}
-	else if( offset_b == 12 && offset_g == 8  && offset_r == 4  && offset_a == 0  && bpp == 16)
-	{
+	} else if ( offset_b == 12 && offset_g == 8  && offset_r == 4  &&
+		    offset_a == 0  && bpp == 16) {
 		retval = TPL_FORMAT_BGRA4444;
-	}
-	else if( offset_r == 12 && offset_g == 8  && offset_b == 4  && offset_a == 0  && bpp == 16)
-	{
+	} else if ( offset_r == 12 && offset_g == 8  && offset_b == 4  &&
+		    offset_a == 0  && bpp == 16) {
 		retval = TPL_FORMAT_RGBA4444;
 	}
 
-	else if( offset_a == 15 && offset_b == 10 && offset_g == 5  && offset_r == 0  && bpp == 16)
-	{
+	else if ( offset_a == 15 && offset_b == 10 && offset_g == 5  &&
+		  offset_r == 0  && bpp == 16) {
 		retval = TPL_FORMAT_ABGR1555;
-	}
-	else if( offset_a == 15 && offset_r == 10 && offset_g == 5  && offset_b == 0  && bpp == 16)
-	{
+	} else if ( offset_a == 15 && offset_r == 10 && offset_g == 5  &&
+		    offset_b == 0  && bpp == 16) {
 		retval = TPL_FORMAT_ARGB1555;
-	}
-	else if( offset_b == 11 && offset_g == 6  && offset_r == 1  && offset_a == 0  && bpp == 16)
-	{
+	} else if ( offset_b == 11 && offset_g == 6  && offset_r == 1  &&
+		    offset_a == 0  && bpp == 16) {
 		retval = TPL_FORMAT_BGRA5551;
-	}
-	else if( offset_r == 11 && offset_g == 6  && offset_b == 1  && offset_a == 0  && bpp == 16)
-	{
+	} else if ( offset_r == 11 && offset_g == 6  && offset_b == 1  &&
+		    offset_a == 0  && bpp == 16) {
 		retval = TPL_FORMAT_RGBA5551;
 	}
 
-	else
-	{
+	else {
 		TPL_WARN("Format not supported: offset_r=%d, offset_g=%d, offset_b=%d, offset_a=%d, bpp=%d",
-				offset_r, offset_g, offset_b, offset_a, bpp);
+			 offset_r, offset_g, offset_b, offset_a, bpp);
 	}
 
 	return retval;
@@ -409,7 +380,7 @@ static tpl_format_t tpl_offsets_to_color_buffer_format( int offset_r, int offset
 
 tpl_bool_t
 __tpl_x11_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
-				       int *width, int *height, tpl_format_t *format, int depth, int a_size)
+				  int *width, int *height, tpl_format_t *format, int depth, int a_size)
 {
 	Status x_res;
 	XWindowAttributes att;
@@ -420,18 +391,24 @@ __tpl_x11_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 	TPL_ASSERT(display);
 	TPL_ASSERT(display->native_handle);
 
-	x_res = XGetWindowAttributes((Display *)display->native_handle, (Window)window, &att);
+	x_res = XGetWindowAttributes((Display *)display->native_handle, (Window)window,
+				     &att);
 
-	if (x_res != BadWindow)
-	{
-		if (format != NULL)
-		{
-			switch (att.depth)
-			{
-				case 32: *format = TPL_FORMAT_ARGB8888; break;
-				case 24: *format = TPL_FORMAT_XRGB8888; break;
-				case 16: *format = TPL_FORMAT_RGB565; break;
-				default: *format = TPL_FORMAT_INVALID; break;
+	if (x_res != BadWindow) {
+		if (format != NULL) {
+			switch (att.depth) {
+			case 32:
+				*format = TPL_FORMAT_ARGB8888;
+				break;
+			case 24:
+				*format = TPL_FORMAT_XRGB8888;
+				break;
+			case 16:
+				*format = TPL_FORMAT_RGB565;
+				break;
+			default:
+				*format = TPL_FORMAT_INVALID;
+				break;
 			}
 		}
 		if (width != NULL) *width = att.width;
@@ -444,7 +421,7 @@ __tpl_x11_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
 
 tpl_bool_t
 __tpl_x11_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
-				       int *width, int *height, tpl_format_t *format)
+				  int *width, int *height, tpl_format_t *format)
 {
 	Status x_res;
 	Window root = None;
@@ -457,16 +434,21 @@ __tpl_x11_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 	x_res = XGetGeometry((Display *)display->native_handle, (Pixmap)pixmap, &root,
 			     &x, &y, &w, &h, &bw, &d);
 
-	if (x_res != BadDrawable)
-	{
-		if (format != NULL)
-		{
-			switch (d)
-			{
-				case 32: *format = TPL_FORMAT_ARGB8888; break;
-				case 24: *format = TPL_FORMAT_XRGB8888; break;
-				case 16: *format = TPL_FORMAT_RGB565; break;
-				default: *format = TPL_FORMAT_INVALID; break;
+	if (x_res != BadDrawable) {
+		if (format != NULL) {
+			switch (d) {
+			case 32:
+				*format = TPL_FORMAT_ARGB8888;
+				break;
+			case 24:
+				*format = TPL_FORMAT_XRGB8888;
+				break;
+			case 16:
+				*format = TPL_FORMAT_RGB565;
+				break;
+			default:
+				*format = TPL_FORMAT_INVALID;
+				break;
 			}
 		}
 		if (width != NULL)  *width = w;
@@ -505,8 +487,7 @@ __tpl_x11_buffer_fini(tpl_buffer_t *buffer)
 {
 	TPL_ASSERT(buffer);
 
-	if (buffer->backend.data)
-	{
+	if (buffer->backend.data) {
 		tbm_bo_map((tbm_bo)buffer->backend.data, TBM_DEVICE_3D, TBM_OPTION_READ);
 		tbm_bo_unmap((tbm_bo)buffer->backend.data);
 		tbm_bo_unref((tbm_bo)buffer->backend.data);
@@ -552,23 +533,22 @@ __tpl_x11_buffer_lock(tpl_buffer_t *buffer, tpl_lock_usage_t usage)
 
 	TPL_OBJECT_UNLOCK(buffer);
 
-	switch (usage)
-	{
-		case TPL_LOCK_USAGE_GPU_READ:
-			handle = tbm_bo_map(bo, TBM_DEVICE_3D, TBM_OPTION_READ);
-			break;
-		case TPL_LOCK_USAGE_GPU_WRITE:
-			handle = tbm_bo_map(bo, TBM_DEVICE_3D, TBM_OPTION_WRITE);
-			break;
-		case TPL_LOCK_USAGE_CPU_READ:
-			handle = tbm_bo_map(bo, TBM_DEVICE_CPU, TBM_OPTION_READ);
-			break;
-		case TPL_LOCK_USAGE_CPU_WRITE:
-			handle = tbm_bo_map(bo, TBM_DEVICE_CPU, TBM_OPTION_WRITE);
-			break;
-		default:
-			TPL_ASSERT(TPL_FALSE);
-			return TPL_FALSE;
+	switch (usage) {
+	case TPL_LOCK_USAGE_GPU_READ:
+		handle = tbm_bo_map(bo, TBM_DEVICE_3D, TBM_OPTION_READ);
+		break;
+	case TPL_LOCK_USAGE_GPU_WRITE:
+		handle = tbm_bo_map(bo, TBM_DEVICE_3D, TBM_OPTION_WRITE);
+		break;
+	case TPL_LOCK_USAGE_CPU_READ:
+		handle = tbm_bo_map(bo, TBM_DEVICE_CPU, TBM_OPTION_READ);
+		break;
+	case TPL_LOCK_USAGE_CPU_WRITE:
+		handle = tbm_bo_map(bo, TBM_DEVICE_CPU, TBM_OPTION_WRITE);
+		break;
+	default:
+		TPL_ASSERT(TPL_FALSE);
+		return TPL_FALSE;
 	}
 
 	TPL_OBJECT_LOCK(buffer);
@@ -611,8 +591,7 @@ void __tpl_x11_display_wait_native(tpl_display_t *display)
 	TPL_ASSERT(display);
 
 	xlib_display = (Display *) display->native_handle;
-	if (xlib_display != NULL)
-	{
+	if (xlib_display != NULL) {
 		/* Leave events in the queue since we only care they have arrived. */
 		XSync(xlib_display, 0);
 	}
