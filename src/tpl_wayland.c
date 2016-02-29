@@ -282,6 +282,44 @@ __tpl_wayland_display_get_window_info(tpl_display_t *display,
 	return TPL_ERROR_NONE;
 }
 
+static tpl_result_t
+__tpl_wayland_display_get_pixmap_info(tpl_display_t *display,
+				      tpl_handle_t pixmap, int *width,
+				      int *height, tbm_format *format)
+{
+	tbm_surface_h	tbm_surface = NULL;
+
+	tbm_surface = wayland_tbm_server_get_surface(NULL,
+			(struct wl_resource *)pixmap);
+	if (!tbm_surface) {
+		TPL_ERR("Failed to get tbm_surface_h from native pixmap.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
+
+	if (width) *width = tbm_surface_get_width(tbm_surface);
+	if (height) *height = tbm_surface_get_height(tbm_surface);
+	if (format) *format = tbm_surface_get_format(tbm_surface);
+
+	return TPL_ERROR_NONE;
+}
+
+static tbm_surface_h
+__tpl_wayland_display_get_buffer_from_native_pixmap(tpl_handle_t pixmap)
+{
+	tbm_surface_h tbm_surface = NULL;
+
+	TPL_ASSERT(pixmap);
+
+	tbm_surface = wayland_tbm_server_get_surface(NULL,
+			(struct wl_resource *)pixmap);
+	if (!tbm_surface) {
+		TPL_ERR("Failed to get tbm_surface_h from wayland_tbm.");
+		return NULL;
+	}
+
+	return tbm_surface;
+}
+
 static void
 __cb_client_window_resize_callback(struct wl_egl_window *wl_egl_window,
 				   void *private);
@@ -598,6 +636,9 @@ __tpl_display_init_backend_wayland(tpl_display_backend_t *backend)
 	backend->query_config = __tpl_wayland_display_query_config;
 	backend->filter_config = __tpl_wayland_display_filter_config;
 	backend->get_window_info = __tpl_wayland_display_get_window_info;
+	backend->get_pixmap_info = __tpl_wayland_display_get_pixmap_info;
+	backend->get_buffer_from_native_pixmap =
+		__tpl_wayland_display_get_buffer_from_native_pixmap;
 }
 
 void
