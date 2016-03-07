@@ -688,22 +688,22 @@ __tpl_util_image_dump_bmp(const char *file, const void *data, int width,
 		bmp_dib_v3_header_t.nplanes = 1;
 		bmp_dib_v3_header_t.bmp_bytesz = width * height * 3;
 
-		if (fwrite(&bmpfile_magic, sizeof (bmpfile_magic), 1, fp) < 0) {
+		if (fwrite(&bmpfile_magic, sizeof (bmpfile_magic), 1, fp) < 1) {
 			fclose (fp);
 			return -1;
 		}
-		if (fwrite(&bmpfile_header, sizeof (bmpfile_header), 1, fp) < 0) {
+		if (fwrite(&bmpfile_header, sizeof (bmpfile_header), 1, fp) < 1) {
 			fclose (fp);
 			return -1;
 		}
-		if (fwrite (&bmp_dib_v3_header_t, sizeof (bmp_dib_v3_header_t), 1, fp) < 0) {
+		if (fwrite(&bmp_dib_v3_header_t, sizeof (bmp_dib_v3_header_t), 1, fp) < 1) {
 			fclose (fp);
 			return -1;
 		}
 
 		blocks = (unsigned int *)data;
 		for (i = 0; i < height * width; i++) {
-			if (fwrite (&blocks[i], 3, 1, fp) < 0) {
+			if (fwrite(&blocks[i], 3, 1, fp) < 1) {
 				fclose(fp);
 				return -1;
 			}
