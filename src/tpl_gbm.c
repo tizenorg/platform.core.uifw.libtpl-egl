@@ -336,6 +336,14 @@ __tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface,
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
+	tbm_bo_handle bo_handle =
+		tbm_bo_get_handle(tbm_surface_internal_get_bo(tbm_surface, 0),
+				  TBM_DEVICE_CPU);
+
+	if (bo_handle.ptr)
+		TPL_IMAGE_DUMP(bo_handle.ptr, surface->width, surface->height,
+			       surface->dump_count++);
+
 	tbm_surface_internal_unref(tbm_surface);
 
 	if (!gbm_surface->tbm_queue) {
