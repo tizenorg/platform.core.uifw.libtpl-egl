@@ -148,12 +148,13 @@ __tpl_runtime_add_display(tpl_display_t *display)
 	TPL_ASSERT(0 <= type && TPL_BACKEND_COUNT > type);
 
 	if (0 != pthread_mutex_lock(&runtime_mutex)) {
-		TPL_ERR("runtime_mutex pthread_mutex_lock filed.");
+		TPL_ERR("runtime_mutex pthread_mutex_lock failed.");
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
 	if (TPL_ERROR_NONE != __tpl_runtime_init()) {
 		TPL_ERR("__tpl_runtime_init() failed.");
+		pthread_mutex_unlock(&runtime_mutex);
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
@@ -161,6 +162,7 @@ __tpl_runtime_add_display(tpl_display_t *display)
 		runtime->displays[type] = __tpl_hashlist_create();
 		if (NULL == runtime->displays[type]) {
 			TPL_ERR("__tpl_hashlist_create failed.");
+			pthread_mutex_unlock(&runtime_mutex);
 			return TPL_ERROR_INVALID_OPERATION;
 		}
 	}
@@ -171,6 +173,7 @@ __tpl_runtime_add_display(tpl_display_t *display)
 		TPL_ERR("__tpl_hashlist_insert failed. list(%p), handle(%d), display(%p)",
 			runtime->displays[type], handle, display);
 		__tpl_hashlist_destroy(&runtime->displays[type]);
+		pthread_mutex_unlock(&runtime_mutex);
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
