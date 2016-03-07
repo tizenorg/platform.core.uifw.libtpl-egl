@@ -110,9 +110,9 @@ wl_egl_window_destroy(struct wl_egl_window *egl_window)
 		return;
 	}
 
-	free(egl_window);
-
 	WL_EGL_LOG(2, "egl_win:%10p", egl_window);
+
+	free(egl_window);
 }
 
 WL_EGL_EXPORT void
