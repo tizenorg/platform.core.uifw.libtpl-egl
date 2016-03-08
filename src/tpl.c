@@ -172,7 +172,6 @@ __tpl_runtime_add_display(tpl_display_t *display)
 	if (TPL_ERROR_NONE != ret) {
 		TPL_ERR("__tpl_hashlist_insert failed. list(%p), handle(%d), display(%p)",
 			runtime->displays[type], handle, display);
-		__tpl_hashlist_destroy(&runtime->displays[type]);
 		pthread_mutex_unlock(&runtime_mutex);
 		return TPL_ERROR_INVALID_OPERATION;
 	}
