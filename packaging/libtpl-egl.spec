@@ -73,6 +73,8 @@ BuildRequires:  pkgconfig(wayland-tbm-server)
 BuildRequires:	pkgconfig(libpng)
 %endif
 
+%global TZ_SYS_RO_SHARE  %{?TZ_SYS_RO_SHARE:%TZ_SYS_RO_SHARE}%{!?TZ_SYS_RO_SHARE:/usr/share}
+
 %description
 Tizen Porting Layer (a.k.a TPL) is a linkage between the underlying window
 system and the EGL porting layer.
@@ -175,11 +177,15 @@ ln -sf libtpl-egl.so.%{TPL_VER_MAJOR}	%{buildroot}%{_libdir}/libtpl-egl.so
 cp -a src/tpl.h				%{buildroot}%{_includedir}/
 cp -a pkgconfig/tpl-egl.pc		%{buildroot}%{_libdir}/pkgconfig/
 
+mkdir -p %{buildroot}/%{TZ_SYS_RO_SHARE}/license
+cp -a %{_builddir}/%{buildsubdir}/COPYING %{buildroot}/%{TZ_SYS_RO_SHARE}/license/%{name}
+
 %if "%{TPL_WINSYS}" == "WL"
 cd src/wayland-egl
 cp libwayland-egl.so.%{WL_EGL_VERSION} %{buildroot}%{_libdir}/libwayland-egl.so
 cp libwayland-egl.so.%{WL_EGL_VERSION} %{buildroot}%{_libdir}/libwayland-egl.so.1
 cp libwayland-egl.so.%{WL_EGL_VERSION} %{buildroot}%{_libdir}/libwayland-egl.so.1.0
+cp -a %{_builddir}/%{buildsubdir}/COPYING %{buildroot}/%{TZ_SYS_RO_SHARE}/license/libwayland-egl
 export WLD_EGL_SO_VER=%{WL_EGL_VERSION}
 %makeinstall
 %endif
@@ -194,7 +200,7 @@ export WLD_EGL_SO_VER=%{WL_EGL_VERSION}
 
 %files
 %manifest packaging/libtpl-egl.manifest
-%license COPYING
+%{TZ_SYS_RO_SHARE}/license/%{name}
 %defattr(-,root,root,-)
 %{_libdir}/libtpl-egl.so
 %{_libdir}/libtpl-egl.so.%{TPL_VER_MAJOR}
@@ -209,7 +215,7 @@ export WLD_EGL_SO_VER=%{WL_EGL_VERSION}
 %if "%{TPL_WINSYS}" == "WL"
 %files -n libwayland-egl
 %manifest packaging/libwayland-egl.manifest
-%license COPYING
+%{TZ_SYS_RO_SHARE}/license/libwayland-egl
 %defattr(-,root,root,-)
 %{_libdir}/libwayland-egl.so
 %{_libdir}/libwayland-egl.so.1
