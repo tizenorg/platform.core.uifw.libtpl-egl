@@ -532,7 +532,24 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 	struct wl_proxy *wl_proxy = NULL;
 	tbm_surface_queue_error_e tsq_err = 0;
 
-	if (wayland_surface->resized == TPL_TRUE) wayland_surface->resized = TPL_FALSE;
+	/* Check whether the surface was resized by wayland_egl */
+	if (wayland_surface->resized == TPL_TRUE) {
+		struct wl_egl_window *wl_egl_window = (struct wl_egl_window *)
+						      surface->native_handle;
+		int width, height, format;
+		width = wl_egl_window->width;
+		height = wl_egl_window->height;
+		format = tbm_surface_queue_get_format(wayland_surface->tbm_queue);
+
+		/* TODO: In dequeue_buffer case, does it explictly need on unref of current_buffer? */
+		if (wayland_surface->current_buffer)
+			tbm_surface_internal_unref(wayland_surface->current_buffer);
+
+		tbm_surface_queue_reset(wayland_surface->tbm_queue, width, height, format);
+		wayland_surface->resized = TPL_FALSE;
+		surface->width = width;
+		surface->height = height;
+	}
 
 	TPL_OBJECT_UNLOCK(surface);
 	while (tbm_surface_queue_can_dequeue(
@@ -725,25 +742,16 @@ __cb_client_window_resize_callback(struct wl_egl_window *wl_egl_window,
 	TPL_ASSERT(private);
 	TPL_ASSERT(wl_egl_window);
 
-	int width, height, format;
+	int width, height;
 	tpl_surface_t *surface = (tpl_surface_t *)private;
 	tpl_wayland_surface_t *wayland_surface = (tpl_wayland_surface_t *)
 			surface->backend.data;
 
-	wayland_surface->resized = TPL_TRUE;
-
 	width = wl_egl_window->width;
 	height = wl_egl_window->height;
-	format = tbm_surface_queue_get_format(wayland_surface->tbm_queue);
 
 	/* Check whether the surface was resized by wayland_egl */
-	if ((wayland_surface->resized == TPL_TRUE)
-	    || (width != tbm_surface_queue_get_width(wayland_surface->tbm_queue))
-	    || (height != tbm_surface_queue_get_height(wayland_surface->tbm_queue))) {
-
-		if (wayland_surface->current_buffer)
-			tbm_surface_internal_unref(wayland_surface->current_buffer);
-
-		tbm_surface_queue_reset(wayland_surface->tbm_queue, width, height, format);
-	}
+	if ((width != tbm_surface_queue_get_width(wayland_surface->tbm_queue))
+	    || (height != tbm_surface_queue_get_height(wayland_surface->tbm_queue)))
+		wayland_surface->resized = TPL_TRUE;
 }
