@@ -401,9 +401,8 @@ __tpl_gbm_surface_dequeue_buffer(tpl_surface_t *surface)
 	/* It will be dec when before tbm_surface_queue_enqueue called */
 	tbm_surface_internal_ref(tbm_surface);
 
-	if (gbm_buffer = __tpl_gbm_get_gbm_buffer_from_tbm_surface(tbm_surface)) {
-		return tbm_surface;
-	}
+	gbm_buffer = __tpl_gbm_get_gbm_buffer_from_tbm_surface(tbm_surface);
+	if (gbm_buffer) return tbm_surface;
 
 	if (!(bo = tbm_surface_internal_get_bo(tbm_surface, 0))) {
 		TPL_ERR("Failed to get tbm_bo from tbm_surface");
