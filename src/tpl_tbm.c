@@ -183,7 +183,7 @@ __tpl_tbm_surface_init(tpl_surface_t *surface)
 			goto error;
 		}
 
-		tbm_surface_queue_set_destroy_cb((tbm_surface_queue_h)surface->native_handle,
+		tbm_surface_queue_add_destroy_cb((tbm_surface_queue_h)surface->native_handle,
 						 __tpl_tbm_surface_queue_notify_cb,
 						 surface);
 
