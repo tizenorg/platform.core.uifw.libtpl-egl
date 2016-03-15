@@ -327,7 +327,10 @@ __cb_client_window_resize_callback(struct wl_egl_window *wl_egl_window,
 static tpl_result_t
 __tpl_wayland_surface_init(tpl_surface_t *surface)
 {
+	tpl_wayland_display_t *wayland_display =
+		(tpl_wayland_display_t *) surface->display->backend.data;
 	tpl_wayland_surface_t *wayland_surface = NULL;
+
 	struct wl_egl_window *wl_egl_window = (struct wl_egl_window *)
 					      surface->native_handle;
 
@@ -347,8 +350,20 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 	wayland_surface->resized = TPL_FALSE;
 	wayland_surface->current_buffer = NULL;
 
-	wayland_surface->tbm_queue = tbm_surface_queue_create(CLIENT_QUEUE_SIZE,
-				     wl_egl_window->width, wl_egl_window->height, surface->format, 0);
+	if (wl_egl_window->surface)
+		wayland_surface->tbm_queue = wayland_tbm_client_create_surface_queue(wayland_display->wl_tbm_client,
+						wl_egl_window->surface,
+						3,
+						wl_egl_window->width,
+						wl_egl_window->height,
+						TBM_FORMAT_ARGB8888);
+	else
+		/*Why wl_surafce is NULL ?*/
+		wayland_surface->tbm_queue = tbm_surface_queue_sequence_create(3,
+						wl_egl_window->width,
+						wl_egl_window->height,
+						TBM_FORMAT_ARGB8888,
+						0);
 
 	if (!wayland_surface->tbm_queue) {
 		TPL_ERR("TBM surface queue creation failed!");
