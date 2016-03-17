@@ -677,7 +677,9 @@ __tpl_util_image_dump_bmp(const char *file, const void *data, int width,
 
 	FILE *fp = NULL;
 	if ((fp = fopen (file, "wb")) == NULL) {
-		printf("FILE ERROR:%s\t", strerror(errno));
+		char ment[256];
+		strerror_r(errno, ment, 256);
+		printf("FILE ERROR:%s\t", ment);
 		return -2;
 	} else {
 		bmpfile_header.filesz = sizeof (bmpfile_magic) + sizeof (bmpfile_header) +
