@@ -133,7 +133,6 @@ void __tpl_object_unlock(tpl_object_t *object);
 
 /* Display functions. */
 tpl_handle_t __tpl_display_get_native_handle(tpl_display_t *display);
-void __tpl_display_flush(tpl_display_t *display);
 void __tpl_surface_set_backend_data(tpl_surface_t *surface, void *data);
 void *__tpl_surface_get_backend_data(tpl_surface_t *surface);
 
@@ -143,7 +142,6 @@ __tpl_runtime_find_display(tpl_backend_type_t type,
 			   tpl_handle_t native_display);
 tpl_result_t __tpl_runtime_add_display(tpl_display_t *display);
 void __tpl_runtime_remove_display(tpl_display_t *display);
-void __tpl_runtime_flush_all_display();
 
 /* Backend initialization functions. */
 tpl_backend_type_t __tpl_display_choose_backend(tpl_handle_t native_dpy);

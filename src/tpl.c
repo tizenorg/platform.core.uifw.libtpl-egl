@@ -198,32 +198,6 @@ __tpl_runtime_remove_display(tpl_display_t *display)
 	pthread_mutex_unlock(&runtime_mutex);
 }
 
-void __tpl_runtime_flush_cb(void *data)
-{
-	TPL_OBJECT_LOCK(data);
-	__tpl_display_flush(data);
-	TPL_OBJECT_UNLOCK(data);
-}
-
-void
-__tpl_runtime_flush_all_display()
-{
-	int i;
-
-	if (runtime == NULL)
-		return;
-
-	pthread_mutex_lock(&runtime_mutex);
-
-	for (i = 0; i < TPL_BACKEND_COUNT; i++) {
-		if (runtime->displays[i] != NULL)
-			__tpl_hashlist_do_for_all_nodes(runtime->displays[i],
-							__tpl_runtime_flush_cb);
-	}
-
-	pthread_mutex_unlock(&runtime_mutex);
-}
-
 tpl_backend_type_t
 __tpl_display_choose_backend(tpl_handle_t native_dpy)
 {
