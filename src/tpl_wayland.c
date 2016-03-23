@@ -40,6 +40,18 @@ struct _tpl_wayland_surface {
 	tbm_surface_queue_h tbm_queue;
 	tbm_surface_h current_buffer;
 	tpl_bool_t resized;
+
+	/* I'm not fully understood current_buffer use-case,
+	 * so just to test I've added new field which represent
+	 * whether we have some buffer under rendering or not */
+	int rendering_is;
+
+	/* it's buffer which we will post after surface_enter event has been arrived
+	 * it's content, if exist, is rendered with gles during surface_leave event
+	 * handling, so we've prevented it to be posted at that time and will be able to
+	 * post it after surface_enter event will have been arrived -- a.k.a
+	 * immediately app start effect :-) */
+	tbm_surface_h delayed_buffer;
 };
 
 struct _tpl_wayland_buffer {
@@ -324,12 +336,161 @@ static void
 __cb_client_window_resize_callback(struct wl_egl_window *wl_egl_window,
 				   void *private);
 
+//-------------------------- TWS-1456 -------------------------------------------------
+
+/* this is dummy implementation of enqueue_buffer which is used to avoid ordinary way of
+ * buffer posting -- we need to prevent buffer to be posted and need to block gles thread
+ * until surface_enter event will have been delivered */
+static tpl_result_t
+__tpl_wayland_dummy_enqueue_buffer(tpl_surface_t *surface,
+	     tbm_surface_h tbm_surface,
+	     int num_rects, const int *rects)
+{
+	tpl_result_t res = TPL_ERROR_NONE;
+
+	pthread_cond_wait()
+	return res;
+}
+
+static tbm_surface_h
+__tpl_wayland_dummy_dequeue_buffer(tpl_surface_t *surface)
+{
+	tbm_surface_h tbm_surface;;
+
+	pthread_cond_wait();
+
+	return tbm_surface;
+}
+
+/* pick up all not-dequeued and not-acquired tbm_surfaces from surface_queue (free_queue)
+ * also inform about this wayland server to allow it to does actually memory release */
+static void
+__tpl_wayland_pick_up_surface_free_queue_buffers(tpl_surface_t *tpl_surface)
+{
+	tpl_wayland_display_t *wayland_display =
+			(tpl_wayland_display_t *) tpl_surface->display->backend.data;
+	tpl_wayland_surface_t *wayland_surface =
+			(tpl_wayland_surface_t *) tpl_surface->backend.data;
+	tpl_wayland_buffer_t *wayland_buffer;
+
+	tbm_surface_h tbm_surface;
+
+	/* iterate over available, in free_queue, tbm_surfaces */
+	while (tbm_surface_queue_can_dequeue(wayland_surface->tbm_queue, 0) == 1) {
+
+		/* dequeue from tbm_surface, so we `remove` it from free_queue, but not
+		 * from list of all tbm_surfaces */
+		tbm_surface_queue_dequeue(wayland_surface->tbm_queue, &tbm_surface);
+
+		/* inform wayland server we'll destroy tmb_surfaces (on client side) soon, so it can
+		   destroy itself representation of these tbm_surfaces to actually free kernel
+		   'graphical' memory. */
+		wayland_buffer = __tpl_wayland_get_wayland_buffer_from_tbm_surface(tbm_surface);
+		wayland_tbm_client_destroy_buffer(wayland_display->wl_tbm_client, wayland_buffer);
+		tbm_surface_destroy(tbm_surface);
+	}
+
+	/* Now we cann't reset surface_queue because it has links to buffers which aren't in
+	 * free_queue, we will do it later */
+}
+
+/* handler of surface_enter event, which is issued by wayland server: wl_surface_send_enter */
+static void
+__surface_enter_event(void *data,
+		struct wl_surface *wl_surface,
+		struct wl_output *output)
+{
+	TPL_LOG(3, "surface enter event -- wl_surface: %p.\n", wl_surface);
+}
+
+/* handler of surface_leave event, which is issued by wayland server: wl_surface_send_leave */
+static void
+__surface_leave_event(void *data,
+	      struct wl_surface *wl_surface,
+	      struct wl_output *output)
+{
+	tpl_surface_t *surface = (tpl_surface_t *)data;
+	tpl_wayland_display_t *wayland_display =
+		(tpl_wayland_display_t *) surface->display->backend.data;
+	tpl_wayland_surface_t *wayland_surface =
+			(tpl_wayland_surface_t *) surface->backend.data;
+
+	TPL_LOG(3, "surface leave event -- wl_surface: %p.\n", wl_surface);
+
+	/* make some logic to prevent rendered buffer to be posted and new buffer to be dequeued,
+	 * from gles rendering thread */
+
+	TPL_OBJECT_LOCK(surface);
+	if (wayland_surface->rendering_is)
+	{
+		/* Maybe it's paranoia, but now, I think this approach is better than
+		 * insert logic directly inside
+		 * __tpl_wayland_surface_enqueue_buffer/__tpl_wayland_surface_dequeue_buffer functions... */
+		surface->backend.enqueue_buffer = __tpl_wayland_dummy_enqueue_buffer;
+		surface->backend.dequeue_buffer = __tpl_wayland_dummy_dequeue_buffer;
+
+	}
+	TPL_OBJECT_UNLOCK(surface);
+
+	/* Dequeue buffers from surface_queue.free_queue */
+
+	__tpl_wayland_pick_up_surface_free_queue_buffers(surface);
+
+	/* Wait for buffers which were posted to wayland server to release them too */
+
+	TPL_OBJECT_UNLOCK(surface);
+	while (tbm_surface_queue_can_dequeue(wayland_surface->tbm_queue, 0) == 0) {
+		/* Application sent all buffers to the server. Wait for server response. */
+		if (wl_display_dispatch_queue(surface->display->native_handle,
+						  wayland_display->wl_queue) == -1) {
+			TPL_OBJECT_LOCK(surface);
+			TPL_ERR("Error during tpl wl_queue dispatching.");
+			return;
+		}
+	}
+	TPL_OBJECT_LOCK(surface);
+
+
+	/* we've dequeued all tbm_surfaces from free_queue but we haven't done
+	 *  real tbm_surface_unref/tbm_surface_destroy calls, so we will do it by reseting queue
+	 *  Note: we have links to them even after we've dequeued them. */
+
+	int width, height, format;
+
+	width = tbm_surface_queue_get_width(wayland_surface->tbm_queue);
+	height = tbm_surface_queue_get_height(wayland_surface->tbm_queue);
+	format = tbm_surface_queue_get_format(wayland_surface->tbm_queue);
+
+	/* it's temporary hack, due to the fact I have no access to
+	   tbm_surface_queue_h internal and tbm_surface_queue_reset
+	   function arguments checking; in future, I think, tbm_surface_queue_reset
+	   arguments checking logic must be reviewed or something similar...*/
+
+	/* like as tbm_queue->width++ */
+	*((int*)wayland_surface->tbm_queue)++;
+
+	/* reset surface_queue, it means unref/destroy all not-dequeued tbm_surfaces */
+	tbm_surface_queue_reset(wayland_surface->tbm_queue, width, height, format);
+
+}
+
+static const struct wl_surface_listener wl_surface_listener =
+{
+	__surface_enter_event,
+	__surface_leave_event
+};
+
+//-----------------------------------------------------------------------------------
+
 static tpl_result_t
 __tpl_wayland_surface_init(tpl_surface_t *surface)
 {
 	tpl_wayland_surface_t *wayland_surface = NULL;
 	struct wl_egl_window *wl_egl_window = (struct wl_egl_window *)
 					      surface->native_handle;
+
+	tpl_wayland_display_t *wayland_display =
+		(tpl_wayland_display_t *) surface->display->backend.data;
 
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->type == TPL_SURFACE_TYPE_WINDOW);
@@ -362,8 +523,22 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 	wl_egl_window->private = surface;
 	wl_egl_window->resize_callback = (void *)__cb_client_window_resize_callback;
 
-	TPL_LOG(3, "window(%p, %p) %dx%d", surface, surface->native_handle,
-		surface->width, surface->height);
+	// subscribe for surface's enter/leave events
+	int ret = wl_surface_add_listener(wl_egl_window->surface, &wl_surface_listener, wayland_surface);
+
+	TPL_LOG(3, "wl_surface_add_listener call has been done: wl_surface: %p, ret: %d.",
+			wl_egl_window->surface, ret);
+
+	// all events for this wl_surface will come to @wl_queue queue, so we [main egl thread]
+	// will be able to monitor them along buffer release, frame and so on events
+	wl_proxy_set_queue((struct wl_proxy *)wl_egl_window->surface,
+			wayland_display->wl_queue);
+
+	TPL_LOG(3, "wl_proxy_set_queue call has been done: wl_surface: %p, wl_event_queue: %p.",
+			wl_egl_window->surface, wayland_display->wl_queue);
+
+	/*TPL_LOG(3, "window(%p, %p) %dx%d", surface, surface->native_handle,
+		surface->width, surface->height);*/
 
 	return TPL_ERROR_NONE;
 }
@@ -499,6 +674,9 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 
 	wl_display_flush(surface->display->native_handle);
 
+	/* gles is asking to post buffer, so rendering has been done */
+	wayland_surface->rendering_is = 0;
+
 	return TPL_ERROR_NONE;
 }
 
@@ -607,6 +785,9 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 	wayland_surface->current_buffer = tbm_surface;
 
 	__tpl_wayland_set_wayland_buffer_to_tbm_surface(tbm_surface, wayland_buffer);
+
+	/* gles is requiring buffer, so it will start to render soon */
+	wayland_surface->rendering_is = 1;
 
 	return tbm_surface;
 }
