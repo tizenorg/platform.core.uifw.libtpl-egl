@@ -3,7 +3,7 @@
 define is-feature-enabled
 $(findstring -$1-,-$(TPL_OPTIONS)-)
 endef
-
+k=0
 SRC_DIR = ./src
 SO_NAME = libtpl-egl.so.$(TPL_VER_MAJOR).$(TPL_VER_MINOR)
 BIN_NAME = $(SO_NAME).$(TPL_RELEASE)
