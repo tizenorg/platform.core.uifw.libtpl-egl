@@ -72,7 +72,10 @@ struct _tpl_wayland_buffer {
 static const struct wl_registry_listener registry_listener;
 static const struct wl_callback_listener sync_listener;
 static const struct wl_callback_listener frame_listener;
-static const struct wl_buffer_listener buffer_release_listener;
+
+/* we must keep it not constant due to the fact we must change it content
+ * to properly react on surface leave/enter events */
+static struct wl_buffer_listener buffer_release_listener;
 
 #define TPL_BUFFER_CACHE_MAX_ENTRIES 40
 
@@ -346,9 +349,76 @@ __cb_client_window_resize_callback(struct wl_egl_window *wl_egl_window,
 
 //-------------------------- TWS-1456 -------------------------------------------------
 
+static void
+__cb_client_buffer_release_callback(void *data, struct wl_proxy *proxy);
+
+/* it's temporary function */
+static void
+__tpl_wayland_reset_surface_queue(tbm_surface_queue_h tbm_queue)
+{
+	int width, height, format;
+
+	/* we've dequeued all tbm_surfaces from free_queue but we haven't done
+	 * real tbm_surface_unref/tbm_surface_destroy calls, so we will do it by reseting queue
+	 * Note: we have links to them even after we've dequeued them. */
+
+	width = tbm_surface_queue_get_width(tbm_queue);
+	height = tbm_surface_queue_get_height(tbm_queue);
+	format = tbm_surface_queue_get_format(tbm_queue);
+
+	/* it's temporary hack, due to the fact I have no access to
+	   tbm_surface_queue_h internal and tbm_surface_queue_reset
+	   function arguments checking; in future, I think, tbm_surface_queue_reset
+	   arguments checking logic must be reviewed or something similar...*/
+
+	/* like as tbm_queue->width++ */
+	int *temp;
+
+	temp = (int*)tbm_queue;
+	(*temp)++;
+
+	/* reset surface_queue, it means unref/destroy all not-dequeued tbm_surfaces */
+	tbm_surface_queue_reset(tbm_queue, width, height, format);
+}
+
+/* this dummy implementation of buffer_release even's handler which is used to avoid ordinary
+ * way of buffer releasing - we must destroy buffers not release them to queue
+ *
+ * data - tbm_surface (pointer to tbm_surface_h structure)
+ * proxy - object which represents wayland buffer on client side
+ *
+ * Note: if I correctly understand attach/damage/commit sequency we can have only one
+ * 		 buffer attaced to surface, so we will be informed once - about last buffer releasing,
+ * 		 and, if we'are asked to enqueu buffers with vblank period, we cann't have situation
+ * 		 when we re-attach buffer.
+ *
+ * 		 TODO: what if we will be asked to enqueue withou vblank period ?
+ * */
+static void
+__cb_client_buffer_release_dummy_callback(void *data, struct wl_proxy *proxy)
+{
+	tpl_wayland_surface_t *wayland_surface = NULL;
+	tpl_wayland_buffer_t *wayland_buffer = NULL;
+	tbm_surface_h tbm_surface = NULL;
+
+	TPL_ASSERT(data);
+
+	tbm_surface = (tbm_surface_h) data;
+	wayland_buffer = __tpl_wayland_get_wayland_buffer_from_tbm_surface(tbm_surface);
+	wayland_surface = wayland_buffer->wayland_surface;
+
+
+	/* */
+	//TPL_OBJECT_LOCK(surface);
+	if(wayland_surface->rendering_is)
+		__tpl_wayland_reset_surface_queue(wayland_surface->tbm_queue);
+	//TPL_OBJECT_UNLOCK(surface);
+}
+
 /* this is dummy implementation of enqueue_buffer which is used to avoid ordinary way of
  * buffer posting -- we need to prevent buffer to be posted and need to block gles thread
- * until surface_enter event will have been delivered */
+ * until surface_enter event will have been delivered
+ * Note: tpl_surface lock is set and will be released after return */
 static tpl_result_t
 __tpl_wayland_dummy_enqueue_buffer(tpl_surface_t *surface,
 	     tbm_surface_h tbm_surface,
@@ -356,16 +426,58 @@ __tpl_wayland_dummy_enqueue_buffer(tpl_surface_t *surface,
 {
 	tpl_result_t res = TPL_ERROR_NONE;
 
-	//pthread_cond_wait()
+	tpl_wayland_surface_t *wayland_surface =
+			(tpl_wayland_surface_t *) surface->backend.data;
+
+	wayland_surface->delayed_buffer = tbm_surface;
+
+	/* we mustn't reset wayland_surface->rendering_is */
+
 	return res;
 }
 
+/* this is dummy implementation of dequeue_buffer which is used to avoid ordinary way of
+ * buffer dequeueing.
+ * Note: tpl_surface lock is set and will be released after return */
 static tbm_surface_h
 __tpl_wayland_dummy_dequeue_buffer(tpl_surface_t *surface)
 {
+	tpl_wayland_surface_t *wayland_surface =
+			(tpl_wayland_surface_t *) surface->backend.data;
 	tbm_surface_h tbm_surface;
 
-	//pthread_cond_wait();
+	/* Here can be two cases:
+	 *  1. thread responsible for posting had managed to do post before we substituted
+	 *     original enqueue_buffers function. In this case we haven't buffer which we
+	 *     can use for immeadiately app restart (it was posted to wayland server recently),
+	 *     so we must give gles buffer it will render to and at next dequeue_buffer request
+	 *     we will put to sleep thread which made this request because we soon will have
+	 *     rendered buffer, to post it after surface_enter event, and, as our surface is
+	 *     underground, we don't have the need to give gles any buffers */
+	if (!wayland_surface->rendering_is)
+	{
+		wayland_surface->rendering_is = 1;
+		tbm_surface_queue_dequeue(wayland_surface->tbm_queue, &tbm_surface);
+	}
+
+	/*  2. thread responsible for posting hadn't managed to do post before we substituted
+	 *     original enqueue_buffers function. In this case we have buffer for immediately app
+	 *     restart, so we just lock thread which called this function to wait state when we
+	 *     can give gles buffer to draw it will occure after surface_enter event has been
+	 *     arrived */
+	else
+	{
+		pthread_mutex_lock(wayland_surface->mtx);
+		TPL_OBJECT_UNLOCK(surface);
+
+		pthread_cond_wait(wayland_surface->surface_is_undeground, wayland_surface->mtx);
+
+		TPL_OBJECT_LOCK(surface);
+		pthread_mutex_unlock(wayland_surface->mtx);
+
+		/* here we have buffer to dequeue yet -- surface_enter event has been served */
+		tbm_surface_queue_dequeue(wayland_surface->tbm_queue, &tbm_surface);
+	}
 
 	return tbm_surface;
 }
@@ -426,61 +538,29 @@ __surface_leave_event(void *data,
 
 	TPL_LOG(3, "surface leave event -- wl_surface: %p.\n", wl_surface);
 
-	/* make some logic to prevent rendered buffer to be posted and new buffer to be dequeued,
+	/* 1. Make some logic to prevent rendered buffer to be posted and new buffer to be dequeued,
 	 * from other thread(s) */
 
 	TPL_OBJECT_LOCK(surface);
-	if (wayland_surface->rendering_is)
-	{
-		/* Maybe it's paranoia, but now, I think this approach is better than
-		 * insert logic directly inside
-		 * __tpl_wayland_surface_enqueue_buffer/__tpl_wayland_surface_dequeue_buffer functions... */
-		surface->backend.enqueue_buffer = __tpl_wayland_dummy_enqueue_buffer;
-		surface->backend.dequeue_buffer = __tpl_wayland_dummy_dequeue_buffer;
-	}
+
+	/* Maybe it's paranoia, but now, I think this approach is better than
+	 * insert logic directly inside
+	 * __tpl_wayland_surface_enqueue_buffer/__tpl_wayland_surface_dequeue_buffer functions... */
+	surface->backend.enqueue_buffer = __tpl_wayland_dummy_enqueue_buffer;
+	surface->backend.dequeue_buffer = __tpl_wayland_dummy_dequeue_buffer;
+
 	TPL_OBJECT_UNLOCK(surface);
 
-	/* Dequeue buffers from surface_queue.free_queue */
+	/* 2. Dequeue buffers from surface_queue.free_queue */
 
 	__tpl_wayland_pick_up_surface_free_queue_buffers(surface);
 
-	/* Wait for buffers which were posted to wayland server to release them too */
+	/* 3. We will wait for buffers which were posted to wayland server to release them too in
+	 *  __cb_client_buffer_release_dummy_callback function  */
 
-	TPL_OBJECT_UNLOCK(surface);
-	while (tbm_surface_queue_can_dequeue(wayland_surface->tbm_queue, 0) == 0) {
-		/* Application sent all buffers to the server. Wait for server response. */
-		if (wl_display_dispatch_queue(surface->display->native_handle,
-						  wayland_display->wl_queue) == -1) {
-			TPL_OBJECT_LOCK(surface);
-			TPL_ERR("Error during tpl wl_queue dispatching.");
-			return;
-		}
-	}
-	TPL_OBJECT_LOCK(surface);
-
-	/* we've dequeued all tbm_surfaces from free_queue but we haven't done
-	 *  real tbm_surface_unref/tbm_surface_destroy calls, so we will do it by reseting queue
-	 *  Note: we have links to them even after we've dequeued them. */
-
-	int width, height, format;
-
-	width = tbm_surface_queue_get_width(wayland_surface->tbm_queue);
-	height = tbm_surface_queue_get_height(wayland_surface->tbm_queue);
-	format = tbm_surface_queue_get_format(wayland_surface->tbm_queue);
-
-	/* it's temporary hack, due to the fact I have no access to
-	   tbm_surface_queue_h internal and tbm_surface_queue_reset
-	   function arguments checking; in future, I think, tbm_surface_queue_reset
-	   arguments checking logic must be reviewed or something similar...*/
-
-	/* like as tbm_queue->width++ */
-	int *temp;
-
-	temp = (int*)wayland_surface->tbm_queue;
-	(*temp)++;
-
-	/* reset surface_queue, it means unref/destroy all not-dequeued tbm_surfaces */
-	tbm_surface_queue_reset(wayland_surface->tbm_queue, width, height, format);
+	/* lock isn't need due to the fact buffer_release and surface_leave event's handlers
+	 * are executed in one thread */
+	buffer_release_listener.release = __cb_client_buffer_release_dummy_callback;
 }
 
 static const struct wl_surface_listener wl_surface_listener =
@@ -493,8 +573,9 @@ static const struct wl_surface_listener wl_surface_listener =
 /* we need new thread to dispatch wayland queue @wayland_display->wl_queue we've attached
  * wl_surface object in to be able to monitor surface_leave/surface_enter events.
  * we can't do it in __tpl_wayland_surface_dequeue_buffer because, in normal case, we
- * always have buffer to dequeue (tbm_surface_queue isn't empty, so we will not dispatch
- * wayland queue and it means we cann't react to surface_enter/surface_leave events */
+ * always have buffer to dequeue (tbm_surface_queue isn't empty) or rarely don't have,
+ * so we will not dispatch wayland queue or do it rarely and it means we cann't react
+ * to surface_enter/surface_leave events in proper way */
 static void*
 __tpl_wayland_surface_enter_leave_events_thread(void *arg)
 {
@@ -576,7 +657,8 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 	wl_egl_window->resize_callback = (void *)__cb_client_window_resize_callback;
 
 	/* subscribe for surface's enter/leave events */
-	int ret = wl_surface_add_listener(wl_egl_window->surface, &wl_surface_listener, wayland_surface);
+	int ret = wl_surface_add_listener(wl_egl_window->surface, &wl_surface_listener,
+			wayland_surface);
 
 	TPL_LOG(3, "wl_surface_add_listener call has been done: wl_surface: %p, ret: %d.",
 			wl_egl_window->surface, ret);
@@ -589,8 +671,9 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 	/* we need new thread to dispatch wayland queue @wayland_display->wl_queue we've attached
 	 * wl_surface object in to be able to monitor surface_leave/surface_enter events.
 	 * we can't do it in __tpl_wayland_surface_dequeue_buffer because, in normal case, we
-	 * always have buffer to dequeue (tbm_surface_queue isn't empty, so we will not dispatch
-	 * wayland queue and it means we cann't react to surface_enter/surface_leave events */
+	 * always have buffer to dequeue (tbm_surface_queue isn't empty) or rarely don't have,
+	 * so we will not dispatch wayland queue or do it rarely and it means we cann't react
+	 * to surface_enter/surface_leave events in proper way */
 	pthread_create(&wayland_surface->surface_enter_leave_events_thread_id, NULL,
 			__tpl_wayland_surface_enter_leave_events_thread, surface);
 
@@ -976,7 +1059,7 @@ __cb_client_buffer_release_callback(void *data, struct wl_proxy *proxy)
 	}
 }
 
-static const struct wl_buffer_listener buffer_release_listener = {
+static struct wl_buffer_listener buffer_release_listener = {
 	(void *)__cb_client_buffer_release_callback,
 };
 
