@@ -734,10 +734,9 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 
 	if (wayland_surface->resized == TPL_TRUE) wayland_surface->resized = TPL_FALSE;
 
-	/* no reason to unlock surface */
-	/* TPL_OBJECT_UNLOCK(surface); */
+	TPL_OBJECT_UNLOCK(surface);
 	while (tbm_surface_queue_can_dequeue(
-		       wayland_surface->tbm_queue, 0) == 0) {
+		       wayland_surface->tbm_queue, 1) == 0) {
 
 		/* queue will be dispatched by another thread */
 
@@ -748,7 +747,7 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 			return NULL;
 		}*/
 	}
-	/* TPL_OBJECT_LOCK(surface); */
+	TPL_OBJECT_LOCK(surface);
 
 	tsq_err = tbm_surface_queue_dequeue(wayland_surface->tbm_queue, &tbm_surface);
 	if (!tbm_surface) {
