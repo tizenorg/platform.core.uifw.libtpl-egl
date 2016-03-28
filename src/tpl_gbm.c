@@ -352,6 +352,8 @@ __tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface,
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
+	TPL_LOG(9, "[GBM][ENQUEUE] tbm_surface(%p) bo(%d)", tbm_surface,
+			tbm_bo_export(tbm_surface_internal_get_bo(tbm_surface, 0)));
 	if (tbm_surface_queue_enqueue(gbm_surface->tbm_queue, tbm_surface)
 	    != TBM_SURFACE_QUEUE_ERROR_NONE) {
 		TPL_ERR("tbm_surface_queue_enqueue failed. tbm_surface_queue(%p) tbm_surface(%p)",
@@ -402,7 +404,12 @@ __tpl_gbm_surface_dequeue_buffer(tpl_surface_t *surface)
 	tbm_surface_internal_ref(tbm_surface);
 
 	gbm_buffer = __tpl_gbm_get_gbm_buffer_from_tbm_surface(tbm_surface);
-	if (gbm_buffer) return tbm_surface;
+	if (gbm_buffer)
+	{
+		TPL_LOG(9, "[GBM][DEQUEUE] tbm_surface(%p) bo(%d)", tbm_surface,
+			tbm_bo_export(tbm_surface_internal_get_bo(tbm_surface, 0)));
+		return tbm_surface;
+	}
 
 	if (!(bo = tbm_surface_internal_get_bo(tbm_surface, 0))) {
 		TPL_ERR("Failed to get tbm_bo from tbm_surface");
@@ -422,6 +429,8 @@ __tpl_gbm_surface_dequeue_buffer(tpl_surface_t *surface)
 
 	gbm_surface->current_buffer = tbm_surface;
 
+	TPL_LOG(9, "[GBM][DEQUEUE] tbm_surface(%p) bo(%d)", tbm_surface,
+		tbm_bo_export(tbm_surface_internal_get_bo(tbm_surface, 0)));
 	__tpl_gbm_set_gbm_buffer_to_tbm_surface(tbm_surface, gbm_buffer);
 
 	return tbm_surface;

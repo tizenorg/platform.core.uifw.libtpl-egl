@@ -466,6 +466,8 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 
 	wl_egl_window = (struct wl_egl_window *)surface->native_handle;
 
+	TPL_LOG(9, "wl_egl_window(%p) [ENQUEUE] tbm_surface(%p) bo(%d)",
+			wl_egl_window, tbm_surface, tbm_bo_export(wayland_buffer->bo));
 	tbm_surface_internal_unref(tbm_surface);
 
 	tsq_err = tbm_surface_queue_enqueue(wayland_surface->tbm_queue, tbm_surface);
@@ -482,6 +484,8 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 	}
 
 	tbm_surface_internal_ref(tbm_surface);
+	TPL_LOG(9, "wl_egl_window(%p) [ACQUIRE] tbm_surface(%p) bo(%d)",
+			wl_egl_window, tbm_surface, tbm_bo_export(wayland_buffer->bo));
 	wl_surface_attach(wl_egl_window->surface, (void *)wayland_buffer->wl_proxy,
 			  wl_egl_window->dx, wl_egl_window->dy);
 
@@ -589,6 +593,8 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 
 	if ((wayland_buffer =
 		     __tpl_wayland_get_wayland_buffer_from_tbm_surface(tbm_surface)) != NULL) {
+		TPL_LOG(9, "wl_egl_window(%p) [DEQUEUE] tbm_surface(%p) bo(%d)",
+			surface->native_handle, tbm_surface, tbm_bo_export(wayland_buffer->bo));
 		return tbm_surface;
 	}
 
@@ -621,6 +627,8 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 	wayland_buffer->wayland_surface = wayland_surface;
 	wayland_surface->current_buffer = tbm_surface;
 
+	TPL_LOG(9, "wl_egl_window(%p) [DEQUEUE] tbm_surface(%p) bo(%d)",
+			surface->native_handle, tbm_surface, tbm_bo_export(wayland_buffer->bo));
 	__tpl_wayland_set_wayland_buffer_to_tbm_surface(tbm_surface, wayland_buffer);
 
 	return tbm_surface;
@@ -738,6 +746,8 @@ __cb_client_buffer_release_callback(void *data, struct wl_proxy *proxy)
 		__tpl_wayland_get_wayland_buffer_from_tbm_surface(tbm_surface);
 
 	if (wayland_buffer) {
+		TPL_LOG(9, "[RELEASE] tbm_surface(%p) bo(%d)",
+			tbm_surface, tbm_bo_export(wayland_buffer->bo));
 		wayland_surface = wayland_buffer->wayland_surface;
 
 		tbm_surface_internal_unref(tbm_surface);
