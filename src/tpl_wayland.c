@@ -22,8 +22,8 @@
 #include <wayland-tbm-client.h>
 #include <wayland-tbm-server.h>
 
-/* In wayland, application and compositor create its own drawing buffers. Recommend size is more than 2. */
-#define CLIENT_QUEUE_SIZE 3
+#define USE_WL_QUEUE 1
+#define USE_HISTORY_LIST 0
 
 typedef struct _tpl_wayland_display tpl_wayland_display_t;
 typedef struct _tpl_wayland_surface tpl_wayland_surface_t;
@@ -32,7 +32,9 @@ typedef struct _tpl_wayland_buffer tpl_wayland_buffer_t;
 struct _tpl_wayland_display {
 	tbm_bufmgr bufmgr;
 	struct wayland_tbm_client *wl_tbm_client;
+#if USE_WL_QUEUE
 	struct wl_event_queue *wl_queue;
+#endif
 	struct wl_registry *wl_registry;
 };
 
@@ -40,6 +42,9 @@ struct _tpl_wayland_surface {
 	tbm_surface_queue_h tbm_queue;
 	tbm_surface_h current_buffer;
 	tpl_bool_t resized;
+#if USE_HISTORY_LIST
+	tpl_list_t *history;
+#endif
 };
 
 struct _tpl_wayland_buffer {
@@ -49,12 +54,12 @@ struct _tpl_wayland_buffer {
 	struct wl_proxy *wl_proxy;
 };
 
+#if USE_WL_QUEUE
 static const struct wl_registry_listener registry_listener;
+#endif
 static const struct wl_callback_listener sync_listener;
 static const struct wl_callback_listener frame_listener;
 static const struct wl_buffer_listener buffer_release_listener;
-
-#define TPL_BUFFER_CACHE_MAX_ENTRIES 40
 
 static int tpl_wayland_buffer_key;
 #define KEY_TPL_WAYLAND_BUFFER  (unsigned long)(&tpl_wayland_buffer_key)
@@ -125,11 +130,17 @@ __tpl_wayland_display_roundtrip(tpl_display_t *display)
 
 	callback = wl_display_sync(wl_dpy);
 	wl_callback_add_listener(callback, &sync_listener, &done);
-
+#if USE_WL_QUEUE
 	wl_proxy_set_queue((struct wl_proxy *) callback, wayland_display->wl_queue);
-
+#else
+	wl_proxy_set_queue((struct wl_proxy *) callback, NULL);
+#endif
 	while (ret != -1 && !done) {
+#if USE_WL_QUEUE
 		ret = wl_display_dispatch_queue(wl_dpy, wayland_display->wl_queue);
+#else
+		ret = wl_display_dispatch(wl_dpy);
+#endif
 	}
 
 	return ret;
@@ -168,7 +179,7 @@ __tpl_wayland_display_init(tpl_display_t *display)
 			TPL_ERR("Wayland TBM initialization failed!");
 			goto free_wl_display;
 		}
-
+#if USE_WL_QUEUE
 		wayland_display->wl_queue = wl_display_create_queue(wl_dpy);
 		if (!wayland_display->wl_queue) {
 			TPL_ERR("Failed to create wl_queue with wl_dpy(%p).", wl_dpy);
@@ -183,6 +194,7 @@ __tpl_wayland_display_init(tpl_display_t *display)
 
 		wl_proxy_set_queue((struct wl_proxy *)wayland_display->wl_registry,
 				   wayland_display->wl_queue);
+#endif
 	} else {
 		goto free_wl_display;
 	}
@@ -190,8 +202,9 @@ __tpl_wayland_display_init(tpl_display_t *display)
 	return TPL_ERROR_NONE;
 
 destroy_queue:
+#if USE_WL_QUEUE
 	wl_event_queue_destroy(wayland_display->wl_queue);
-
+#endif
 free_wl_display:
 	if (wayland_display) {
 		free(wayland_display);
@@ -371,6 +384,9 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
+#if USE_HISTORY_LIST
+	wayland_surface->history = __tpl_list_alloc();
+#endif
 	surface->width = wl_egl_window->width;
 	surface->height = wl_egl_window->height;
 
@@ -429,6 +445,10 @@ __tpl_wayland_surface_fini(tpl_surface_t *surface)
 		wayland_surface->tbm_queue = NULL;
 	}
 
+#if USE_HISTORY_LIST
+	__tpl_list_free(wayland_surface->history, NULL);
+        wayland_surface->history = NULL;
+#endif
 	free(wayland_surface);
 	surface->backend.data = NULL;
 }
@@ -466,13 +486,20 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 
 	wl_egl_window = (struct wl_egl_window *)surface->native_handle;
 
-	TPL_LOG(9, "wl_egl_window(%p) [ENQUEUE] tbm_surface(%p) bo(%d)",
-			wl_egl_window, tbm_surface, tbm_bo_export(wayland_buffer->bo));
+	TPL_LOG(9, "[ENQUEUE] tbm_surface(%p) wl_tbm_buffer(%p) bo(%d)",
+		tbm_surface, wayland_buffer->wl_proxy,
+		tbm_bo_export(wayland_buffer->bo));
+#if USE_HISTORY_LIST
+	__tpl_list_remove_front(wayland_surface->history, NULL);
+#endif
 	tbm_surface_internal_unref(tbm_surface);
 
 	tsq_err = tbm_surface_queue_enqueue(wayland_surface->tbm_queue, tbm_surface);
 	if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
 		TPL_ERR("Failed to enqeueue tbm_surface. | tsq_err = %d", tsq_err);
+		TPL_ERR("Destroy tbm_surface(%p) bo_name(%d)", tbm_surface,
+			tbm_bo_export(wayland_buffer->bo));
+		tbm_surface_internal_unref(tbm_surface);
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
@@ -484,8 +511,9 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 	}
 
 	tbm_surface_internal_ref(tbm_surface);
-	TPL_LOG(9, "wl_egl_window(%p) [ACQUIRE] tbm_surface(%p) bo(%d)",
-			wl_egl_window, tbm_surface, tbm_bo_export(wayland_buffer->bo));
+
+	TPL_LOG(9, "[ACQUIRE] tbm_surface(%p) wl_tbm_buffer(%p) bo(%d)",
+			tbm_surface, wayland_buffer->wl_proxy, tbm_bo_export(wayland_buffer->bo));
 	wl_surface_attach(wl_egl_window->surface, (void *)wayland_buffer->wl_proxy,
 			  wl_egl_window->dx, wl_egl_window->dy);
 
@@ -511,8 +539,12 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 		struct wl_callback *frame_callback = NULL;
 		frame_callback = wl_surface_frame(wl_egl_window->surface);
 		wl_callback_add_listener(frame_callback, &frame_listener, tbm_surface);
+#if USE_WL_QUEUE
 		wl_proxy_set_queue((struct wl_proxy *)frame_callback,
 				   wayland_display->wl_queue);
+#else
+		wl_proxy_set_queue((struct wl_proxy *)frame_callback, NULL);
+#endif
 	}
 	wl_surface_commit(wl_egl_window->surface);
 
@@ -574,11 +606,19 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 	while (tbm_surface_queue_can_dequeue(
 		       wayland_surface->tbm_queue, 0) == 0) {
 		/* Application sent all buffers to the server. Wait for server response. */
+#if USE_WL_QUEUE
 		if (wl_display_dispatch_queue(surface->display->native_handle,
 					      wayland_display->wl_queue) == -1) {
 			TPL_OBJECT_LOCK(surface);
 			return NULL;
 		}
+#else
+		if (wl_display_dispatch((struct wl_display*)
+					surface->display->native_handle) == -1) {
+			TPL_OBJECT_LOCK(surface);
+			return NULL;
+		}
+#endif
 	}
 	TPL_OBJECT_LOCK(surface);
 
@@ -590,11 +630,15 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 	}
 
 	tbm_surface_internal_ref(tbm_surface);
+#if USE_HISTORY_LIST
+	__tpl_list_push_back(wayland_surface->history, (void*)tbm_surface);
+#endif
 
 	if ((wayland_buffer =
 		     __tpl_wayland_get_wayland_buffer_from_tbm_surface(tbm_surface)) != NULL) {
-		TPL_LOG(9, "wl_egl_window(%p) [DEQUEUE] tbm_surface(%p) bo(%d)",
-			surface->native_handle, tbm_surface, tbm_bo_export(wayland_buffer->bo));
+		TPL_LOG(9, "[DEQUEUE] tbm_surface(%p) wl_tbm_buffer(%p) bo(%d)",
+			tbm_surface, wayland_buffer->wl_proxy,
+                        tbm_bo_export(wayland_buffer->bo));
 		return tbm_surface;
 	}
 
@@ -614,8 +658,11 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 		free(wayland_buffer);
 		return NULL;
 	}
-
+#if USE_WL_QUEUE
 	wl_proxy_set_queue(wl_proxy, wayland_display->wl_queue);
+#else
+	wl_proxy_set_queue(wl_proxy, NULL);
+#endif
 	wl_buffer_add_listener((void *)wl_proxy, &buffer_release_listener,
 			       tbm_surface);
 
@@ -627,8 +674,9 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 	wayland_buffer->wayland_surface = wayland_surface;
 	wayland_surface->current_buffer = tbm_surface;
 
-	TPL_LOG(9, "wl_egl_window(%p) [DEQUEUE] tbm_surface(%p) bo(%d)",
-			surface->native_handle, tbm_surface, tbm_bo_export(wayland_buffer->bo));
+	TPL_LOG(9, "[DEQUEUE] tbm_surface(%p) wl_tbm_buffer(%p) bo(%d)",
+			surface->native_handle, tbm_surface, wayland_buffer->wl_proxy,
+                        tbm_bo_export(wayland_buffer->bo));
 	__tpl_wayland_set_wayland_buffer_to_tbm_surface(tbm_surface, wayland_buffer);
 
 	return tbm_surface;
@@ -645,6 +693,7 @@ __tpl_wayland_buffer_free(tpl_wayland_buffer_t *wayland_buffer)
 
 	wl_display_flush((struct wl_display *)wayland_buffer->display->native_handle);
 
+	TPL_LOG(9, "wayland_tbm_client_destroy_buffer | wl_tbm_buffer(%p)",wayland_buffer->wl_proxy);
 	if (wayland_buffer->wl_proxy)
 		wayland_tbm_client_destroy_buffer(wayland_display->wl_tbm_client,
 						  (void *)wayland_buffer->wl_proxy);
@@ -746,8 +795,8 @@ __cb_client_buffer_release_callback(void *data, struct wl_proxy *proxy)
 		__tpl_wayland_get_wayland_buffer_from_tbm_surface(tbm_surface);
 
 	if (wayland_buffer) {
-		TPL_LOG(9, "[RELEASE] tbm_surface(%p) bo(%d)",
-			tbm_surface, tbm_bo_export(wayland_buffer->bo));
+		TPL_LOG(9, "[RELEASE] tbm_surface(%p) wl_tbm_buffer(%p) bo(%d)",
+			tbm_surface, wayland_buffer->wl_proxy, tbm_bo_export(wayland_buffer->bo));
 		wayland_surface = wayland_buffer->wayland_surface;
 
 		tbm_surface_internal_unref(tbm_surface);
