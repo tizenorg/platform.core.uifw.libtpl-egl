@@ -609,6 +609,15 @@ __tpl_list_push_back(tpl_list_t *list, void *data)
 	return __tpl_list_insert(list->tail.prev, data);
 }
 
+static TPL_INLINE void
+__tpl_list_remove_front(tpl_list_t *list, tpl_free_func_t func)
+{
+	TPL_ASSERT(list);
+
+	if (!__tpl_list_is_empty(list))
+		__tpl_list_remove(list->head.next, func);
+}
+
 static TPL_INLINE void *
 __tpl_list_pop_front(tpl_list_t *list, tpl_free_func_t func)
 {
