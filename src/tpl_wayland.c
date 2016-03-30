@@ -23,7 +23,7 @@
 #include <wayland-tbm-server.h>
 
 #define USE_WL_QUEUE 0
-#define USE_HISTORY_LIST 0
+#define USE_HISTORY_LIST 1
 
 typedef struct _tpl_wayland_display tpl_wayland_display_t;
 typedef struct _tpl_wayland_surface tpl_wayland_surface_t;
@@ -525,6 +525,9 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 	tsq_err = tbm_surface_queue_acquire(wayland_surface->tbm_queue, &tbm_surface);
 	if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
 		TPL_ERR("Failed to acquire tbm_surface. | tsq_err = %d", tsq_err);
+		TPL_ERR("Destroy tbm_surface(%p) bo_name(%d)", tbm_surface,
+			tbm_bo_export(wayland_buffer->bo));
+			tbm_surface_internal_unref(tbm_surface);
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
@@ -621,6 +624,9 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 	}
 
 	TPL_OBJECT_UNLOCK(surface);
+
+        __tpl_wayland_display_roundtrip(surface->display);
+
 	while (tbm_surface_queue_can_dequeue(
 		       wayland_surface->tbm_queue, 0) == 0) {
 		/* Application sent all buffers to the server. Wait for server response. */
