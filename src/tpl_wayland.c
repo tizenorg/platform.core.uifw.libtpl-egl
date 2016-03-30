@@ -23,7 +23,7 @@
 #include <wayland-tbm-server.h>
 
 #define USE_WL_QUEUE 0
-#define USE_HISTORY_LIST 0
+#define USE_HISTORY_LIST 1
 
 typedef struct _tpl_wayland_display tpl_wayland_display_t;
 typedef struct _tpl_wayland_surface tpl_wayland_surface_t;
@@ -117,7 +117,9 @@ static int
 __tpl_wayland_display_roundtrip(tpl_display_t *display)
 {
 	struct wl_display *wl_dpy;
+#if USE_WL_QUEUE
 	tpl_wayland_display_t *wayland_display;
+#endif
 	struct wl_callback *callback;
 	int done = 0, ret = 0;
 
@@ -126,8 +128,9 @@ __tpl_wayland_display_roundtrip(tpl_display_t *display)
 	TPL_ASSERT(display->backend.data);
 
 	wl_dpy = (struct wl_display *) display->native_handle;
+#if USE_WL_QUEUE
 	wayland_display = (tpl_wayland_display_t *) display->backend.data;
-
+#endif
 	callback = wl_display_sync(wl_dpy);
 	wl_callback_add_listener(callback, &sync_listener, &done);
 #if USE_WL_QUEUE
@@ -201,8 +204,8 @@ __tpl_wayland_display_init(tpl_display_t *display)
 
 	return TPL_ERROR_NONE;
 
-destroy_queue:
 #if USE_WL_QUEUE
+destroy_queue:
 	wl_event_queue_destroy(wayland_display->wl_queue);
 #endif
 free_wl_display:
@@ -482,8 +485,10 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 	TPL_ASSERT(tbm_surface);
 
 	struct wl_egl_window *wl_egl_window = NULL;
+#if USE_WL_QUEUE
 	tpl_wayland_display_t *wayland_display =
 		(tpl_wayland_display_t *) surface->display->backend.data;
+#endif
 	tpl_wayland_surface_t *wayland_surface =
 		(tpl_wayland_surface_t *) surface->backend.data;
 	tpl_wayland_buffer_t *wayland_buffer = NULL;
@@ -525,6 +530,9 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 	tsq_err = tbm_surface_queue_acquire(wayland_surface->tbm_queue, &tbm_surface);
 	if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
 		TPL_ERR("Failed to acquire tbm_surface. | tsq_err = %d", tsq_err);
+		TPL_ERR("Destroy tbm_surface(%p) bo_name(%d)", tbm_surface,
+			tbm_bo_export(wayland_buffer->bo));
+			tbm_surface_internal_unref(tbm_surface);
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
@@ -621,6 +629,14 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 	}
 
 	TPL_OBJECT_UNLOCK(surface);
+
+#if USE_WL_QUEUE
+	wl_display_dispatch_queue_pending((struct wl_display *)surface->display->native_handle,
+					  wayland_display->wl_queue);
+#else
+	wl_display_dispatch_pending((struct wl_display *)surface->display->native_handle);
+#endif
+
 	while (tbm_surface_queue_can_dequeue(
 		       wayland_surface->tbm_queue, 0) == 0) {
 		/* Application sent all buffers to the server. Wait for server response. */
