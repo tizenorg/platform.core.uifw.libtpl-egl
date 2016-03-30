@@ -23,7 +23,7 @@
 #include <wayland-tbm-server.h>
 
 #define USE_WL_QUEUE 0
-#define USE_HISTORY_LIST 1
+#define USE_HISTORY_LIST 0
 
 typedef struct _tpl_wayland_display tpl_wayland_display_t;
 typedef struct _tpl_wayland_surface tpl_wayland_surface_t;
