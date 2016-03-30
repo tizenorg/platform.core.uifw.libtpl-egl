@@ -567,6 +567,9 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 	}
 
 	TPL_OBJECT_UNLOCK(surface);
+	wl_display_dispatch_queue_pending((struct wl_display *)surface->display->native_handle,
+					  wayland_display->wl_queue);
+
 	while (tbm_surface_queue_can_dequeue(
 		       wayland_surface->tbm_queue, 0) == 0) {
 		/* Application sent all buffers to the server. Wait for server response. */
