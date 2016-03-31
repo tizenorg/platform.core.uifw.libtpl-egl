@@ -23,7 +23,7 @@
 #include <wayland-tbm-server.h>
 
 #define USE_WL_QUEUE 0
-#define USE_HISTORY_LIST 1
+#define USE_HISTORY_LIST 0
 
 typedef struct _tpl_wayland_display tpl_wayland_display_t;
 typedef struct _tpl_wayland_surface tpl_wayland_surface_t;
@@ -515,15 +515,50 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 #if USE_HISTORY_LIST
 	__tpl_list_remove_front(wayland_surface->history, NULL);
 #endif
-	tbm_surface_internal_unref(tbm_surface);
 
 	tsq_err = tbm_surface_queue_enqueue(wayland_surface->tbm_queue, tbm_surface);
-	if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
-		TPL_ERR("Failed to enqeueue tbm_surface. | tsq_err = %d", tsq_err);
-		TPL_ERR("Destroy tbm_surface(%p) bo_name(%d)", tbm_surface,
-			tbm_bo_export(wayland_buffer->bo));
+	if (tsq_err == TBM_SURFACE_QUEUE_ERROR_NONE)
 		tbm_surface_internal_unref(tbm_surface);
-		return TPL_ERROR_INVALID_OPERATION;
+	else {
+		TPL_ERR("Failed to enqeueue tbm_surface. force attach| tsq_err = %d", tsq_err);
+
+		wl_surface_attach(wl_egl_window->surface, (void *)wayland_buffer->wl_proxy,
+				wl_egl_window->dx, wl_egl_window->dy);
+
+		wl_egl_window->attached_width = wl_egl_window->width;
+		wl_egl_window->attached_height = wl_egl_window->height;
+
+		if (num_rects < 1 || rects == NULL) {
+			wl_surface_damage(wl_egl_window->surface,
+					wl_egl_window->dx, wl_egl_window->dy,
+					wl_egl_window->width, wl_egl_window->height);
+		} else {
+			int i;
+			for (i = 0; i < num_rects; i++) {
+				wl_surface_damage(wl_egl_window->surface,
+						rects[i * 4 + 0], rects[i * 4 + 1],
+						rects[i * 4 + 2], rects[i * 4 + 3]);
+			}
+		}
+
+		{
+			/* Register a meaningless surface frame callback.
+			   Because the buffer_release callback only be triggered if this callback is registered. */
+			struct wl_callback *frame_callback = NULL;
+			frame_callback = wl_surface_frame(wl_egl_window->surface);
+			wl_callback_add_listener(frame_callback, &frame_listener, tbm_surface);
+#if USE_WL_QUEUE
+			wl_proxy_set_queue((struct wl_proxy *)frame_callback,
+					wayland_display->wl_queue);
+#else
+			wl_proxy_set_queue((struct wl_proxy *)frame_callback, NULL);
+#endif
+		}
+		wl_surface_commit(wl_egl_window->surface);
+
+		wl_display_flush(surface->display->native_handle);
+
+		return TPL_ERROR_NONE;
 	}
 
 	/* deprecated */
