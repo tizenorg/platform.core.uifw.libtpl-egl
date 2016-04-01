@@ -181,11 +181,12 @@ typedef enum {
  */
 typedef enum {
 	TPL_BACKEND_UNKNOWN = -1,
-	TPL_BACKEND_WAYLAND,
+	TPL_BACKEND_WAYLAND, /* this backend represend wayland-egl */
 	TPL_BACKEND_GBM,
 	TPL_BACKEND_X11_DRI2,
 	TPL_BACKEND_X11_DRI3,
 	TPL_BACKEND_TBM,
+	TPL_BACKEND_WAYLAND_VULKAN_WSI,
 	TPL_BACKEND_COUNT,
 	TPL_BACKEND_MAX
 } tpl_backend_type_t;
@@ -451,7 +452,9 @@ tpl_surface_validate(tpl_surface_t *surface);
  * Calling this function multiple times within a single frame is not guranteed
  * to return a same buffer.
  *
- * @see tpl_surface_validate()
+ * @see tpl_surface_enqueue_buffer()
+ * @see tpl_surface_enqueue_buffer_with_damage()
+ * @see tpl_surface_get_swapchain_buffers()
  */
 tbm_surface_h
 tpl_surface_dequeue_buffer(tpl_surface_t *surface);
@@ -468,6 +471,9 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface);
  * @param surface surface to post a frame.
  * @param tbm_surface buffer to post.
  *
+ * @see tpl_surface_enqueue_buffer_with_damage()
+ * @see tpl_surface_dequeue_buffer()
+ * @see tpl_surface_get_swapchain_buffers()
  */
 tpl_result_t
 tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface);
@@ -491,6 +497,8 @@ tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface);
  * @param rects pointer to coordinates of rectangles. x0, y0, w0, h0, x1, y1, w1, h1...
  *
  * @see tpl_surface_enqueue_buffer()
+ * @see tpl_surface_dequeue_buffer()
+ * @see tpl_surface_get_swapchain_buffers()
  */
 tpl_result_t
 tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
@@ -522,6 +530,75 @@ tpl_surface_set_post_interval(tpl_surface_t *surface, int interval);
  */
 int
 tpl_surface_get_post_interval(tpl_surface_t *surface);
+
+/**
+ * Create a swapchain for the given TPL surface.
+ *
+ * This function creates buffers for swapchain which is binded to the given tpl surface.
+ *
+ * @param surface surface used for creation of swapchain buffers.
+ * @param format Pixel format of the swapchain
+ * @param width width to the swapchain buffer.
+ * @param height height to the swapchain buffer.
+ * @param buffer_count buffer count to the swapchain.
+ * @return TPL_ERROR_NONE if this function is supported and the tpl_surface is valid, TPL_ERROR otherwise.
+ *
+ * @see tpl_surface_get_swapchain_buffers()
+ * @see tpl_surface_destroy_swapchain()
+ */
+tpl_result_t
+tpl_surface_create_swapchain(tpl_surface_t *surface, tbm_format format,
+			     int width, int height, int buffer_count);
+
+/**
+ * Destroy a swapchain for the given TPL surface.
+ *
+ * @param surface surface used for destroying of swapchain buffers.
+ * @return TPL_ERROR_NONE if this function is supported and the tpl_surface is valid, TPL_ERROR otherwise.
+ *
+ * @see tpl_surface_create_swapchain()
+ * @see tpl_surface_get_swapchain_buffers()
+ */
+tpl_result_t
+tpl_surface_destroy_swapchain(tpl_surface_t *surface);
+
+/**
+ * Get the swapchain buffer list of the given TPL surface.
+ *
+ * This function returns the swapchain buffer list of binding to given TPL surface. Depending on backend,
+ * communication with the server might be required. Returned buffers are used
+ * for render target to draw frame.
+ *
+ * Returned buffers are valid until tpl_surface_enqueue_buffer().
+ * But if tpl_surface_validate() returns TPL_FALSE, previously returned buffers
+ * should no longer be used.
+ * caller reposible for free of the buffer list (only buffer list, do not free buffer list's contents)
+ *
+ * @param surface surface to get buffer list.
+ * @param buffers pointer to receive tbm_surface list value.
+ * @param buffer_count pointer to receive buffer_count value.
+ * @return TPL_ERROR_NONE if this function is supported and the tpl_surface is valid, TPL_ERROR otherwise.
+ *
+ * @see tpl_surface_enqueue_buffer()
+ * @see tpl_surface_enqueue_buffer_with_damage()
+ * @see tpl_surface_dequeue_buffer()
+ * @see tpl_surface_create_swapchain()
+ * @see tpl_surface_destroy_swapchain()
+ */
+tpl_result_t
+tpl_surface_get_swapchain_buffers(tpl_surface_t *surface,
+				  tbm_surface_h **buffers, int *buffer_count);
+
+/**
+ * Get the buffer count capability of the given TPL surface.
+ *
+ * @paran surface surface to get the buffer count capability
+ * @paran min pointer to receive min buffer count value.
+ * @paran max pointer to receive max buffer count value.
+ */
+tpl_result_t
+tpl_surface_query_supported_buffer_count(tpl_surface_t *surface, int *min,
+		int *max);
 
 /**
  * Query information on the given native window.
@@ -561,6 +638,6 @@ tpl_display_get_native_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
  */
 tbm_surface_h
 tpl_display_get_buffer_from_native_pixmap(tpl_display_t *display,
-					  tpl_handle_t pixmap);
+		tpl_handle_t pixmap);
 
 #endif /* TPL_H */

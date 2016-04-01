@@ -63,7 +63,8 @@ TPL_SRCS += $(SRC_DIR)/tpl_utils_hlist.c
 TPL_SRCS += $(SRC_DIR)/tpl_utils_map.c
 
 ifneq ($(call is-feature-enabled,winsys_wl),)
-TPL_SRCS += $(SRC_DIR)/tpl_wayland.c
+TPL_SRCS += $(SRC_DIR)/tpl_wayland_egl.c
+TPL_SRCS += $(SRC_DIR)/tpl_wayland_vk_wsi.c
 TPL_SRCS += $(SRC_DIR)/tpl_gbm.c
 endif
 
