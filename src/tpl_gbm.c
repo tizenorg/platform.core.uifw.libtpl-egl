@@ -275,6 +275,11 @@ __tpl_gbm_surface_init(tpl_surface_t *surface)
 			goto error;
 		}
 
+		surface->capabilities.min_buffer =
+			tbm_surface_queue_get_size(tpl_gbm_surface->tbm_queue);
+		surface->capabilities.max_buffer =
+			tbm_surface_queue_get_size(tpl_gbm_surface->tbm_queue);
+
 		TPL_LOG(3, "window(%p, %p) %dx%d", surface, surface->native_handle,
 			surface->width, surface->height);
 		return TPL_ERROR_NONE;
@@ -285,6 +290,7 @@ __tpl_gbm_surface_init(tpl_surface_t *surface)
 			TPL_ERR("Failed to get native pixmap info.");
 			goto error;
 		}
+		surface->capabilities.min_buffer = surface->capabilities.max_buffer = 1;
 
 		return TPL_ERROR_NONE;
 	}

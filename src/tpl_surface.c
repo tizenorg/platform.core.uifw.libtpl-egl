@@ -262,3 +262,110 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 
 	return ret;
 }
+
+tpl_result_t
+tpl_surface_query_supported_buffer_count(tpl_surface_t *surface, int *min,
+		int *max)
+{
+	if (!surface || (surface->type != TPL_SURFACE_TYPE_WINDOW)) {
+		TPL_ERR("Invalid surface!");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	if (min) *min = surface->capabilities.min_buffer;
+	if (max) *max = surface->capabilities.max_buffer;
+
+	return TPL_ERROR_NONE;
+
+}
+
+tpl_result_t
+tpl_surface_get_swapchain_buffers(tpl_surface_t *surface,
+				  tbm_surface_h **buffers, int *buffer_count)
+{
+	tpl_result_t ret = TPL_ERROR_INVALID_OPERATION;
+
+	if (!surface || (surface->type != TPL_SURFACE_TYPE_WINDOW)) {
+		TPL_ERR("Invalid surface!");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	if (!buffer_count) {
+		TPL_ERR("Invalid buffer_count!");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	if (!surface->backend.get_swapchain_buffers) {
+		TPL_ERR("Backend does not support!");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
+
+	TPL_OBJECT_LOCK(surface);
+
+	ret = surface->backend.get_swapchain_buffers(surface, buffers, buffer_count);
+
+	TPL_OBJECT_UNLOCK(surface);
+
+	return ret;
+}
+
+tpl_result_t
+tpl_surface_create_swapchain(tpl_surface_t *surface, tbm_format format,
+			     int width, int height, int buffer_count)
+{
+	tpl_result_t ret = TPL_ERROR_INVALID_OPERATION;
+
+	if (!surface) {
+		TPL_ERR("Invalid surface!");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	if ((width <= 0) || (height <= 0) ) {
+		TPL_ERR("Invalid width or  height!");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	if ((buffer_count < surface->capabilities.min_buffer)
+	    || (buffer_count > surface->capabilities.max_buffer)) {
+		TPL_ERR("Invalid buffer_count!");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	if (!surface->backend.create_swapchain) {
+		TPL_ERR("Backend does not support!");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
+
+	TPL_OBJECT_LOCK(surface);
+
+	ret = surface->backend.create_swapchain(surface, format, width, height,
+						buffer_count);
+
+	TPL_OBJECT_UNLOCK(surface);
+
+	return ret;
+}
+
+tpl_result_t
+tpl_surface_destroy_swapchain(tpl_surface_t *surface)
+{
+	tpl_result_t ret = TPL_ERROR_INVALID_OPERATION;
+
+	if (!surface) {
+		TPL_ERR("Invalid surface!");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	if (!surface->backend.destroy_swapchain) {
+		TPL_ERR("Backend does not support!");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
+
+	TPL_OBJECT_LOCK(surface);
+
+	ret = surface->backend.destroy_swapchain(surface);
+
+	TPL_OBJECT_UNLOCK(surface);
+
+	return ret;
+}
