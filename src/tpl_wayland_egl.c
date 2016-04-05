@@ -262,7 +262,7 @@ __tpl_wayland_egl_display_get_window_info(tpl_display_t *display,
 		int depth, int a_size)
 {
 	TPL_ASSERT(display);
-	TPL_ASSERT(window);
+	if (!window) return TPL_ERROR_INVALID_PARAMETER;
 
 	struct wl_egl_window *wl_egl_window = (struct wl_egl_window *)window;
 
