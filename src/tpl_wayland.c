@@ -43,6 +43,8 @@ struct _tpl_wayland_surface {
 	tbm_surface_h current_buffer;
 	tpl_bool_t resized;
 
+	/* TWS-1456 */
+
 	/* for synchronize threads which are responsible for surface_leave/surface_enter events
 	 * and dequeue_buffers request handling */
 	int surface_is_background;
@@ -58,6 +60,20 @@ struct _tpl_wayland_surface {
 
 	/* id of thread which is responsible for tpl_wayland queue's dispatching */
 	pthread_t surface_enter_leave_events_thread_id;
+
+	/* TWS-1455 */
+
+	/* for synchronize 'dequeue_buffer' and send_buff_details_thread_id threads */
+	tbm_surface_h tbm_surface_to_send;
+	pthread_mutex_t mtx_send_buff_details;
+	pthread_cond_t cond_var_send_buff_details;
+
+	/* for synchronize 'enqueue_buffer' and send_buff_details_thread_id threads */
+	pthread_mutex_t mtx_wait_exchanging;
+	pthread_cond_t cond_var_wait_exchanging;
+
+	/* id of thread which is responsible for sending buffers details to server */
+	pthread_t send_buff_details_thread_id;
 };
 
 struct _tpl_wayland_buffer {
@@ -590,7 +606,103 @@ __tpl_wayland_surface_enter_leave_events_thread(void *arg)
 	return NULL;
 }
 
-//-----------------------------------------------------------------------------------
+//-------------------------- TWS-1455 -------------------------------------------------
+
+/* send buffer's (@tbm_surface) details to server and
+ * attach wayland_buffer to tbm_surface @tbm_surface */
+static tpl_wayland_buffer_t*
+__tpl_wayland_send_buff_details(tpl_surface_t *surface, tbm_surface_h tbm_surface)
+{
+	tpl_wayland_display_t *wayland_display =
+				(tpl_wayland_display_t *)surface->display->backend.data;
+	tpl_wayland_surface_t *wayland_surface = (tpl_wayland_surface_t *)
+			surface->backend.data;
+	tpl_wayland_buffer_t* wayland_buffer;
+	struct wl_proxy *wl_proxy = NULL;
+
+	wayland_buffer = (tpl_wayland_buffer_t *) calloc(1,
+			 sizeof(tpl_wayland_buffer_t));
+	if (!wayland_buffer) {
+		TPL_ERR("Mem alloc for wayland_buffer failed!");
+		tbm_surface_internal_unref(tbm_surface);
+		return NULL;
+	}
+
+	wl_proxy = (struct wl_proxy *)wayland_tbm_client_create_buffer(
+			   wayland_display->wl_tbm_client, tbm_surface);
+	if (!wl_proxy) {
+		TPL_ERR("Failed to create TBM client buffer!");
+		tbm_surface_internal_unref(tbm_surface);
+		free(wayland_buffer);
+		return NULL;
+	}
+
+	wl_proxy_set_queue(wl_proxy, wayland_display->wl_queue);
+	wl_buffer_add_listener((void *)wl_proxy, &buffer_release_listener,
+			       tbm_surface);
+
+	wl_display_flush((struct wl_display *)surface->display->native_handle);
+
+	wayland_buffer->display = surface->display;
+	wayland_buffer->wl_proxy = wl_proxy;
+	wayland_buffer->bo = tbm_surface_internal_get_bo(tbm_surface, 0);
+	wayland_buffer->wayland_surface = wayland_surface;
+	wayland_surface->current_buffer = tbm_surface;
+
+	__tpl_wayland_set_wayland_buffer_to_tbm_surface(tbm_surface, wayland_buffer);
+
+	return wayland_buffer;
+}
+
+/* this thread is responsible for sending buffer's details to server to allow share
+ * using of buffer.
+ * this thread serves 'dequeue_buffer' thread's requests and triggers 'enqueue_buffer'
+ * thread */
+static void*
+__tpl_wayland_send_buff_details_thread(void *arg)
+{
+	tpl_surface_t *surface = (tpl_surface_t *) arg;
+	tpl_wayland_surface_t *wayland_surface = (tpl_wayland_surface_t *)
+			surface->backend.data;
+	tbm_surface_h tbm_surface;
+
+	while (1) {
+		pthread_mutex_lock(&wayland_surface->mtx_send_buff_details);
+
+		/* wait request from thread which executes dequeue_buffers - it request us
+		 * to send details about buffer to server while it can continue work (issue mali
+		 * commands) and request new buffer, if surface_queue has, again */
+		while (!wayland_surface->tbm_surface_to_send) {
+			pthread_cond_wait(&wayland_surface->cond_var_send_buff_details,
+					&wayland_surface->mtx_send_buff_details);
+		}
+
+		tbm_surface = wayland_surface->tbm_surface_to_send;
+		wayland_surface->tbm_surface_to_send = NULL;
+
+		/* we must protect access to wayland_buffer attaching (to tbm_surface) process
+		 * from race condition between this thread and 'enqueue_buffers' thread */
+		pthread_mutex_lock(&wayland_surface->mtx_wait_exchanging);
+
+		/* send to server details about buffer to allow buffer sharing between server
+		 * and client */
+		if (!__tpl_wayland_send_buff_details(surface, tbm_surface)) {
+			pthread_mutex_unlock(&wayland_surface->mtx_wait_exchanging);
+			pthread_mutex_unlock(&wayland_surface->mtx_send_buff_details);
+
+			return NULL; /* TODO: what we must do in this case ?*/
+		}
+
+		/* inform thread which executes enqueue_buffers - wayland_buffer has been attached
+		 * to tbm_surface, so it can continue and perform attach/damage/commit sequence */
+		pthread_cond_signal(&wayland_surface->cond_var_wait_exchanging);
+		pthread_mutex_unlock(&wayland_surface->mtx_wait_exchanging);
+
+		pthread_mutex_unlock(&wayland_surface->mtx_send_buff_details);
+	}
+
+	return NULL;
+}
 
 static tpl_result_t
 __tpl_wayland_surface_init(tpl_surface_t *surface)
@@ -659,6 +771,33 @@ __tpl_wayland_surface_init(tpl_surface_t *surface)
 	 * to surface_enter/surface_leave events in proper way */
 	pthread_create(&wayland_surface->surface_enter_leave_events_thread_id, NULL,
 			__tpl_wayland_surface_enter_leave_events_thread, surface);
+
+	if (pthread_mutex_init(&wayland_surface->mtx_send_buff_details, NULL) != 0) {
+			TPL_ERR("wayland_surface init pthread_mutex_init failed.");
+			return TPL_ERROR_INVALID_OPERATION;
+	}
+
+	if (pthread_cond_init(&wayland_surface->cond_var_send_buff_details, NULL) != 0) {
+		TPL_ERR("wayland_surface init pthread_cond_init failed.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
+
+	if (pthread_mutex_init(&wayland_surface->mtx_wait_exchanging, NULL) != 0) {
+			TPL_ERR("wayland_surface init pthread_mutex_init failed.");
+			return TPL_ERROR_INVALID_OPERATION;
+	}
+
+	if (pthread_cond_init(&wayland_surface->cond_var_wait_exchanging, NULL) != 0) {
+		TPL_ERR("wayland_surface init pthread_cond_init failed.");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
+
+	/* this thread is responsible for sending buffer's details to server to allow share
+	 * using of buffer.
+	 * this thread serves 'dequeue_buffer' thread's requests and triggers 'enqueue_buffer'
+	 * thread */
+	pthread_create(&wayland_surface->send_buff_details_thread_id, NULL,
+			__tpl_wayland_send_buff_details_thread, surface);
 
 	TPL_LOG(3, "tpl_surface has been created.");
 
@@ -735,17 +874,6 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
-	wayland_buffer =
-		__tpl_wayland_get_wayland_buffer_from_tbm_surface(tbm_surface);
-	TPL_ASSERT(wayland_buffer);
-
-	tbm_bo_handle bo_handle =
-		tbm_bo_get_handle(wayland_buffer->bo , TBM_DEVICE_CPU);
-
-	if (bo_handle.ptr)
-		TPL_IMAGE_DUMP(bo_handle.ptr, surface->width, surface->height,
-			       surface->dump_count++);
-
 	wl_egl_window = (struct wl_egl_window *)surface->native_handle;
 
 	tbm_surface_internal_unref(tbm_surface);
@@ -764,6 +892,30 @@ __tpl_wayland_surface_enqueue_buffer(tpl_surface_t *surface,
 	}
 
 	tbm_surface_internal_ref(tbm_surface);
+
+	/* wait until send_buff_details_thread_id thread will have attached wayland_buffer
+	 * to tbm_surface we're asked to post _which_ */
+	TPL_OBJECT_UNLOCK(surface);
+
+	pthread_mutex_lock(&wayland_surface->mtx_wait_exchanging);
+
+	while ((wayland_buffer =
+			__tpl_wayland_get_wayland_buffer_from_tbm_surface(tbm_surface)) == NULL) {
+		pthread_cond_wait(&wayland_surface->cond_var_wait_exchanging,
+					&wayland_surface->mtx_wait_exchanging);
+	}
+
+	pthread_mutex_unlock(&wayland_surface->mtx_wait_exchanging);
+
+	TPL_OBJECT_LOCK(surface);
+
+	tbm_bo_handle bo_handle =
+		tbm_bo_get_handle(wayland_buffer->bo , TBM_DEVICE_CPU);
+
+	if (bo_handle.ptr)
+		TPL_IMAGE_DUMP(bo_handle.ptr, surface->width, surface->height,
+			       surface->dump_count++);
+
 	wl_surface_attach(wl_egl_window->surface, (void *)wayland_buffer->wl_proxy,
 			  wl_egl_window->dx, wl_egl_window->dy);
 
@@ -824,9 +976,6 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 	tpl_wayland_buffer_t *wayland_buffer = NULL;
 	tpl_wayland_surface_t *wayland_surface =
 		(tpl_wayland_surface_t *)surface->backend.data;
-	tpl_wayland_display_t *wayland_display =
-		(tpl_wayland_display_t *)surface->display->backend.data;
-	struct wl_proxy *wl_proxy = NULL;
 	tbm_surface_queue_error_e tsq_err = 0;
 
 	if (wayland_surface->resized == TPL_TRUE) wayland_surface->resized = TPL_FALSE;
@@ -855,41 +1004,30 @@ __tpl_wayland_surface_dequeue_buffer(tpl_surface_t *surface)
 
 	tbm_surface_internal_ref(tbm_surface);
 
+	/* thread which executes this function may continue work without having to wait for buffer
+	 * details' exchanging (with server)
+	 * NOTE: in current implementation, if send_buff_details_thread_id thread is actually
+	 *       making exchanging, we must wait until it will have finished */
+	TPL_OBJECT_UNLOCK(surface);
+
+	pthread_mutex_lock(&wayland_surface->mtx_send_buff_details);
+
 	if ((wayland_buffer =
 		     __tpl_wayland_get_wayland_buffer_from_tbm_surface(tbm_surface)) != NULL) {
+		pthread_mutex_unlock(&wayland_surface->mtx_send_buff_details);
+		printf( "tpl: dequeue_buffer: we have wayland_buffer yet.\n" );
+		printf( "tpl: dequeue_buffer: lock mtx_send_buff_details removed.\n" );
+
+		TPL_OBJECT_LOCK(surface);
 		return tbm_surface;
 	}
 
-	wayland_buffer = (tpl_wayland_buffer_t *) calloc(1,
-			 sizeof(tpl_wayland_buffer_t));
-	if (!wayland_buffer) {
-		TPL_ERR("Mem alloc for wayland_buffer failed!");
-		tbm_surface_internal_unref(tbm_surface);
-		return NULL;
-	}
+	wayland_surface->tbm_surface_to_send = tbm_surface;
+	pthread_cond_signal(&wayland_surface->cond_var_send_buff_details);
 
-	wl_proxy = (struct wl_proxy *)wayland_tbm_client_create_buffer(
-			   wayland_display->wl_tbm_client, tbm_surface);
-	if (!wl_proxy) {
-		TPL_ERR("Failed to create TBM client buffer!");
-		tbm_surface_internal_unref(tbm_surface);
-		free(wayland_buffer);
-		return NULL;
-	}
+	pthread_mutex_unlock(&wayland_surface->mtx_send_buff_details);
 
-	wl_proxy_set_queue(wl_proxy, wayland_display->wl_queue);
-	wl_buffer_add_listener((void *)wl_proxy, &buffer_release_listener,
-			       tbm_surface);
-
-	wl_display_flush((struct wl_display *)surface->display->native_handle);
-
-	wayland_buffer->display = surface->display;
-	wayland_buffer->wl_proxy = wl_proxy;
-	wayland_buffer->bo = tbm_surface_internal_get_bo(tbm_surface, 0);
-	wayland_buffer->wayland_surface = wayland_surface;
-	wayland_surface->current_buffer = tbm_surface;
-
-	__tpl_wayland_set_wayland_buffer_to_tbm_surface(tbm_surface, wayland_buffer);
+	TPL_OBJECT_LOCK(surface);
 
 	return tbm_surface;
 }
