@@ -40,13 +40,14 @@ struct _tpl_wayland_egl_surface {
 	tbm_surface_queue_h tbm_queue;
 	tbm_surface_h current_buffer;
 	tpl_bool_t resized;
+	struct wl_proxy *wl_proxy; /* wl_tbm_queue proxy */
 };
 
 struct _tpl_wayland_egl_buffer {
 	tpl_display_t *display;
 	tbm_bo bo;
 	tpl_wayland_egl_surface_t *wayland_egl_surface;
-	struct wl_proxy *wl_proxy;
+	struct wl_proxy *wl_proxy; /* wl_buffer proxy */
 };
 
 static const struct wl_registry_listener registry_listener;
@@ -351,7 +352,7 @@ __tpl_wayland_egl_surface_init(tpl_surface_t *surface)
 	wayland_egl_surface->resized = TPL_FALSE;
 	wayland_egl_surface->current_buffer = NULL;
 
-	if (wl_egl_window->surface)
+	if (wl_egl_window->surface) {
 		wayland_egl_surface->tbm_queue = wayland_tbm_client_create_surface_queue(
 				wayland_egl_display->wl_tbm_client,
 				wl_egl_window->surface,
@@ -359,6 +360,15 @@ __tpl_wayland_egl_surface_init(tpl_surface_t *surface)
 				wl_egl_window->width,
 				wl_egl_window->height,
 				TBM_FORMAT_ARGB8888);
+		wayland_egl_surface->wl_proxy = (struct wl_proxy *)wayland_tbm_client_get_wl_tbm_queue(wayland_egl_display->wl_tbm_client,
+				wl_egl_window->surface);
+		if (!wayland_egl_surface->wl_proxy) {
+			TPL_ERR("Failed to allocate memory for new tpl_wayland_egl_surface_t.");
+			return TPL_ERROR_INVALID_OPERATION;
+		}
+		/* set wl_proxy(wl_tbm_queue) to the wl_queue */
+		wl_proxy_set_queue(wayland_egl_surface->wl_proxy, wayland_egl_display->wl_queue);
+	}
 	else
 		/*Why wl_surafce is NULL ?*/
 		wayland_egl_surface->tbm_queue = tbm_surface_queue_sequence_create(3,
