@@ -421,7 +421,7 @@ __tpl_wayland_vk_wsi_surface_get_swapchain_buffers(tpl_surface_t *surface,
 	tbm_surface_h *swapchain_buffers = NULL;
 	tpl_wayland_vk_wsi_surface_t *wayland_vk_wsi_surface = NULL;
 	tbm_surface_queue_error_e tsq_err;
-	int i;
+	int i, dequeue_count;
 
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->backend.data);
@@ -442,14 +442,18 @@ __tpl_wayland_vk_wsi_surface_get_swapchain_buffers(tpl_surface_t *surface,
 		if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
 			TPL_ERR("Failed to get tbm_surface from tbm_surface_queue | tsq_err = %d",
 				tsq_err);
-			goto get_buffer_fail;
-		}
-		tsq_err = tbm_surface_queue_release(wayland_vk_wsi_surface->tbm_queue, buffer);
-		if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
-			TPL_ERR("Failed to release tbm_surface. | tsq_err = %d", tsq_err);
+			dequeue_count = i;
 			goto get_buffer_fail;
 		}
 		swapchain_buffers[i] = buffer;
+	}
+
+	for (i = 0 ; i < wayland_vk_wsi_surface->buffer_count ; i++) {
+		tsq_err = tbm_surface_queue_release(wayland_vk_wsi_surface->tbm_queue, swapchain_buffers[i]);
+		if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
+			TPL_ERR("Failed to release tbm_surface. | tsq_err = %d", tsq_err);
+			goto release_buffer_fail;
+		}
 	}
 
 	*buffers = swapchain_buffers;
@@ -457,6 +461,15 @@ __tpl_wayland_vk_wsi_surface_get_swapchain_buffers(tpl_surface_t *surface,
 	return TPL_ERROR_NONE;
 
 get_buffer_fail:
+	for (i = 0 ; i < dequeue_count ; i++) {
+		tsq_err = tbm_surface_queue_release(wayland_vk_wsi_surface->tbm_queue, swapchain_buffers[i]);
+		if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
+			TPL_ERR("Failed to release tbm_surface. | tsq_err = %d", tsq_err);
+			goto release_buffer_fail;
+		}
+	}
+
+release_buffer_fail:
 	free(swapchain_buffers);
 	return TPL_ERROR_INVALID_OPERATION;
 }
