@@ -55,8 +55,6 @@ static const struct wl_callback_listener sync_listener;
 static const struct wl_callback_listener frame_listener;
 static const struct wl_buffer_listener buffer_release_listener;
 
-#define TPL_BUFFER_CACHE_MAX_ENTRIES 40
-
 static int tpl_wayland_egl_buffer_key;
 #define KEY_tpl_wayland_egl_buffer  (unsigned long)(&tpl_wayland_egl_buffer_key)
 
@@ -356,7 +354,7 @@ __tpl_wayland_egl_surface_init(tpl_surface_t *surface)
 		wayland_egl_surface->tbm_queue = wayland_tbm_client_create_surface_queue(
 				wayland_egl_display->wl_tbm_client,
 				wl_egl_window->surface,
-				3,
+				CLIENT_QUEUE_SIZE,
 				wl_egl_window->width,
 				wl_egl_window->height,
 				TBM_FORMAT_ARGB8888);
@@ -381,7 +379,7 @@ __tpl_wayland_egl_surface_init(tpl_surface_t *surface)
 	}
 	else
 		/*Why wl_surafce is NULL ?*/
-		wayland_egl_surface->tbm_queue = tbm_surface_queue_sequence_create(3,
+		wayland_egl_surface->tbm_queue = tbm_surface_queue_sequence_create(CLIENT_QUEUE_SIZE,
 						 wl_egl_window->width,
 						 wl_egl_window->height,
 						 TBM_FORMAT_ARGB8888,
@@ -460,25 +458,21 @@ __tpl_wayland_egl_surface_fini(tpl_surface_t *surface)
 	surface->backend.data = NULL;
 }
 
-static tpl_result_t
-__tpl_wayland_egl_surface_enqueue_buffer(tpl_surface_t *surface,
-		tbm_surface_h tbm_surface,
-		int num_rects, const int *rects)
+static void
+__tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
+				 tbm_surface_h tbm_surface,
+				 int num_rects, const int *rects)
 {
-	TPL_ASSERT(surface);
-	TPL_ASSERT(surface->display);
-	TPL_ASSERT(surface->display->native_handle);
-	TPL_ASSERT(tbm_surface);
-
-	struct wl_egl_window *wl_egl_window = NULL;
 	tpl_wayland_egl_display_t *wayland_egl_display =
 		(tpl_wayland_egl_display_t *) surface->display->backend.data;
-	tpl_wayland_egl_surface_t *wayland_egl_surface =
-		(tpl_wayland_egl_surface_t *) surface->backend.data;
 	tpl_wayland_egl_buffer_t *wayland_egl_buffer = NULL;
-	tbm_surface_queue_error_e tsq_err;
+	struct wl_egl_window *wl_egl_window =
+		(struct wl_egl_window *)surface->native_handle;
+	struct wl_callback *frame_callback = NULL;
 
-	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
+	wayland_egl_buffer =
+		__tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface);
+	TPL_ASSERT(wayland_egl_buffer);
 
 	wayland_egl_buffer =
 		__tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface);
@@ -490,27 +484,6 @@ __tpl_wayland_egl_surface_enqueue_buffer(tpl_surface_t *surface,
 	if (bo_handle.ptr)
 		TPL_IMAGE_DUMP(bo_handle.ptr, surface->width, surface->height,
 			       surface->dump_count++);
-
-	wl_egl_window = (struct wl_egl_window *)surface->native_handle;
-
-	tbm_surface_internal_unref(tbm_surface);
-
-	tsq_err = tbm_surface_queue_enqueue(wayland_egl_surface->tbm_queue,
-					    tbm_surface);
-	if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
-		TPL_ERR("Failed to enqeueue tbm_surface. | tsq_err = %d", tsq_err);
-		return TPL_ERROR_INVALID_OPERATION;
-	}
-
-	/* deprecated */
-	tsq_err = tbm_surface_queue_acquire(wayland_egl_surface->tbm_queue,
-					    &tbm_surface);
-	if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
-		TPL_ERR("Failed to acquire tbm_surface. | tsq_err = %d", tsq_err);
-		return TPL_ERROR_INVALID_OPERATION;
-	}
-
-	tbm_surface_internal_ref(tbm_surface);
 	wl_surface_attach(wl_egl_window->surface, (void *)wayland_egl_buffer->wl_proxy,
 			  wl_egl_window->dx, wl_egl_window->dy);
 
@@ -530,18 +503,75 @@ __tpl_wayland_egl_surface_enqueue_buffer(tpl_surface_t *surface,
 		}
 	}
 
-	{
-		/* Register a meaningless surface frame callback.
-		   Because the buffer_release callback only be triggered if this callback is registered. */
-		struct wl_callback *frame_callback = NULL;
-		frame_callback = wl_surface_frame(wl_egl_window->surface);
-		wl_callback_add_listener(frame_callback, &frame_listener, tbm_surface);
-		wl_proxy_set_queue((struct wl_proxy *)frame_callback,
-				   wayland_egl_display->wl_queue);
-	}
+	/* Register a meaningless surface frame callback.
+	   Because the buffer_release callback only be triggered if this callback is registered. */
+	frame_callback = wl_surface_frame(wl_egl_window->surface);
+	wl_callback_add_listener(frame_callback, &frame_listener, tbm_surface);
+	wl_proxy_set_queue((struct wl_proxy *)frame_callback,
+			   wayland_egl_display->wl_queue);
+
 	wl_surface_commit(wl_egl_window->surface);
 
-	wl_display_flush(surface->display->native_handle);
+	wl_display_flush((struct wl_display *)surface->display->native_handle);
+}
+
+
+static tpl_result_t
+__tpl_wayland_egl_surface_enqueue_buffer(tpl_surface_t *surface,
+					 tbm_surface_h tbm_surface,
+					 int num_rects, const int *rects)
+{
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->display);
+	TPL_ASSERT(surface->display->native_handle);
+	TPL_ASSERT(tbm_surface);
+
+	tpl_wayland_egl_surface_t *wayland_egl_surface =
+		(tpl_wayland_egl_surface_t *) surface->backend.data;
+	tbm_surface_queue_error_e tsq_err;
+
+	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
+
+	tsq_err = tbm_surface_queue_enqueue(wayland_egl_surface->tbm_queue,
+					    tbm_surface);
+	if (tsq_err == TBM_SURFACE_QUEUE_ERROR_NONE) {
+		/*
+		 * If tbm_surface_queue has not been reset, tbm_surface_queue_enqueue
+		 * will return ERROR_NONE. Otherwise, queue has been reset
+		 * this tbm_surface may have only one ref_count. So we need to
+		 * unreference this tbm_surface after getting ERROR_NONE result from
+		 * tbm_surface_queue_enqueue in order to prevent destruction.
+		 */
+
+		tbm_surface_internal_unref(tbm_surface);
+	} else {
+		/*
+		 * When tbm_surface_queue being reset for receiving scan-out buffer
+		 * tbm_surface_queue_enqueue will return error.
+		 * This error condition leads to skip frame.
+		 *
+		 * tbm_surface received from argument this function,
+		 * may be rendered done. So this tbm_surface is better to do
+		 * commit forcibly without handling queue in order to prevent
+		 * frame skipping.
+		 */
+		__tpl_wayland_egl_surface_commit(surface, tbm_surface,
+						 num_rects, rects);
+		TPL_ERR("Failed to enqeueue tbm_surface. But, commit forcibly.| tsq_err = %d", tsq_err);
+		return TPL_ERROR_NONE;
+	}
+
+	/* deprecated */
+	tsq_err = tbm_surface_queue_acquire(wayland_egl_surface->tbm_queue,
+					    &tbm_surface);
+	if (tsq_err == TBM_SURFACE_QUEUE_ERROR_NONE) {
+		tbm_surface_internal_ref(tbm_surface);
+	} else {
+		TPL_ERR("Failed to acquire tbm_surface. | tsq_err = %d", tsq_err);
+		return TPL_ERROR_INVALID_OPERATION;
+	}
+
+	__tpl_wayland_egl_surface_commit(surface, tbm_surface, num_rects, rects);
 
 	return TPL_ERROR_NONE;
 }
