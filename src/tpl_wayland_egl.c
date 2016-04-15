@@ -632,7 +632,7 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 	while (tbm_surface_queue_can_dequeue(
 		       wayland_egl_surface->tbm_queue, 0) == 0) {
 		/* Application sent all buffers to the server. Wait for server response. */
-		if (wl_display_dispatch_queue(surface->display->native_handle,
+		if (wl_display_dispatch_queue_pending(surface->display->native_handle,
 					      wayland_egl_display->wl_queue) == -1) {
 			TPL_OBJECT_LOCK(surface);
 			return NULL;
