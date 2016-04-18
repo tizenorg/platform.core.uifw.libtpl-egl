@@ -64,11 +64,10 @@ static void __tpl_wayland_egl_buffer_free(tpl_wayland_egl_buffer_t
 static TPL_INLINE tpl_wayland_egl_buffer_t *
 __tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface_h surface)
 {
-	tbm_bo bo;
 	tpl_wayland_egl_buffer_t *buf = NULL;
 
-	bo = tbm_surface_internal_get_bo(surface, 0);
-	tbm_bo_get_user_data(bo, KEY_tpl_wayland_egl_buffer, (void **)&buf);
+	tbm_surface_internal_get_user_data(surface, KEY_tpl_wayland_egl_buffer,
+					   (void **)&buf);
 
 	return buf;
 }
@@ -77,14 +76,11 @@ static TPL_INLINE void
 __tpl_wayland_egl_set_wayland_buffer_to_tbm_surface(tbm_surface_h surface,
 		tpl_wayland_egl_buffer_t *buf)
 {
-	tbm_bo bo;
+	tbm_surface_internal_add_user_data(surface, KEY_tpl_wayland_egl_buffer,
+					   (tbm_data_free)__tpl_wayland_egl_buffer_free);
 
-	bo = tbm_surface_internal_get_bo(surface, 0);
-
-	tbm_bo_add_user_data(bo, KEY_tpl_wayland_egl_buffer,
-			     (tbm_data_free)__tpl_wayland_egl_buffer_free);
-
-	tbm_bo_set_user_data(bo, KEY_tpl_wayland_egl_buffer, buf);
+	tbm_surface_internal_set_user_data(surface, KEY_tpl_wayland_egl_buffer,
+					   buf);
 }
 
 static TPL_INLINE tpl_bool_t

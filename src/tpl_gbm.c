@@ -56,11 +56,9 @@ static void __tpl_gbm_buffer_free(tpl_gbm_buffer_t *gbm_buffer);
 static inline tpl_gbm_buffer_t *
 __tpl_gbm_get_gbm_buffer_from_tbm_surface(tbm_surface_h surface)
 {
-	tbm_bo bo;
 	tpl_gbm_buffer_t *buf = NULL;
 
-	bo = tbm_surface_internal_get_bo(surface, 0);
-	tbm_bo_get_user_data(bo, KEY_TPL_GBM_BUFFER, (void **)&buf);
+	tbm_surface_internal_get_user_data(surface, KEY_TPL_GBM_BUFFER, (void **)&buf);
 
 	return buf;
 }
@@ -69,12 +67,9 @@ static inline void
 __tpl_gbm_set_gbm_buffer_to_tbm_surface(tbm_surface_h surface,
 					tpl_gbm_buffer_t *buf)
 {
-	tbm_bo bo;
-
-	bo = tbm_surface_internal_get_bo(surface, 0);
-	tbm_bo_add_user_data(bo, KEY_TPL_GBM_BUFFER,
+	tbm_surface_internal_add_user_data(surface, KEY_TPL_GBM_BUFFER,
 			     (tbm_data_free)__tpl_gbm_buffer_free);
-	tbm_bo_set_user_data(bo, KEY_TPL_GBM_BUFFER, buf);
+	tbm_surface_internal_set_user_data(surface, KEY_TPL_GBM_BUFFER, buf);
 }
 
 static TPL_INLINE tpl_bool_t
