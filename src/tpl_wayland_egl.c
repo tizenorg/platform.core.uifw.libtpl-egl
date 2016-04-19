@@ -795,13 +795,13 @@ __cb_client_buffer_release_callback(void *data, struct wl_proxy *proxy)
 
 	tbm_surface = (tbm_surface_h) data;
 
+	tbm_surface_internal_unref(tbm_surface);
+
 	wayland_egl_buffer =
 		__tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface);
 
 	if (wayland_egl_buffer) {
 		wayland_egl_surface = wayland_egl_buffer->wayland_egl_surface;
-
-		tbm_surface_internal_unref(tbm_surface);
 
 		tbm_surface_queue_release(wayland_egl_surface->tbm_queue, tbm_surface);
 	}
