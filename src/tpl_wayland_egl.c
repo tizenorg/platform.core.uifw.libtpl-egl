@@ -470,10 +470,6 @@ __tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
 		__tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface);
 	TPL_ASSERT(wayland_egl_buffer);
 
-	wayland_egl_buffer =
-		__tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface);
-	TPL_ASSERT(wayland_egl_buffer);
-
 	tbm_bo_handle bo_handle =
 		tbm_bo_get_handle(wayland_egl_buffer->bo , TBM_DEVICE_CPU);
 
