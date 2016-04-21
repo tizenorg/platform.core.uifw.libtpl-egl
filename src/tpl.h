@@ -590,17 +590,6 @@ tpl_surface_get_swapchain_buffers(tpl_surface_t *surface,
 				  tbm_surface_h **buffers, int *buffer_count);
 
 /**
- * Get the buffer count capability of the given TPL surface.
- *
- * @paran surface surface to get the buffer count capability
- * @paran min pointer to receive min buffer count value.
- * @paran max pointer to receive max buffer count value.
- */
-tpl_result_t
-tpl_surface_query_supported_buffer_count(tpl_surface_t *surface, int *min,
-		int *max);
-
-/**
  * Query information on the given native window.
  *
  * @param display display used for query.
@@ -628,6 +617,21 @@ tpl_display_get_native_window_info(tpl_display_t *display, tpl_handle_t window,
 tpl_result_t
 tpl_display_get_native_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 				   int *width, int *height, tbm_format *format);
+
+
+/**
+ * Get the buffer count capability of the given native window.
+ *
+ * @param display display used for query.
+ * @param window window used for query the buffer count capability
+ * @paran min pointer to receive min buffer count value.
+ * @paran max pointer to receive max buffer count value.
+ * @return TPL_ERROR_NONE if this function is supported and the window is valid, TPL_ERROR otherwise.
+ */
+tpl_result_t
+tpl_display_query_native_window_supported_buffer_count(tpl_display_t *display,
+						       tpl_handle_t window,
+						       int *min, int *max);
 
 /**
  * Get native buffer from the given native pixmap.

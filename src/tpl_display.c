@@ -159,6 +159,21 @@ tpl_display_get_native_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 	return display->backend.get_pixmap_info(display, pixmap, width, height, format);
 }
 
+tpl_result_t
+tpl_display_query_native_window_supported_buffer_count(tpl_display_t *display,
+						       tpl_handle_t window,
+						       int *min, int *max)
+{
+	if (!display->backend.query_window_supported_buffer_count) {
+		TPL_ERR("Backend for display has not been initialized!");
+		return TPL_ERROR_INVALID_OPERATION;
+	}
+
+	return display->backend.query_window_supported_buffer_count(display,
+								    window, min,
+								    max);
+}
+
 tbm_surface_h
 tpl_display_get_buffer_from_native_pixmap(tpl_display_t *display,
 		tpl_handle_t pixmap)

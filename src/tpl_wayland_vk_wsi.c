@@ -17,6 +17,10 @@ typedef struct _tpl_wayland_vk_wsi_buffer tpl_wayland_vk_wsi_buffer_t;
 
 struct _tpl_wayland_vk_wsi_display {
 	struct wayland_tbm_client *wl_tbm_client;
+	struct {
+		int min_buffer;
+		int max_buffer;
+	} surface_capabilities;
 };
 
 struct _tpl_wayland_vk_wsi_surface {
@@ -129,6 +133,9 @@ __tpl_wayland_vk_wsi_display_init(tpl_display_t *display)
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
+	wayland_vk_wsi_display->surface_capabilities.min_buffer = 2;
+	wayland_vk_wsi_display->surface_capabilities.max_buffer = CLIENT_QUEUE_SIZE;;
+
 	display->backend.data = wayland_vk_wsi_display;
 
 	if (__tpl_wayland_vk_wsi_display_is_wl_display(display->native_handle)) {
@@ -211,6 +218,26 @@ __tpl_wayland_vk_wsi_display_filter_config(tpl_display_t *display,
 }
 
 static tpl_result_t
+__tpl_wayland_vk_wsi_display_query_window_supported_buffer_count(tpl_display_t *display,
+		tpl_handle_t window, int *min, int *max)
+{
+	tpl_wayland_vk_wsi_display_t *wayland_vk_wsi_display = NULL;
+
+	TPL_ASSERT(display);
+	TPL_ASSERT(window);
+
+	wayland_vk_wsi_display = (tpl_wayland_vk_wsi_display_t *)display->backend.data;
+
+	if (!wayland_vk_wsi_display) return TPL_ERROR_INVALID_OPERATION;
+
+	if (min) *min = wayland_vk_wsi_display->surface_capabilities.min_buffer;
+	if (max) *max = wayland_vk_wsi_display->surface_capabilities.max_buffer;
+
+	return TPL_ERROR_NONE;
+}
+
+
+static tpl_result_t
 __tpl_wayland_vk_wsi_surface_init(tpl_surface_t *surface)
 {
 	tpl_wayland_vk_wsi_surface_t *wayland_vk_wsi_surface = NULL;
@@ -228,9 +255,6 @@ __tpl_wayland_vk_wsi_surface_init(tpl_surface_t *surface)
 
 	surface->backend.data = (void *)wayland_vk_wsi_surface;
 	wayland_vk_wsi_surface->tbm_queue = NULL;
-
-	surface->capabilities.min_buffer = 2;
-	surface->capabilities.max_buffer = CLIENT_QUEUE_SIZE;
 
 	TPL_LOG(3, "window(%p, %p) %dx%d", surface, surface->native_handle,
 		surface->width, surface->height);
@@ -480,6 +504,7 @@ __tpl_wayland_vk_wsi_surface_create_swapchain(tpl_surface_t *surface,
 		int height, int buffer_count)
 {
 	tpl_wayland_vk_wsi_surface_t *wayland_vk_wsi_surface = NULL;
+	tpl_wayland_vk_wsi_display_t *wayland_vk_wsi_display = NULL;
 
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->backend.data);
@@ -487,6 +512,16 @@ __tpl_wayland_vk_wsi_surface_create_swapchain(tpl_surface_t *surface,
 
 	wayland_vk_wsi_surface = (tpl_wayland_vk_wsi_surface_t *) surface->backend.data;
 	TPL_ASSERT(wayland_vk_wsi_surface);
+
+	wayland_vk_wsi_display = (tpl_wayland_vk_wsi_display_t *)
+				 surface->display->backend.data;
+	TPL_ASSERT(wayland_vk_wsi_display);
+
+	if ((buffer_count < wayland_vk_wsi_display->surface_capabilities.min_buffer)
+		|| (buffer_count > wayland_vk_wsi_display->surface_capabilities.max_buffer)) {
+		TPL_ERR("Invalid buffer_count!");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
 
 	wayland_vk_wsi_surface->tbm_queue = tbm_surface_queue_create(buffer_count,
 					    width,
@@ -574,6 +609,7 @@ __tpl_display_init_backend_wayland_vk_wsi(tpl_display_backend_t *backend)
 	backend->fini = __tpl_wayland_vk_wsi_display_fini;
 	backend->query_config = __tpl_wayland_vk_wsi_display_query_config;
 	backend->filter_config = __tpl_wayland_vk_wsi_display_filter_config;
+	backend->query_window_supported_buffer_count = __tpl_wayland_vk_wsi_display_query_window_supported_buffer_count;
 }
 
 void

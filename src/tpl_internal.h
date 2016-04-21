@@ -47,6 +47,9 @@ struct _tpl_display_backend {
 					tpl_handle_t pixmap, int *width,
 					int *height, tbm_format *format);
 	tbm_surface_h (*get_buffer_from_native_pixmap)(tpl_handle_t pixmap);
+	tpl_result_t (*query_window_supported_buffer_count)(tpl_display_t *display,
+							    tpl_handle_t window,
+							    int *min, int *max);
 };
 
 struct _tpl_surface_backend {
@@ -97,10 +100,6 @@ struct _tpl_surface {
 	int width, height;
 	int post_interval;
 	int dump_count;
-	struct {
-		int min_buffer;
-		int max_buffer;
-	} capabilities;
 	tpl_surface_backend_t backend;
 };
 
