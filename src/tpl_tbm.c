@@ -183,11 +183,6 @@ __tpl_tbm_surface_init(tpl_surface_t *surface)
 			goto error;
 		}
 
-		surface->capabilities.min_buffer =
-			tbm_surface_queue_get_size((tbm_surface_queue_h)surface->native_handle);
-		surface->capabilities.max_buffer =
-			tbm_surface_queue_get_size((tbm_surface_queue_h)surface->native_handle);
-
 		tbm_surface_queue_add_destroy_cb((tbm_surface_queue_h)surface->native_handle,
 						 __tpl_tbm_surface_queue_notify_cb,
 						 surface);
@@ -205,7 +200,6 @@ __tpl_tbm_surface_init(tpl_surface_t *surface)
 
 			goto error;
 		}
-		surface->capabilities.min_buffer = surface->capabilities.max_buffer = 1;
 
 		tbm_surface_internal_ref((tbm_surface_h)surface->native_handle);
 

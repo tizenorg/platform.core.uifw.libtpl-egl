@@ -264,22 +264,6 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 }
 
 tpl_result_t
-tpl_surface_query_supported_buffer_count(tpl_surface_t *surface, int *min,
-		int *max)
-{
-	if (!surface || (surface->type != TPL_SURFACE_TYPE_WINDOW)) {
-		TPL_ERR("Invalid surface!");
-		return TPL_ERROR_INVALID_PARAMETER;
-	}
-
-	if (min) *min = surface->capabilities.min_buffer;
-	if (max) *max = surface->capabilities.max_buffer;
-
-	return TPL_ERROR_NONE;
-
-}
-
-tpl_result_t
 tpl_surface_get_swapchain_buffers(tpl_surface_t *surface,
 				  tbm_surface_h **buffers, int *buffer_count)
 {
@@ -322,12 +306,6 @@ tpl_surface_create_swapchain(tpl_surface_t *surface, tbm_format format,
 
 	if ((width <= 0) || (height <= 0) ) {
 		TPL_ERR("Invalid width or  height!");
-		return TPL_ERROR_INVALID_PARAMETER;
-	}
-
-	if ((buffer_count < surface->capabilities.min_buffer)
-	    || (buffer_count > surface->capabilities.max_buffer)) {
-		TPL_ERR("Invalid buffer_count!");
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 

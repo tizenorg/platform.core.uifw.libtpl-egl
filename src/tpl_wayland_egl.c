@@ -389,10 +389,6 @@ __tpl_wayland_egl_surface_init(tpl_surface_t *surface)
 
 	surface->width = wl_egl_window->width;
 	surface->height = wl_egl_window->height;
-	surface->capabilities.min_buffer =
-		tbm_surface_queue_get_size(wayland_egl_surface->tbm_queue);
-	surface->capabilities.max_buffer =
-		tbm_surface_queue_get_size(wayland_egl_surface->tbm_queue);
 
 	wl_egl_window->private = surface;
 	wl_egl_window->resize_callback = (void *)__cb_client_window_resize_callback;
