@@ -13,6 +13,7 @@ typedef struct _tpl_tbm_display tpl_tbm_display_t;
 typedef struct _tpl_tbm_surface tpl_tbm_surface_t;
 
 struct _tpl_tbm_display {
+	int need_dpy_deinit;
 	int dummy;
 };
 
@@ -27,11 +28,12 @@ __tpl_tbm_display_init(tpl_display_t *display)
 
 	TPL_ASSERT(display);
 
+	tbm_display = (tpl_tbm_display_t *) calloc(1, sizeof(tpl_tbm_display_t));
+
 	if (!display->native_handle) {
 		display->native_handle = tbm_bufmgr_init(-1);
+		tbm_display->need_dpy_deinit = 1;
 	}
-
-	tbm_display = (tpl_tbm_display_t *) calloc(1, sizeof(tpl_tbm_display_t));
 
 	if (!tbm_display) {
 		TPL_ERR("Failed to allocate memory for new tpl_tbm_display_t.");
@@ -53,11 +55,13 @@ __tpl_tbm_display_fini(tpl_display_t *display)
 
 	tbm_display = (tpl_tbm_display_t *)display->backend.data;
 
-	if (tbm_display) free(tbm_display);
-
 	display->backend.data = NULL;
 
-	tbm_bufmgr_deinit((tbm_bufmgr)display->native_handle);
+	if (tbm_display->need_dpy_deinit)
+		tbm_bufmgr_deinit((tbm_bufmgr)display->native_handle);
+
+	if (tbm_display)
+		free(tbm_display);
 }
 
 static tpl_result_t
