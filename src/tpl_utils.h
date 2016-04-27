@@ -18,7 +18,7 @@
 #ifdef ARM_ATOMIC_OPERATION
 #define TPL_DMB() __asm__ volatile("dmb sy" : : : "memory")
 #else
-#define TPL_DMB()
+#define TPL_DMB() __asm__ volatile("" : : : "memory")
 #endif
 
 #if (TTRACE_ENABLE)
