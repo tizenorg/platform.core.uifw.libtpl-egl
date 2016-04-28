@@ -187,8 +187,18 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 	TRACE_BEGIN("TPL:DEQUEUE_BUFFER");
 	TPL_OBJECT_LOCK(surface);
 
-	tbm_surface = surface->backend.dequeue_buffer(surface);
+	if (surface->is_frontbuffer_mode && surface->frontbuffer) {
+		if (TPL_TRUE == surface->backend.validate(surface)) {
+			tbm_surface = surface->frontbuffer;
+		} else {
+			surface->frontbuffer = NULL;
+		}
+	}
 
+	if (!tbm_surface)
+		tbm_surface = surface->backend.dequeue_buffer(surface);
+
+	printf("[TPL:%d] dequeue:%p, id:%d\n", getpid(), tbm_surface, tbm_bo_export(tbm_surface_internal_get_bo(tbm_surface, 0)));
 	if (tbm_surface) {
 		/* Update size of the surface. */
 		surface->width = tbm_surface_get_width(tbm_surface);
@@ -204,30 +214,8 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 tpl_result_t
 tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
-	tpl_result_t ret = TPL_ERROR_INVALID_OPERATION;
-
-	if (!surface || (surface->type != TPL_SURFACE_TYPE_WINDOW)) {
-		TPL_ERR("Invalid surface!");
-		return TPL_ERROR_INVALID_PARAMETER;
-	}
-
-	TRACE_BEGIN("TPL:ENQUEUE_BUFFER");
-	TPL_OBJECT_LOCK(surface);
-
-	if (!tbm_surface) {
-		TPL_OBJECT_UNLOCK(surface);
-		TRACE_END();
-		TPL_ERR("tbm surface is invalid.");
-		return TPL_ERROR_INVALID_PARAMETER;
-	}
-
-	/* Call backend post */
-	ret = surface->backend.enqueue_buffer(surface, tbm_surface, 0, NULL);
-
-	TPL_OBJECT_UNLOCK(surface);
-	TRACE_END();
-
-	return ret;
+	printf("[TPL:%d] enqueue:%p, id:%d\n", getpid(), tbm_surface, tbm_bo_export(tbm_surface_internal_get_bo(tbm_surface, 0)));
+	return tpl_surface_enqueue_buffer_with_damage(surface, tbm_surface, 0, NULL);
 }
 
 tpl_result_t
@@ -235,7 +223,7 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 				       tbm_surface_h tbm_surface,
 				       int num_rects, const int *rects)
 {
-	tpl_result_t ret = TPL_ERROR_INVALID_OPERATION;
+	tpl_result_t ret = TPL_ERROR_NONE;
 
 	if (!surface || (surface->type != TPL_SURFACE_TYPE_WINDOW)) {
 		TPL_ERR("Invalid surface!");
@@ -252,8 +240,22 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
+	if (surface->is_frontbuffer_mode &&
+		surface->frontbuffer == tbm_surface) {
+		TPL_OBJECT_UNLOCK(surface);
+		TRACE_END();
+		return ret;
+	}
+
 	/* Call backend post */
-	ret = surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects);
+    ret = surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects);
+
+	if (surface->frontbuffer == tbm_surface || ret != TPL_ERROR_NONE)
+	{
+		printf("[TPL] Enqueue front:%p, surf:%p, ret:%d\n", surface->frontbuffer, tbm_surface, ret);
+	}
+
+	surface->frontbuffer = tbm_surface;
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
@@ -340,6 +342,29 @@ tpl_surface_destroy_swapchain(tpl_surface_t *surface)
 	TPL_OBJECT_LOCK(surface);
 
 	ret = surface->backend.destroy_swapchain(surface);
+
+	TPL_OBJECT_UNLOCK(surface);
+
+	return ret;
+}
+
+tpl_result_t
+tpl_surface_set_frontbuffer_mode(tpl_surface_t *surface, tpl_bool_t set)
+{
+	tpl_result_t ret = TPL_ERROR_NONE;
+
+	if (!surface) {
+		TPL_ERR("Invalid surface!");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	TPL_OBJECT_LOCK(surface);
+
+	if (surface->is_frontbuffer_mode == set) {
+		return ret;
+	} else {
+		surface->is_frontbuffer_mode = set;
+	}
 
 	TPL_OBJECT_UNLOCK(surface);
 

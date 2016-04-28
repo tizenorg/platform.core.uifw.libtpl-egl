@@ -644,4 +644,6 @@ tbm_surface_h
 tpl_display_get_buffer_from_native_pixmap(tpl_display_t *display,
 		tpl_handle_t pixmap);
 
+tpl_result_t
+tpl_surface_set_frontbuffer_mode(tpl_surface_t *surface, tpl_bool_t set);
 #endif /* TPL_H */
