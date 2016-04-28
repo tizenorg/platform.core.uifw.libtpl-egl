@@ -101,6 +101,10 @@ struct _tpl_surface {
 	int post_interval;
 	int dump_count;
 	tpl_surface_backend_t backend;
+
+	/*For frontbuffer extension*/
+	tpl_bool_t is_frontbuffer_mode;
+	tbm_surface_h frontbuffer;
 };
 
 /*******************************************************************************

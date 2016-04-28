@@ -40,6 +40,7 @@ struct _tpl_wayland_egl_surface {
 	tbm_surface_queue_h tbm_queue;
 	tbm_surface_h current_buffer;
 	tpl_bool_t resized;
+    tpl_bool_t reset;          /* TRUE if queue reseted by external */
 	struct wl_proxy *wl_proxy; /* wl_tbm_queue proxy */
 };
 
@@ -323,6 +324,16 @@ static void
 __cb_client_window_resize_callback(struct wl_egl_window *wl_egl_window,
 				   void *private);
 
+static void
+__cb_tbm_surface_queue_reset_callback(tbm_surface_queue_h surface_queue, void *data)
+{
+    tpl_wayland_egl_surface_t *wayland_egl_surface = data;
+
+    if (!wayland_egl_surface) return;
+
+    wayland_egl_surface->reset = TPL_TRUE;
+}
+
 static tpl_result_t
 __tpl_wayland_egl_surface_init(tpl_surface_t *surface)
 {
@@ -383,6 +394,10 @@ __tpl_wayland_egl_surface_init(tpl_surface_t *surface)
 						 wl_egl_window->height,
 						 TBM_FORMAT_ARGB8888,
 						 0);
+
+    /* Set reset_callback to tbm_quueue */
+    tbm_surface_queue_add_reset_cb(wayland_egl_surface->tbm_queue, __cb_tbm_surface_queue_reset_callback,
+                         (void *)wayland_egl_surface);
 
 	if (!wayland_egl_surface->tbm_queue) {
 		TPL_ERR("TBM surface queue creation failed!");
@@ -512,7 +527,6 @@ __tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
                           tbm_bo_export(wayland_egl_buffer->bo));
 }
 
-
 static tpl_result_t
 __tpl_wayland_egl_surface_enqueue_buffer(tpl_surface_t *surface,
 					 tbm_surface_h tbm_surface,
@@ -590,7 +604,9 @@ __tpl_wayland_egl_surface_validate(tpl_surface_t *surface)
 	tpl_wayland_egl_surface_t *wayland_egl_surface =
 		(tpl_wayland_egl_surface_t *)surface->backend.data;
 
-	if (wayland_egl_surface->resized) return TPL_FALSE;
+	if (wayland_egl_surface->resized ||
+        wayland_egl_surface->reset)
+        return TPL_FALSE;
 
 	return TPL_TRUE;
 }
@@ -629,6 +645,8 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 		surface->width = width;
 		surface->height = height;
 	}
+
+    wayland_egl_surface->reset = TPL_FALSE;
 
 	TPL_OBJECT_UNLOCK(surface);
 	wl_display_dispatch_queue_pending((struct wl_display *)
