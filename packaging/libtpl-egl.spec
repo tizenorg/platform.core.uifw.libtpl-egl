@@ -104,6 +104,7 @@ Wayland EGL backend
 
 %package -n libwayland-egl-devel
 Summary:    Development header files for use with Wayland protocol
+Requires: libwayland-egl
 
 %description -n libwayland-egl-devel
 Development header files for use with Wayland protocol
