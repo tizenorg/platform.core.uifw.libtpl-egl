@@ -83,6 +83,9 @@ wl_egl_window_create(struct wl_surface *surface,
 {
 	struct wl_egl_window *egl_window;
 
+	if (width <= 0 || height <= 0) return NULL;
+	if (!surface) return NULL;
+
 	egl_window = malloc(sizeof * egl_window);
 	if (!egl_window) {
 		WL_EGL_ERR("failed to allocate memory for egl_window");
