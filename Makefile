@@ -37,14 +37,17 @@ ifneq ($(call is-feature-enabled,winsys_tbm),)
 endif
 
 ifneq ($(call is-feature-enabled,ttrace),)
-	CFLAGS += -DTTRACE_ENABLE
+	CFLAGS += -DTTRACE_ENABLE=1
+	CFLAGS += `pkg-config --cflags ttrace`
+	LDFLAGS += `pkg-config --libs ttrace`
 endif
 ifneq ($(call is-feature-enabled,dlog),)
 	CFLAGS += -DDLOG_DEFAULT_ENABLE
 endif
 ifneq ($(call is-feature-enabled,pngdump),)
 	CFLAGS += -DPNG_DUMP_ENABLE
-	LDFLAGS += `pkg-config libpng`
+	CFLAGS += `pkg-config --cflags libpng`
+	LDFLAGS += `pkg-config --libs libpng`
 endif
 
 ifneq ($(call is-feature-enabled,arm_atomic_operation),)
