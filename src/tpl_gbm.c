@@ -315,6 +315,8 @@ __tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface,
 				 tbm_surface_h tbm_surface, int num_rects,
 				 const int *rects)
 {
+	tbm_bo bo;
+
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
 	TPL_ASSERT(surface->display->native_handle);
@@ -331,9 +333,8 @@ __tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface,
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
-	tbm_bo_handle bo_handle =
-		tbm_bo_get_handle(tbm_surface_internal_get_bo(tbm_surface, 0),
-				  TBM_DEVICE_CPU);
+	bo = tbm_surface_internal_get_bo(tbm_surface, 0);
+	tbm_bo_handle bo_handle = tbm_bo_get_handle(bo, TBM_DEVICE_CPU);
 
 	if (bo_handle.ptr)
 		TPL_IMAGE_DUMP(bo_handle.ptr, surface->width, surface->height,
@@ -354,6 +355,7 @@ __tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface,
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
+        TRACE_MARK("[ENQ] BO_NAME:%d", tbm_bo_export(bo));
 	return TPL_ERROR_NONE;
 }
 
@@ -382,6 +384,7 @@ __tpl_gbm_surface_dequeue_buffer(tpl_surface_t *surface)
 
 	gbm_surface = (tpl_gbm_surface_t *)surface->backend.data;
 
+	TRACE_BEGIN("WAITING FOR DEQUEUEABLE");
 	tsq_err = tbm_surface_queue_dequeue(gbm_surface->tbm_queue, &tbm_surface);
 	if (!tbm_surface
 	    && tbm_surface_queue_can_dequeue(gbm_surface->tbm_queue, 1) == 1) {
@@ -389,15 +392,21 @@ __tpl_gbm_surface_dequeue_buffer(tpl_surface_t *surface)
 		if (!tbm_surface) {
 			TPL_ERR("Failed to get tbm_surface from tbm_surface_queue | tsq_err = %d",
 				tsq_err);
+			TRACE_END();
 			return NULL;
 		}
 	}
+	TRACE_END();
 	/* Inc ref count about tbm_surface */
 	/* It will be dec when before tbm_surface_queue_enqueue called */
 	tbm_surface_internal_ref(tbm_surface);
 
 	gbm_buffer = __tpl_gbm_get_gbm_buffer_from_tbm_surface(tbm_surface);
-	if (gbm_buffer) return tbm_surface;
+	if (gbm_buffer)
+	{
+		TRACE_MARK("[DEQ][REUSED]BO_NAME:%d",tbm_bo_export(gbm_buffer->bo));
+		return tbm_surface;
+	}
 
 	if (!(bo = tbm_surface_internal_get_bo(tbm_surface, 0))) {
 		TPL_ERR("Failed to get tbm_bo from tbm_surface");
@@ -418,6 +427,8 @@ __tpl_gbm_surface_dequeue_buffer(tpl_surface_t *surface)
 	gbm_surface->current_buffer = tbm_surface;
 
 	__tpl_gbm_set_gbm_buffer_to_tbm_surface(tbm_surface, gbm_buffer);
+
+	TRACE_MARK("[DEQ][NEW]BO_NAME:%d",tbm_bo_export(gbm_buffer->bo));
 
 	return tbm_surface;
 }
