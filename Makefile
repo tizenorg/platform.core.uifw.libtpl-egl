@@ -37,7 +37,8 @@ ifneq ($(call is-feature-enabled,winsys_tbm),)
 endif
 
 ifneq ($(call is-feature-enabled,ttrace),)
-	CFLAGS += -DTTRACE_ENABLE
+	CFLAGS += -DTTRACE_ENABLE=1
+	LDFLAGS += `pkg-config ttrace`
 endif
 ifneq ($(call is-feature-enabled,dlog),)
 	CFLAGS += -DDLOG_DEFAULT_ENABLE

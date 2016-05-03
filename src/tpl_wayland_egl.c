@@ -466,6 +466,8 @@ __tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
 		__tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface);
 	TPL_ASSERT(wayland_egl_buffer);
 
+	TRACE_ASYNC_END((int)wayland_egl_buffer, "[DEQ]~[ENQ] BO_NAME:%d",
+			tbm_bo_export(wayland_egl_buffer->bo));
 	tbm_bo_handle bo_handle =
 		tbm_bo_get_handle(wayland_egl_buffer->bo , TBM_DEVICE_CPU);
 
@@ -501,6 +503,9 @@ __tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
 	wl_surface_commit(wl_egl_window->surface);
 
 	wl_display_flush((struct wl_display *)surface->display->native_handle);
+
+	TRACE_ASYNC_BEGIN((int)tbm_surface, "[COMMIT ~ RELEASE_CB] BO_NAME:%d",
+                          tbm_bo_export(wayland_egl_buffer->bo));
 }
 
 
@@ -519,6 +524,8 @@ __tpl_wayland_egl_surface_enqueue_buffer(tpl_surface_t *surface,
 	tbm_surface_queue_error_e tsq_err;
 
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
+	TRACE_MARK("[ENQ] BO_NAME:%d",
+		   tbm_bo_export(tbm_surface_internal_get_bo(tbm_surface, 0)));
 
 	tsq_err = tbm_surface_queue_enqueue(wayland_egl_surface->tbm_queue,
 					    tbm_surface);
@@ -617,6 +624,7 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 	wl_display_dispatch_queue_pending((struct wl_display *)
 					  surface->display->native_handle,
 					  wayland_egl_display->wl_queue);
+	TRACE_BEGIN("WAITING FOR DEQUEUEABLE");
 	while (tbm_surface_queue_can_dequeue(
 		       wayland_egl_surface->tbm_queue, 0) == 0) {
 		/* Application sent all buffers to the server. Wait for server response. */
@@ -626,6 +634,7 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 			return NULL;
 		}
 	}
+	TRACE_END();
 	TPL_OBJECT_LOCK(surface);
 
 	tsq_err = tbm_surface_queue_dequeue(wayland_egl_surface->tbm_queue,
@@ -640,6 +649,9 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 
 	if ((wayland_egl_buffer =
 		     __tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface)) != NULL) {
+		TRACE_MARK("[DEQ][REUSED]BO_NAME:%d",tbm_bo_export(wayland_egl_buffer->bo));
+		TRACE_ASYNC_BEGIN((int)wayland_egl_buffer, "[DEQ]~[ENQ] BO_NAME:%d",
+				  tbm_bo_export(wayland_egl_buffer->bo));
 		return tbm_surface;
 	}
 
@@ -675,6 +687,9 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 	__tpl_wayland_egl_set_wayland_buffer_to_tbm_surface(tbm_surface,
 			wayland_egl_buffer);
 
+	TRACE_MARK("[DEQ][NEW]BO_NAME:%d",tbm_bo_export(wayland_egl_buffer->bo));
+	TRACE_ASYNC_BEGIN((int)wayland_egl_buffer, "[DEQ]~[ENQ] BO_NAME:%d",
+			  tbm_bo_export(wayland_egl_buffer->bo));
 	return tbm_surface;
 }
 
@@ -787,6 +802,8 @@ __cb_client_buffer_release_callback(void *data, struct wl_proxy *proxy)
 
 	tbm_surface = (tbm_surface_h) data;
 
+	TRACE_ASYNC_END((int)tbm_surface, "[COMMIT ~ RELEASE_CB] BO_NAME:%d",
+			tbm_bo_export(tbm_surface_internal_get_bo(tbm_surface, 0)));
 	/* If tbm_surface_queue reset/destroy before this callback
 	 * tbm_surface will be not used any more.
 	 * So, it should be detroyed before getting its user_data */
