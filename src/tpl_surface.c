@@ -131,13 +131,11 @@ tpl_surface_validate(tpl_surface_t *surface)
 		return TPL_FALSE;
 	}
 
-	TRACE_BEGIN("TPL:VALIDATEFRAME");
 	TPL_OBJECT_LOCK(surface);
 
 	if (!surface->backend.validate(surface)) was_valid = TPL_FALSE;
 
 	TPL_OBJECT_UNLOCK(surface);
-	TRACE_END();
 
 	return was_valid;
 }
@@ -186,7 +184,7 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 		return NULL;
 	}
 
-	TRACE_BEGIN("TPL:GETBUFFER");
+	TRACE_BEGIN("TPL:DEQUEUE_BUFFER");
 	TPL_OBJECT_LOCK(surface);
 
 	tbm_surface = surface->backend.dequeue_buffer(surface);
@@ -213,7 +211,7 @@ tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
-	TRACE_BEGIN("TPL:POST");
+	TRACE_BEGIN("TPL:ENQUEUE_BUFFER");
 	TPL_OBJECT_LOCK(surface);
 
 	if (!tbm_surface) {
@@ -244,7 +242,7 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
-	TRACE_BEGIN("TPL:POST");
+	TRACE_BEGIN("TPL:ENQUEUE_BUFFER_WITH_DAMAGE");
 	TPL_OBJECT_LOCK(surface);
 
 	if (!tbm_surface) {
