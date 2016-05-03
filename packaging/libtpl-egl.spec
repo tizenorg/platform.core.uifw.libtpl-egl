@@ -73,6 +73,10 @@ BuildRequires:  pkgconfig(wayland-tbm-server)
 BuildRequires:	pkgconfig(libpng)
 %endif
 
+%if "%{ENABLE_TTRACE}" == "1"
+BuildRequires: pkgconfig(ttrace)
+%endif
+
 %global TZ_SYS_RO_SHARE  %{?TZ_SYS_RO_SHARE:%TZ_SYS_RO_SHARE}%{!?TZ_SYS_RO_SHARE:/usr/share}
 
 %description
