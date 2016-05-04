@@ -58,6 +58,9 @@ __tpl_gbm_get_gbm_buffer_from_tbm_surface(tbm_surface_h surface)
 {
 	tpl_gbm_buffer_t *buf = NULL;
 
+	if (!tbm_surface_internal_is_valid(surface))
+		return NULL;
+
 	tbm_surface_internal_get_user_data(surface, KEY_TPL_GBM_BUFFER, (void **)&buf);
 
 	return buf;
@@ -330,6 +333,12 @@ __tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface,
 	if (!gbm_surface) {
 		TPL_ERR("tpl_gbm_surface_t is invalid. tpl_surface_t(%p)",
 			surface);
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	if (!tbm_surface_internal_is_valid(tbm_surface))
+	{
+		TPL_ERR("Failed to enqueue tbm_surface(%p) Invalid value.");
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 

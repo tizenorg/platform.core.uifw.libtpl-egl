@@ -252,6 +252,12 @@ __tpl_tbm_surface_enqueue_buffer(tpl_surface_t *surface,
 	TPL_IGNORE(num_rects);
 	TPL_IGNORE(rects);
 
+	if (!tbm_surface_internal_is_valid(tbm_surface))
+	{
+		TPL_ERR("Failed to enqueue tbm_surface(%p) Invalid value.");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
 	tbm_surface_internal_unref(tbm_surface);
 
 	if (surface->type == TPL_SURFACE_TYPE_PIXMAP) {
