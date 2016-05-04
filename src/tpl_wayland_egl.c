@@ -66,6 +66,9 @@ __tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface_h surface)
 {
 	tpl_wayland_egl_buffer_t *buf = NULL;
 
+	if (!tbm_surface_internal_is_valid(surface))
+		return NULL;
+
 	tbm_surface_internal_get_user_data(surface, KEY_tpl_wayland_egl_buffer,
 					   (void **)&buf);
 
@@ -439,7 +442,8 @@ __tpl_wayland_egl_surface_fini(tpl_surface_t *surface)
 		wl_display_flush(surface->display->native_handle);
 		__tpl_wayland_egl_display_roundtrip(surface->display);
 
-		if (wayland_egl_surface->current_buffer)
+		if (wayland_egl_surface->current_buffer &&
+		    tbm_surface_internal_is_valid(wayland_egl_surface->current_buffer))
 			tbm_surface_internal_unref(wayland_egl_surface->current_buffer);
 
 		tbm_surface_queue_destroy(wayland_egl_surface->tbm_queue);
@@ -522,6 +526,12 @@ __tpl_wayland_egl_surface_enqueue_buffer(tpl_surface_t *surface,
 	tpl_wayland_egl_surface_t *wayland_egl_surface =
 		(tpl_wayland_egl_surface_t *) surface->backend.data;
 	tbm_surface_queue_error_e tsq_err;
+
+	if (!tbm_surface_internal_is_valid(tbm_surface))
+	{
+		TPL_ERR("Failed to enqueue tbm_surface(%p) Invalid value.");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
 
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 	TRACE_MARK("[ENQ] BO_NAME:%d",

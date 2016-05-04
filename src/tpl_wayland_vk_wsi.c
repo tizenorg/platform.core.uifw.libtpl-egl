@@ -53,6 +53,10 @@ static TPL_INLINE tpl_wayland_vk_wsi_buffer_t *
 __tpl_wayland_vk_wsi_get_wayland_buffer_from_tbm_surface(tbm_surface_h surface)
 {
 	tpl_wayland_vk_wsi_buffer_t *buf = NULL;
+
+	if (!tbm_surface_internal_is_valid(surface))
+		return NULL;
+
 	tbm_surface_internal_get_user_data(surface, KEY_tpl_wayland_vk_wsi_buffer,
 					   (void **)&buf);
 	return buf;
@@ -306,6 +310,12 @@ __tpl_wayland_vk_wsi_surface_enqueue_buffer(tpl_surface_t *surface,
 	tbm_surface_queue_error_e tsq_err;
 
 	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
+
+	if (!tbm_surface_internal_is_valid(tbm_surface))
+	{
+		TPL_ERR("Failed to enqueue tbm_surface(%p) Invalid value.");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
 
 	wayland_vk_wsi_buffer =
 		__tpl_wayland_vk_wsi_get_wayland_buffer_from_tbm_surface(tbm_surface);
