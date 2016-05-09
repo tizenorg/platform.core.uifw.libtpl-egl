@@ -57,11 +57,13 @@ __tpl_tbm_display_fini(tpl_display_t *display)
 
 	display->backend.data = NULL;
 
-	if (tbm_display->need_dpy_deinit)
-		tbm_bufmgr_deinit((tbm_bufmgr)display->native_handle);
-
 	if (tbm_display)
+	{
+		if (tbm_display->need_dpy_deinit)
+			tbm_bufmgr_deinit((tbm_bufmgr)display->native_handle);
+
 		free(tbm_display);
+	}
 }
 
 static tpl_result_t
