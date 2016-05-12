@@ -265,8 +265,8 @@ tpl_object_type_t tpl_object_get_type(tpl_object_t *object);
  * @see tpl_object_get_user_data()
  */
 tpl_result_t
-tpl_object_set_user_data(tpl_object_t *object, void *key,
-			 void *data, tpl_free_func_t free_func);
+tpl_object_set_user_data(tpl_object_t *object, void *key, void *data,
+						 tpl_free_func_t free_func);
 
 /**
  * Get registered user data of a TPL object.
@@ -336,11 +336,10 @@ tpl_display_get_native_handle(tpl_display_t *display);
  * @return TPL_ERROR_NONE is the given config is supported, TPL_ERROR otherwise.
  */
 tpl_result_t
-tpl_display_query_config(tpl_display_t *display,
-			 tpl_surface_type_t surface_type,
-			 int red_size, int green_size, int blue_size,
-			 int alpha_size, int depth_size, int *native_visual_id,
-			 tpl_bool_t *is_slow);
+tpl_display_query_config(tpl_display_t *display, tpl_surface_type_t surface_type,
+						 int red_size, int green_size, int blue_size,
+						 int alpha_size, int depth_size, int *native_visual_id,
+						 tpl_bool_t *is_slow);
 
 /**
  * Filter config according to given TPL display.
@@ -355,7 +354,7 @@ tpl_display_query_config(tpl_display_t *display,
  */
 tpl_result_t
 tpl_display_filter_config(tpl_display_t *display, int *visual_id,
-			  int alpha_size);
+						  int alpha_size);
 
 /**
  * Create a TPL surface for the given native surface.
@@ -368,7 +367,7 @@ tpl_display_filter_config(tpl_display_t *display, int *visual_id,
  */
 tpl_surface_t *
 tpl_surface_create(tpl_display_t *display, tpl_handle_t handle,
-		   tpl_surface_type_t type, tbm_format format);
+				   tpl_surface_type_t type, tbm_format format);
 
 /**
  * Get the TPL display where the given TPL surface was created from.
@@ -502,8 +501,8 @@ tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface);
  */
 tpl_result_t
 tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
-				       tbm_surface_h tbm_surface,
-				       int num_rects, const int *rects);
+									   tbm_surface_h tbm_surface,
+									   int num_rects, const int *rects);
 
 /**
  * Set frame interval of the given TPL surface.
@@ -548,7 +547,7 @@ tpl_surface_get_post_interval(tpl_surface_t *surface);
  */
 tpl_result_t
 tpl_surface_create_swapchain(tpl_surface_t *surface, tbm_format format,
-			     int width, int height, int buffer_count);
+							 int width, int height, int buffer_count);
 
 /**
  * Destroy a swapchain for the given TPL surface.
@@ -587,7 +586,7 @@ tpl_surface_destroy_swapchain(tpl_surface_t *surface);
  */
 tpl_result_t
 tpl_surface_get_swapchain_buffers(tpl_surface_t *surface,
-				  tbm_surface_h **buffers, int *buffer_count);
+								  tbm_surface_h **buffers, int *buffer_count);
 
 /**
  * Query information on the given native window.
@@ -601,8 +600,8 @@ tpl_surface_get_swapchain_buffers(tpl_surface_t *surface,
  */
 tpl_result_t
 tpl_display_get_native_window_info(tpl_display_t *display, tpl_handle_t window,
-				   int *width, int *height, tbm_format *format,
-				   int depth, int a_size);
+								   int *width, int *height, tbm_format *format,
+								   int depth, int a_size);
 
 /**
  * Query information on the given native pixmap.
@@ -616,7 +615,7 @@ tpl_display_get_native_window_info(tpl_display_t *display, tpl_handle_t window,
  */
 tpl_result_t
 tpl_display_get_native_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
-				   int *width, int *height, tbm_format *format);
+								   int *width, int *height, tbm_format *format);
 
 
 /**
@@ -629,9 +628,10 @@ tpl_display_get_native_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
  * @return TPL_ERROR_NONE if this function is supported and the window is valid, TPL_ERROR otherwise.
  */
 tpl_result_t
-tpl_display_query_supported_buffer_count_from_native_window(tpl_display_t *display,
-						       tpl_handle_t window,
-						       int *min, int *max);
+tpl_display_query_supported_buffer_count_from_native_window(
+	tpl_display_t *display,
+	tpl_handle_t window,
+	int *min, int *max);
 
 /**
  * Get native buffer from the given native pixmap.
@@ -642,7 +642,7 @@ tpl_display_query_supported_buffer_count_from_native_window(tpl_display_t *displ
  */
 tbm_surface_h
 tpl_display_get_buffer_from_native_pixmap(tpl_display_t *display,
-		tpl_handle_t pixmap);
+										  tpl_handle_t pixmap);
 
 tpl_result_t
 tpl_surface_set_frontbuffer_mode(tpl_surface_t *surface, tpl_bool_t set);

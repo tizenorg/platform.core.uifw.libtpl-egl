@@ -156,8 +156,8 @@ dri3_open(Display *dpy, Window root, CARD32 provider)
 	c = XGetXCBConnection(dpy);
 
 	cookie = xcb_dri3_open(c,
-			       root,
-			       provider);
+						   root,
+						   provider);
 
 	reply = xcb_dri3_open_reply(c, cookie, NULL);
 	if (!reply) {
@@ -212,8 +212,8 @@ dri3_display_init(Display *dpy)
 	}
 
 	dri3_cookie = xcb_dri3_query_version(c,
-					     XCB_DRI3_MAJOR_VERSION,
-					     XCB_DRI3_MINOR_VERSION);
+										 XCB_DRI3_MAJOR_VERSION,
+										 XCB_DRI3_MINOR_VERSION);
 	dri3_reply = xcb_dri3_query_version_reply(c, dri3_cookie, &error);
 	if (!dri3_reply) {
 		TPL_ERR("XCB version query failed!");
@@ -223,8 +223,8 @@ dri3_display_init(Display *dpy)
 	free(dri3_reply);
 
 	present_cookie = xcb_present_query_version(c,
-			 XCB_PRESENT_MAJOR_VERSION,
-			 XCB_PRESENT_MINOR_VERSION);
+					 XCB_PRESENT_MAJOR_VERSION,
+					 XCB_PRESENT_MINOR_VERSION);
 	present_reply = xcb_present_query_version_reply(c, present_cookie, &error);
 	if (!present_reply) {
 		TPL_ERR("Present version query failed!");
@@ -254,7 +254,7 @@ dri3_create_drawable(Display *dpy, XID xDrawable)
 	node = __tpl_list_get_front_node(&dri3_drawable_list);
 	while (node) {
 		dri3_drawable_node *drawable = (dri3_drawable_node *) __tpl_list_node_get_data(
-						       node);
+										   node);
 
 		if (drawable->xDrawable == xDrawable) {
 			pdraw = drawable->drawable;
@@ -300,7 +300,7 @@ dri3_create_drawable(Display *dpy, XID xDrawable)
 	drawable_node->drawable = pdraw;
 	drawable_node->xDrawable = xDrawable;
 	if (TPL_TRUE != __tpl_list_push_back(&dri3_drawable_list,
-					     (void *)drawable_node)) {
+										 (void *)drawable_node)) {
 		TPL_ERR("List operation failed!");
 		free(pdraw);
 		free(drawable_node);
@@ -393,22 +393,22 @@ dri3_update_drawable(void *loaderPrivate)
 		 * pixmap instead.
 		 */
 		cookie = xcb_present_select_input_checked(c,
-				(priv->eid = xcb_generate_id(c)),
-				priv->xDrawable,
-				XCB_PRESENT_EVENT_MASK_CONFIGURE_NOTIFY |
-				XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY |
-				XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY);
+				 (priv->eid = xcb_generate_id(c)),
+				 priv->xDrawable,
+				 XCB_PRESENT_EVENT_MASK_CONFIGURE_NOTIFY |
+				 XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY |
+				 XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY);
 
 		present_capabilities_cookie = xcb_present_query_capabilities(c,
-					      priv->xDrawable);
+									  priv->xDrawable);
 
 		/* Create an XCB event queue to hold present events outside of the usual
 		 * application event queue
 		 */
 		priv->special_event = xcb_register_for_special_xge(c,
-				      &xcb_present_id,
-				      priv->eid,
-				      &priv->stamp);
+							  &xcb_present_id,
+							  priv->eid,
+							  &priv->stamp);
 
 		geom_cookie = xcb_get_geometry(c, priv->xDrawable);
 
@@ -434,8 +434,8 @@ dri3_update_drawable(void *loaderPrivate)
 		error = xcb_request_check(c, cookie);
 
 		present_capabilities_reply = xcb_present_query_capabilities_reply(c,
-					     present_capabilities_cookie,
-					     NULL);
+									 present_capabilities_cookie,
+									 NULL);
 
 		if (present_capabilities_reply) {
 			priv->present_capabilities = present_capabilities_reply->capabilities;
@@ -644,7 +644,7 @@ dri3_find_back(xcb_connection_t *c, dri3_drawable *priv)
  */
 static dri3_buffer *
 dri3_alloc_render_buffer(dri3_drawable *priv,
-			 int width, int height, int depth, int cpp)
+						 int width, int height, int depth, int cpp)
 {
 	Display *dpy;
 	Drawable draw;
@@ -704,12 +704,12 @@ dri3_alloc_render_buffer(dri3_drawable *priv,
 	buffer->dma_buf_fd = handle.u32;
 	buffer->size = size;
 	cookie = xcb_dri3_pixmap_from_buffer_checked(c,
-			(pixmap = xcb_generate_id(c)),
-			draw,
-			buffer->size,
-			width, height, buffer->pitch,
-			depth, cpp,
-			buffer_fd);
+			 (pixmap = xcb_generate_id(c)),
+			 draw,
+			 buffer->size,
+			 width, height, buffer->pitch,
+			 depth, cpp,
+			 buffer_fd);
 	error = xcb_request_check( c, cookie);
 	/* 2015-04-08 joonbum.ko@samsung.com */
 	/* buffer_fd is unuseful */
@@ -799,14 +799,14 @@ dri3_get_window_buffer(void *loaderPrivate, int cpp)
 	 * old one is the wrong size.
 	 */
 	if (!backbuffer || backbuffer->width != priv->width ||
-	    backbuffer->height != priv->height ) {
+			backbuffer->height != priv->height ) {
 		dri3_buffer   *new_buffer;
 
 		/* Allocate the new buffers
 		 */
 		TRACE_BEGIN("DDK:DRI3:ALLOCRENDERBUFFER");
 		new_buffer = dri3_alloc_render_buffer(priv,
-						      priv->width, priv->height, priv->depth, cpp);
+											  priv->width, priv->height, priv->depth, cpp);
 		TRACE_END();
 
 		if (!new_buffer) {
@@ -848,7 +848,7 @@ dri3_get_window_buffer(void *loaderPrivate, int cpp)
 /* add 3rd argument for stride information */
 static dri3_buffer *
 dri3_get_pixmap_buffer(void *loaderPrivate, Pixmap pixmap,
-		       int cpp)/*TODO:format*/
+					   int cpp)/*TODO:format*/
 {
 	dri3_drawable *pdraw = loaderPrivate;
 	dri3_buffer *buffer = NULL;
@@ -919,7 +919,7 @@ no_buffer:
 }
 
 static dri3_buffer *dri3_get_buffers(XID drawable,  void *loaderPrivate,
-				     unsigned int *attachments, int cpp)
+									 unsigned int *attachments, int cpp)
 {
 	dri3_drawable *priv = loaderPrivate;
 	dri3_buffer *buffer = NULL;
@@ -943,7 +943,7 @@ static dri3_buffer *dri3_get_buffers(XID drawable,  void *loaderPrivate,
 
 	if (*attachments == dri3_buffer_front)
 		buffer = dri3_get_pixmap_buffer(loaderPrivate,
-						priv->xDrawable, cpp);
+										priv->xDrawable, cpp);
 	else
 		buffer = dri3_get_window_buffer(loaderPrivate, cpp);
 
@@ -965,7 +965,7 @@ static dri3_buffer *dri3_get_buffers(XID drawable,  void *loaderPrivate,
  ******************************************************/
 static int64_t
 dri3_swap_buffers(Display *dpy, void *priv, tpl_buffer_t *frame_buffer,
-		  int interval, XID region_t)
+				  int interval, XID region_t)
 {
 
 	int64_t		ret = -1;
@@ -1019,26 +1019,26 @@ dri3_swap_buffers(Display *dpy, void *priv, tpl_buffer_t *frame_buffer,
 	++pDrawable->send_sbc;
 	if (target_msc == 0)
 		target_msc = pDrawable->msc + pDrawable->swap_interval *
-			     (pDrawable->send_sbc - pDrawable->recv_sbc);
+					 (pDrawable->send_sbc - pDrawable->recv_sbc);
 
 	back->last_swap = pDrawable->send_sbc;
 
 	TRACE_MARK("SWAP:%d", tbm_bo_export(back->tbo)) ;
 	xcb_present_pixmap(c,
-			   pDrawable->xDrawable,		/* dst */
-			   back->pixmap,			/* src */
-			   (uint32_t) pDrawable->send_sbc,
-			   0,				/* valid */
-			   region_t,			/* update */
-			   0,				/* x_off */
-			   0,				/* y_off */
-			   None,				/* target_crtc */
-			   None,
-			   0,
-			   XCB_PRESENT_OPTION_NONE,
-			   /*target_msc*/0,
-			   divisor,
-			   remainder, 0, NULL);
+					   pDrawable->xDrawable,		/* dst */
+					   back->pixmap,			/* src */
+					   (uint32_t) pDrawable->send_sbc,
+					   0,				/* valid */
+					   region_t,			/* update */
+					   0,				/* x_off */
+					   0,				/* y_off */
+					   None,				/* target_crtc */
+					   None,
+					   0,
+					   XCB_PRESENT_OPTION_NONE,
+					   /*target_msc*/0,
+					   divisor,
+					   remainder, 0, NULL);
 
 	ret = (int64_t) pDrawable->send_sbc;
 
@@ -1295,7 +1295,7 @@ __tpl_x11_dri3_surface_init(tpl_surface_t *surface)
 	TPL_ASSERT(surface);
 
 	x11_surface = (tpl_x11_dri3_surface_t *)calloc(1,
-			sizeof(tpl_x11_dri3_surface_t));
+				  sizeof(tpl_x11_dri3_surface_t));
 	if (x11_surface == NULL) {
 		TPL_ERR("Failed to allocate buffer!");
 		return TPL_FALSE;
@@ -1312,12 +1312,12 @@ __tpl_x11_dri3_surface_init(tpl_surface_t *surface)
 	surface->backend.data = (void *)x11_surface;
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW) {
 		__tpl_x11_display_get_window_info(surface->display,
-						  surface->native_handle,
-						  &surface->width, &surface->height, NULL, 0, 0);
+										  surface->native_handle,
+										  &surface->width, &surface->height, NULL, 0, 0);
 	} else {
 		__tpl_x11_display_get_pixmap_info(surface->display,
-						  surface->native_handle,
-						  &surface->width, &surface->height, NULL);
+										  surface->native_handle,
+										  &surface->width, &surface->height, NULL);
 	}
 
 	return TPL_TRUE;
@@ -1353,8 +1353,8 @@ __tpl_x11_dri3_surface_fini(tpl_surface_t *surface)
 
 static void
 __tpl_x11_dri3_surface_post_internal(tpl_surface_t *surface,
-				     tpl_frame_t *frame,
-				     tpl_bool_t is_worker)
+									 tpl_frame_t *frame,
+									 tpl_bool_t is_worker)
 {
 	Display         *display = NULL;
 	tpl_x11_dri3_surface_t *x11_surface;
@@ -1380,7 +1380,7 @@ __tpl_x11_dri3_surface_post_internal(tpl_surface_t *surface,
 
 		if (frame->damage.num_rects > TPL_STACK_XRECTANGLE_SIZE) {
 			xrects = (XRectangle *)malloc(sizeof(XRectangle) *
-						      frame->damage.num_rects);
+										  frame->damage.num_rects);
 		} else {
 			xrects = &xrects_stack[0];
 		}
@@ -1390,7 +1390,7 @@ __tpl_x11_dri3_surface_post_internal(tpl_surface_t *surface,
 
 			xrects[i].x	= rects[0];
 			xrects[i].y	= frame->buffer->height - rects[1] -
-					  rects[3];
+						  rects[3];
 			xrects[i].width	= rects[2];
 			xrects[i].height = rects[3];
 		}
@@ -1398,14 +1398,14 @@ __tpl_x11_dri3_surface_post_internal(tpl_surface_t *surface,
 		if (x11_surface->damage == None) {
 			x11_surface->damage =
 				XFixesCreateRegion(display, xrects,
-						   frame->damage.num_rects);
+								   frame->damage.num_rects);
 		} else {
 			XFixesSetRegion(display, x11_surface->damage,
-					xrects, frame->damage.num_rects);
+							xrects, frame->damage.num_rects);
 		}
 
 		dri3_swap_buffers(display, x11_surface->drawable, frame->buffer, 0,
-				  x11_surface->damage);
+						  x11_surface->damage);
 	}
 	frame->state = TPL_FRAME_STATE_POSTED;
 
@@ -1435,9 +1435,9 @@ __tpl_x11_dri3_surface_begin_frame(tpl_surface_t *surface)
 
 	if (prev_frame && prev_frame->state != TPL_FRAME_STATE_POSTED) {
 		if ((DRI2_BUFFER_IS_FB(prev_frame->buffer->backend.flags) &&
-		     global.fb_swap_type == TPL_X11_SWAP_TYPE_SYNC) ||
-		    (!DRI2_BUFFER_IS_FB(prev_frame->buffer->backend.flags) &&
-		     global.win_swap_type == TPL_X11_SWAP_TYPE_SYNC)) {
+				global.fb_swap_type == TPL_X11_SWAP_TYPE_SYNC) ||
+				(!DRI2_BUFFER_IS_FB(prev_frame->buffer->backend.flags) &&
+				 global.win_swap_type == TPL_X11_SWAP_TYPE_SYNC)) {
 			__tpl_surface_wait_all_frames(surface);
 		}
 	}
@@ -1459,9 +1459,9 @@ __tpl_x11_dri3_surface_validate_frame(tpl_surface_t *surface)
 
 	if (prev_frame && prev_frame->state != TPL_FRAME_STATE_POSTED) {
 		if ((DRI2_BUFFER_IS_FB(prev_frame->buffer->backend.flags) &&
-		     global.fb_swap_type == TPL_X11_SWAP_TYPE_LAZY) ||
-		    (!DRI2_BUFFER_IS_FB(prev_frame->buffer->backend.flags) &&
-		     global.win_swap_type == TPL_X11_SWAP_TYPE_LAZY)) {
+				global.fb_swap_type == TPL_X11_SWAP_TYPE_LAZY) ||
+				(!DRI2_BUFFER_IS_FB(prev_frame->buffer->backend.flags) &&
+				 global.win_swap_type == TPL_X11_SWAP_TYPE_LAZY)) {
 			__tpl_surface_wait_all_frames(surface);
 			return TPL_TRUE;
 		}
@@ -1485,9 +1485,9 @@ __tpl_x11_dri3_surface_end_frame(tpl_surface_t *surface)
 		x11_surface->latest_render_target = frame->buffer;
 
 		if ((DRI2_BUFFER_IS_FB(frame->buffer->backend.flags) &&
-		     global.fb_swap_type == TPL_X11_SWAP_TYPE_ASYNC) ||
-		    (!DRI2_BUFFER_IS_FB(frame->buffer->backend.flags) &&
-		     global.win_swap_type == TPL_X11_SWAP_TYPE_ASYNC)) {
+				global.fb_swap_type == TPL_X11_SWAP_TYPE_ASYNC) ||
+				(!DRI2_BUFFER_IS_FB(frame->buffer->backend.flags) &&
+				 global.win_swap_type == TPL_X11_SWAP_TYPE_ASYNC)) {
 			__tpl_x11_dri3_surface_post_internal(surface, frame, TPL_FALSE);
 		}
 	}
@@ -1499,7 +1499,7 @@ __tpl_x11_dri3_surface_end_frame(tpl_surface_t *surface)
 /* change the key value of tpl_buffer_t from dma_buf_fd to tbo name */
 static tpl_buffer_t *
 __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface,
-				  tpl_bool_t *reset_buffers)
+								  tpl_bool_t *reset_buffers)
 {
 	Drawable drawable;
 	dri3_buffer *buffer = NULL;
@@ -1528,8 +1528,8 @@ __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface,
 
 	if (DRI2_BUFFER_IS_REUSED(buffer->flags)) {
 		tpl_buffer = __tpl_x11_surface_buffer_cache_find(
-				     &x11_surface->buffer_cache,
-				     tbm_bo_export(buffer->tbo));
+						 &x11_surface->buffer_cache,
+						 tbm_bo_export(buffer->tbo));
 
 		if (tpl_buffer) {
 			/* If the buffer name is reused and there's a cache
@@ -1570,8 +1570,8 @@ __tpl_x11_dri3_surface_get_buffer(tpl_surface_t *surface,
 
 	/* Create tpl buffer. */
 	tpl_buffer = __tpl_buffer_alloc(surface, (size_t) tbm_bo_export(buffer->tbo),
-					(int)bo_handle.u32,
-					buffer->width, buffer->height, buffer->cpp * 8, buffer->pitch);
+									(int)bo_handle.u32,
+									buffer->width, buffer->height, buffer->cpp * 8, buffer->pitch);
 	if (NULL == tpl_buffer) {
 		TPL_ERR("TPL buffer alloc failed!");
 		goto done;
@@ -1594,7 +1594,7 @@ done:
 	if (reset_buffers) {
 		/* Users use this output value to check if they have to reset previous buffers. */
 		*reset_buffers = !DRI2_BUFFER_IS_REUSED(buffer->flags) ||
-				 buffer->width != surface->width || buffer->height != surface->height;
+						 buffer->width != surface->width || buffer->height != surface->height;
 	}
 
 	return tpl_buffer;

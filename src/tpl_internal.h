@@ -32,24 +32,24 @@ struct _tpl_display_backend {
 	tpl_result_t (*init)(tpl_display_t *display);
 	void (*fini)(tpl_display_t *display);
 	tpl_result_t (*query_config)(tpl_display_t *display,
-				     tpl_surface_type_t surface_type,
-				     int red_bits, int green_bits,
-				     int blue_bits, int alpha_bits,
-				     int color_depth, int *native_visual_id,
-				     tpl_bool_t *is_slow);
+								 tpl_surface_type_t surface_type,
+								 int red_bits, int green_bits,
+								 int blue_bits, int alpha_bits,
+								 int color_depth, int *native_visual_id,
+								 tpl_bool_t *is_slow);
 	tpl_result_t (*filter_config)(tpl_display_t *display, int *visual_id,
-				      int alpha_bits);
+								  int alpha_bits);
 	tpl_result_t (*get_window_info)(tpl_display_t *display,
-					tpl_handle_t window, int *width,
-					int *height, tbm_format *format,
-					int depth, int a_size);
+									tpl_handle_t window, int *width,
+									int *height, tbm_format *format,
+									int depth, int a_size);
 	tpl_result_t (*get_pixmap_info)(tpl_display_t *display,
-					tpl_handle_t pixmap, int *width,
-					int *height, tbm_format *format);
+									tpl_handle_t pixmap, int *width,
+									int *height, tbm_format *format);
 	tbm_surface_h (*get_buffer_from_native_pixmap)(tpl_handle_t pixmap);
 	tpl_result_t (*query_window_supported_buffer_count)(tpl_display_t *display,
-							    tpl_handle_t window,
-							    int *min, int *max);
+			tpl_handle_t window,
+			int *min, int *max);
 };
 
 struct _tpl_surface_backend {
@@ -61,14 +61,14 @@ struct _tpl_surface_backend {
 	tpl_bool_t (*validate)(tpl_surface_t *surface);
 	tbm_surface_h (*dequeue_buffer)(tpl_surface_t *surface);
 	tpl_result_t (*enqueue_buffer)(tpl_surface_t *surface,
-				       tbm_surface_h tbm_surface,
-				       int num_rects, const int *rects);
+								   tbm_surface_h tbm_surface,
+								   int num_rects, const int *rects);
 	tpl_result_t (*get_swapchain_buffers)(tpl_surface_t *surface,
-					      tbm_surface_h **buffers,
-					      int *buffer_count);
+										  tbm_surface_h **buffers,
+										  int *buffer_count);
 	tpl_result_t (*create_swapchain)(tpl_surface_t *surface,
-					 tbm_format format, int width,
-					 int height, int buffer_count);
+									 tbm_format format, int width,
+									 int height, int buffer_count);
 	tpl_result_t (*destroy_swapchain)(tpl_surface_t *surface);
 };
 
@@ -125,7 +125,7 @@ tpl_bool_t __tpl_object_is_valid(tpl_object_t *object);
  */
 tpl_result_t
 __tpl_object_init(tpl_object_t *object, tpl_object_type_t type,
-		  tpl_free_func_t free_func);
+				  tpl_free_func_t free_func);
 
 /** brief destroy a TPL object
  * @param object the TPL object to destroy
@@ -153,7 +153,7 @@ void *__tpl_surface_get_backend_data(tpl_surface_t *surface);
 /* Runtime functions. */
 tpl_display_t *
 __tpl_runtime_find_display(tpl_backend_type_t type,
-			   tpl_handle_t native_display);
+						   tpl_handle_t native_display);
 tpl_result_t __tpl_runtime_add_display(tpl_display_t *display);
 void __tpl_runtime_remove_display(tpl_display_t *display);
 
@@ -166,9 +166,9 @@ tpl_bool_t __tpl_display_choose_backend_wayland_vk_wsi(tpl_handle_t native_dpy);
 tpl_bool_t __tpl_display_choose_backend_x11_dri2(tpl_handle_t native_dpy);
 tpl_bool_t __tpl_display_choose_backend_x11_dri3(tpl_handle_t native_dpy);
 void __tpl_display_init_backend(tpl_display_t *display,
-				tpl_backend_type_t type);
+								tpl_backend_type_t type);
 void __tpl_surface_init_backend(tpl_surface_t *surface,
-				tpl_backend_type_t type);
+								tpl_backend_type_t type);
 void __tpl_display_init_backend_gbm(tpl_display_backend_t *backend);
 void __tpl_display_init_backend_tbm(tpl_display_backend_t *backend);
 void __tpl_display_init_backend_wayland_egl(tpl_display_backend_t *backend);
@@ -207,7 +207,7 @@ void __tpl_hashlist_destroy(tpl_hlist_t **list);
 tpl_result_t __tpl_hashlist_insert(tpl_hlist_t *list, size_t key, void *data);
 void __tpl_hashlist_delete(tpl_hlist_t *list, size_t key);
 void __tpl_hashlist_do_for_all_nodes(tpl_hlist_t *list,
-				     void (*cb_func)(void *));
+									 void (*cb_func)(void *));
 void *__tpl_hashlist_lookup(tpl_hlist_t *list, size_t key);
 
 #endif /* TPL_INTERNAL_H */

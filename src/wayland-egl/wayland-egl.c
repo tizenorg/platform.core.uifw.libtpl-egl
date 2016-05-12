@@ -16,38 +16,38 @@
 unsigned int wl_egl_log_level;
 
 /* WL-EGL Log Level - 0:unintialized, 1:initialized(no logging), 2:min log, 3:more log */
-#define WL_EGL_LOG(lvl, f, x...)							\
-	{										\
-		if(wl_egl_log_level == 1)						\
-		{}									\
-		else if(wl_egl_log_level > 1)						\
-		{									\
-			if(wl_egl_log_level <= lvl)					\
-				WL_EGL_LOG_PRINT(f, ##x)				\
-		}									\
-		else									\
-		{									\
+#define WL_EGL_LOG(lvl, f, x...)								\
+	{															\
+		if(wl_egl_log_level == 1)								\
+		{}														\
+		else if(wl_egl_log_level > 1)							\
+		{														\
+			if(wl_egl_log_level <= lvl)							\
+				WL_EGL_LOG_PRINT(f, ##x)						\
+		}														\
+		else													\
+		{														\
 			char *env = getenv("WL_EGL_LOG_LEVEL");				\
-			if(env == NULL)							\
-				wl_egl_log_level = 1;					\
-			else								\
-				wl_egl_log_level = atoi(env);				\
-											\
-			if(wl_egl_log_level > 1 && wl_egl_log_level <= lvl)		\
-				WL_EGL_LOG_PRINT(f, ##x)				\
-		}									\
+			if(env == NULL)										\
+				wl_egl_log_level = 1;							\
+			else												\
+				wl_egl_log_level = atoi(env);					\
+																\
+			if(wl_egl_log_level > 1 && wl_egl_log_level <= lvl)	\
+				WL_EGL_LOG_PRINT(f, ##x)						\
+		}														\
 	}
 
-#define WL_EGL_LOG_PRINT(fmt, args...)							\
-	{										\
+#define WL_EGL_LOG_PRINT(fmt, args...)											\
+	{																			\
 		printf("[\x1b[32mWL-EGL\x1b[0m %d:%d|\x1b[32m%s\x1b[0m|%d] " fmt "\n",	\
-			getpid(), (int)syscall(SYS_gettid), __func__,__LINE__, ##args);	\
+			getpid(), (int)syscall(SYS_gettid), __func__,__LINE__, ##args);		\
 	}
 
-#define WL_EGL_ERR(f, x...)								\
-	{										\
+#define WL_EGL_ERR(f, x...)														\
+	{																			\
 		printf("[\x1b[31mWL-EGL_ERR\x1b[0m %d:%d|\x1b[31m%s\x1b[0m|%d] " f "\n",\
-			getpid(), (int)syscall(SYS_gettid), __func__, __LINE__, ##x);	\
+			getpid(), (int)syscall(SYS_gettid), __func__, __LINE__, ##x);		\
 	}
 
 #else
@@ -56,8 +56,8 @@ unsigned int wl_egl_log_level;
 
 WL_EGL_EXPORT void
 wl_egl_window_resize(struct wl_egl_window *egl_window,
-		     int width, int height,
-		     int dx, int dy)
+					 int width, int height,
+					 int dx, int dy)
 {
 	if (egl_window == NULL) {
 		WL_EGL_ERR("egl_window is NULL");
@@ -73,13 +73,13 @@ wl_egl_window_resize(struct wl_egl_window *egl_window,
 		egl_window->resize_callback(egl_window, egl_window->private);
 
 	WL_EGL_LOG(2, "egl_win:%10p WxH:%dx%d dx:%d dy:%d rsz_cb:%10p",
-		   egl_window, egl_window->width, egl_window->height,
-		   egl_window->dx, egl_window->dy, egl_window->resize_callback);
+			   egl_window, egl_window->width, egl_window->height,
+			   egl_window->dx, egl_window->dy, egl_window->resize_callback);
 }
 
 WL_EGL_EXPORT struct wl_egl_window *
 wl_egl_window_create(struct wl_surface *surface,
-		     int width, int height)
+					 int width, int height)
 {
 	struct wl_egl_window *egl_window;
 
@@ -97,7 +97,7 @@ wl_egl_window_create(struct wl_surface *surface,
 	egl_window->attached_height = 0;
 
 	WL_EGL_LOG(2, "surf:%10p WxH:%dx%d egl_win:%10p priv:%10p",
-		   surface, width, height, egl_window, egl_window->private);
+			   surface, width, height, egl_window, egl_window->private);
 
 	return egl_window;
 }
@@ -117,7 +117,7 @@ wl_egl_window_destroy(struct wl_egl_window *egl_window)
 
 WL_EGL_EXPORT void
 wl_egl_window_get_attached_size(struct wl_egl_window *egl_window,
-				int *width, int *height)
+								int *width, int *height)
 {
 	if (width)
 		*width = egl_window->attached_width;
@@ -125,6 +125,6 @@ wl_egl_window_get_attached_size(struct wl_egl_window *egl_window,
 		*height = egl_window->attached_height;
 
 	WL_EGL_LOG(2, "egl_win:%10p w:%10p h:%10p att_w:%d att_h:%d",
-		   egl_window, width, height, egl_window->attached_width,
-		   egl_window->attached_height);
+			   egl_window, width, height, egl_window->attached_width,
+			   egl_window->attached_height);
 }

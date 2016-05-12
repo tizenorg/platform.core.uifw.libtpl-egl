@@ -148,7 +148,7 @@ __tpl_hashlist_create()
 		return NULL;
 
 	list->heads = (tpl_hlist_head_t *) malloc(sizeof(tpl_hlist_head_t) *
-			NUM_OF_HEADS);
+				  NUM_OF_HEADS);
 	if (list->heads == NULL) {
 		free(list);
 		return NULL;

@@ -114,7 +114,7 @@ __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
 	if (type != TPL_BACKEND_UNKNOWN) {
 		if (runtime->displays[type] != NULL) {
 			display = (tpl_display_t *) __tpl_hashlist_lookup(runtime->displays[type],
-					(size_t) native_display);
+					  (size_t) native_display);
 		}
 	} else {
 		int i;
@@ -122,7 +122,7 @@ __tpl_runtime_find_display(tpl_backend_type_t type, tpl_handle_t native_display)
 		for (i = 0; i < TPL_BACKEND_COUNT; i++) {
 			if (runtime->displays[i] != NULL) {
 				display = (tpl_display_t *) __tpl_hashlist_lookup(runtime->displays[i],
-						(size_t) native_display);
+						  (size_t) native_display);
 			}
 			if (display != NULL) break;
 		}
@@ -168,10 +168,10 @@ __tpl_runtime_add_display(tpl_display_t *display)
 	}
 
 	ret = __tpl_hashlist_insert(runtime->displays[type],
-				    (size_t) handle, (void *) display);
+								(size_t) handle, (void *) display);
 	if (TPL_ERROR_NONE != ret) {
 		TPL_ERR("__tpl_hashlist_insert failed. list(%p), handle(%d), display(%p)",
-			runtime->displays[type], handle, display);
+				runtime->displays[type], handle, display);
 		pthread_mutex_unlock(&runtime_mutex);
 		return TPL_ERROR_INVALID_OPERATION;
 	}
@@ -192,7 +192,7 @@ __tpl_runtime_remove_display(tpl_display_t *display)
 	if (type != TPL_BACKEND_UNKNOWN) {
 		if (runtime != NULL && runtime->displays[type] != NULL)
 			__tpl_hashlist_delete(runtime->displays[type],
-					      (size_t) handle);
+								  (size_t) handle);
 	}
 
 	pthread_mutex_unlock(&runtime_mutex);

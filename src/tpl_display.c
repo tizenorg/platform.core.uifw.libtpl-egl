@@ -38,7 +38,7 @@ tpl_display_create(tpl_backend_type_t type, tpl_handle_t native_dpy)
 
 	/* if still not found, then there's no compatible display */
 	if ((TPL_BACKEND_UNKNOWN == type) || (TPL_BACKEND_COUNT == type)
-	    || (TPL_BACKEND_MAX <= type)) {
+			|| (TPL_BACKEND_MAX <= type)) {
 		TPL_ERR("Invalid backend type!");
 		return NULL;
 	}
@@ -104,28 +104,28 @@ tpl_display_get_native_handle(tpl_display_t *display)
 
 tpl_result_t
 tpl_display_query_config(tpl_display_t *display,
-			 tpl_surface_type_t surface_type,
-			 int red_size, int green_size, int blue_size,
-			 int alpha_size, int depth_size, int *native_visual_id,
-			 tpl_bool_t *is_slow)
+						 tpl_surface_type_t surface_type,
+						 int red_size, int green_size, int blue_size,
+						 int alpha_size, int depth_size, int *native_visual_id,
+						 tpl_bool_t *is_slow)
 {
 	if (!display || (__tpl_object_is_valid(&display->base) != TPL_TRUE)
-	    || (!display->backend.query_config)) {
+			|| (!display->backend.query_config)) {
 		TPL_ERR("display is invalid!");
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
 	return display->backend.query_config(display, surface_type, red_size,
-					     green_size, blue_size, alpha_size, depth_size,
-					     native_visual_id, is_slow);
+										 green_size, blue_size, alpha_size, depth_size,
+										 native_visual_id, is_slow);
 }
 
 tpl_result_t
 tpl_display_filter_config(tpl_display_t *display, int *visual_id,
-			  int alpha_size)
+						  int alpha_size)
 {
 	if (!display || (__tpl_object_is_valid(&display->base) != TPL_TRUE)
-	    || (!display->backend.filter_config)) {
+			|| (!display->backend.filter_config)) {
 		TPL_ERR("display is invalid!");
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
@@ -135,8 +135,8 @@ tpl_display_filter_config(tpl_display_t *display, int *visual_id,
 
 tpl_result_t
 tpl_display_get_native_window_info(tpl_display_t *display, tpl_handle_t window,
-				   int *width, int *height, tbm_format *format,
-				   int depth, int a_size)
+								   int *width, int *height, tbm_format *format,
+								   int depth, int a_size)
 {
 	if (!display->backend.get_window_info) {
 		TPL_ERR("Backend for display has not been initialized!");
@@ -144,12 +144,12 @@ tpl_display_get_native_window_info(tpl_display_t *display, tpl_handle_t window,
 	}
 
 	return display->backend.get_window_info(display, window, width, height,
-						format, depth, a_size);
+											format, depth, a_size);
 }
 
 tpl_result_t
 tpl_display_get_native_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
-				   int *width, int *height, tbm_format *format)
+								   int *width, int *height, tbm_format *format)
 {
 	if (!display->backend.get_pixmap_info) {
 		TPL_ERR("Backend for display has not been initialized!");
@@ -161,8 +161,8 @@ tpl_display_get_native_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
 
 tpl_result_t
 tpl_display_query_supported_buffer_count_from_native_window(tpl_display_t *display,
-						       tpl_handle_t window,
-						       int *min, int *max)
+															tpl_handle_t window,
+															int *min, int *max)
 {
 	if (!display->backend.query_window_supported_buffer_count) {
 		TPL_ERR("Backend for display has not been initialized!");
@@ -170,13 +170,13 @@ tpl_display_query_supported_buffer_count_from_native_window(tpl_display_t *displ
 	}
 
 	return display->backend.query_window_supported_buffer_count(display,
-								    window, min,
-								    max);
+			window, min,
+			max);
 }
 
 tbm_surface_h
 tpl_display_get_buffer_from_native_pixmap(tpl_display_t *display,
-		tpl_handle_t pixmap)
+										  tpl_handle_t pixmap)
 {
 	if (!display->backend.get_buffer_from_native_pixmap) {
 		TPL_ERR("Backend for display has not been initialized!");

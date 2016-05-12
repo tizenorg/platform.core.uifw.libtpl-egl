@@ -43,7 +43,7 @@ __int64_hash(const tpl_util_key_t key, int key_length)
 
 static int
 __int64_key_compare(const tpl_util_key_t key0, int key0_length,
-		    const tpl_util_key_t key1, int key1_length)
+					const tpl_util_key_t key1, int key1_length)
 {
 	return (int)(key0.key64 - key1.key64);
 }
@@ -66,7 +66,7 @@ __int32_hash(const tpl_util_key_t key, int key_length)
 
 static int
 __int32_key_compare(const tpl_util_key_t key0, int key0_length,
-		    const tpl_util_key_t key1, int key1_length)
+					const tpl_util_key_t key1, int key1_length)
 {
 	return (int)(key0.key32 - key1.key32);
 }
@@ -105,17 +105,17 @@ __pointer_hash(const tpl_util_key_t key, int key_length)
 
 static int
 __pointer_key_compare(const tpl_util_key_t key0, int key0_length,
-		      const tpl_util_key_t key1, int key1_length)
+					  const tpl_util_key_t key1, int key1_length)
 {
 	return (int)(key0.ptr - key1.ptr);
 }
 
 void
 tpl_util_map_init(tpl_util_map_t *map, int bucket_bits,
-		  tpl_util_hash_func_t hash_func,
-		  tpl_util_key_length_func_t key_length_func,
-		  tpl_util_key_compare_func_t key_compare_func,
-		  void *buckets)
+				  tpl_util_hash_func_t hash_func,
+				  tpl_util_key_length_func_t key_length_func,
+				  tpl_util_key_compare_func_t key_compare_func,
+				  void *buckets)
 {
 	map->hash_func = hash_func;
 	map->key_length_func = key_length_func;
@@ -132,21 +132,21 @@ void
 tpl_util_map_int32_init(tpl_util_map_t *map, int bucket_bits, void *buckets)
 {
 	tpl_util_map_init(map, bucket_bits, __int32_hash, NULL,
-			  __int32_key_compare, buckets);
+					  __int32_key_compare, buckets);
 }
 
 void
 tpl_util_map_int64_init(tpl_util_map_t *map, int bucket_bits, void *buckets)
 {
 	tpl_util_map_init(map, bucket_bits, __int64_hash, NULL,
-			  __int64_key_compare, buckets);
+					  __int64_key_compare, buckets);
 }
 
 void
 tpl_util_map_pointer_init(tpl_util_map_t *map, int bucket_bits, void *buckets)
 {
 	tpl_util_map_init(map, bucket_bits, __pointer_hash, NULL,
-			  __pointer_key_compare, buckets);
+					  __pointer_key_compare, buckets);
 }
 
 void
@@ -157,18 +157,18 @@ tpl_util_map_fini(tpl_util_map_t *map)
 
 tpl_util_map_t *
 tpl_util_map_create(int bucket_bits, tpl_util_hash_func_t hash_func,
-		    tpl_util_key_length_func_t  key_length_func,
-		    tpl_util_key_compare_func_t key_compare_func)
+					tpl_util_key_length_func_t  key_length_func,
+					tpl_util_key_compare_func_t key_compare_func)
 {
 	tpl_util_map_t *map;
 	int bucket_size = 1 << bucket_bits;
 
 	map = calloc(1,
-		     sizeof(tpl_util_map_t) + bucket_size * sizeof(tpl_util_map_entry_t *));
+				 sizeof(tpl_util_map_t) + bucket_size * sizeof(tpl_util_map_entry_t *));
 	TPL_CHECK_ON_FALSE_RETURN_VAL(map, NULL);
 
 	tpl_util_map_init(map, bucket_bits, hash_func, key_length_func,
-			  key_compare_func, map + 1);
+					  key_compare_func, map + 1);
 
 	return map;
 }
@@ -177,21 +177,21 @@ tpl_util_map_t *
 tpl_util_map_int32_create(int bucket_bits)
 {
 	return tpl_util_map_create(bucket_bits, __int32_hash, NULL,
-				   __int32_key_compare);
+							   __int32_key_compare);
 }
 
 tpl_util_map_t *
 tpl_util_map_int64_create(int bucket_bits)
 {
 	return tpl_util_map_create(bucket_bits, __int64_hash, NULL,
-				   __int64_key_compare);
+							   __int64_key_compare);
 }
 
 tpl_util_map_t *
 tpl_util_map_pointer_create(int bucket_bits)
 {
 	return tpl_util_map_create(bucket_bits, __pointer_hash, NULL,
-				   __pointer_key_compare);
+							   __pointer_key_compare);
 }
 
 void
@@ -249,7 +249,7 @@ tpl_util_map_get(tpl_util_map_t *map, const tpl_util_key_t key)
 
 void
 tpl_util_map_set(tpl_util_map_t *map, const tpl_util_key_t key, void *data,
-		 tpl_free_func_t free_func)
+				 tpl_free_func_t free_func)
 {
 	tpl_util_map_entry_t **bucket = __get_bucket(map, key);
 	tpl_util_map_entry_t *curr = *bucket;

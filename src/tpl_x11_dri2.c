@@ -62,7 +62,7 @@ __tpl_x11_dri2_get_worker_display(void)
 
 static void
 __tpl_x11_dri2_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
-				     tpl_bool_t is_worker)
+									 tpl_bool_t is_worker)
 {
 	Display *display;
 	Drawable drawable;
@@ -100,7 +100,7 @@ __tpl_x11_dri2_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
 
 		if (frame->damage.num_rects > TPL_STACK_XRECTANGLE_SIZE) {
 			xrects = (XRectangle *) malloc(sizeof(XRectangle) *
-						       frame->damage.num_rects);
+										   frame->damage.num_rects);
 		} else {
 			xrects = &xrects_stack[0];
 		}
@@ -119,7 +119,7 @@ __tpl_x11_dri2_surface_post_internal(tpl_surface_t *surface, tpl_frame_t *frame,
 				XFixesCreateRegion(display, xrects, frame->damage.num_rects);
 		} else {
 			XFixesSetRegion(display, x11_surface->damage,
-					xrects, frame->damage.num_rects);
+							xrects, frame->damage.num_rects);
 		}
 
 		DRI2SwapBuffersWithRegion(display, drawable, x11_surface->damage, &swap_count);
@@ -146,7 +146,7 @@ __tpl_x11_dri2_display_init(tpl_display_t *display)
 	}
 
 	display->xcb_connection = XGetXCBConnection( (Display *)
-				  display->native_handle );
+							  display->native_handle );
 	if ( NULL == display->xcb_connection ) {
 		TPL_WARN("XGetXCBConnection failed");
 	}
@@ -208,10 +208,10 @@ __tpl_x11_dri2_display_init(tpl_display_t *display)
 
 		/* Initialize swap type configuration. */
 		__tpl_x11_swap_str_to_swap_type(getenv(EGL_X11_WINDOW_SWAP_TYPE_ENV_NAME),
-						&global.win_swap_type);
+										&global.win_swap_type);
 
 		__tpl_x11_swap_str_to_swap_type(getenv(EGL_X11_FB_SWAP_TYPE_ENV_NAME),
-						&global.fb_swap_type);
+										&global.fb_swap_type);
 	}
 
 	global.display_count++;
@@ -257,16 +257,16 @@ __tpl_x11_dri2_surface_init(tpl_surface_t *surface)
 
 	if (surface->type == TPL_SURFACE_TYPE_WINDOW) {
 		if (!__tpl_x11_display_get_window_info(surface->display, surface->native_handle,
-						       &surface->width, &surface->height, NULL, 0, 0))
+											   &surface->width, &surface->height, NULL, 0, 0))
 			return TPL_FALSE;
 	} else {
 		if (!__tpl_x11_display_get_pixmap_info(surface->display, surface->native_handle,
-						       &surface->width, &surface->height, &format))
+											   &surface->width, &surface->height, &format))
 			return TPL_FALSE;
 	}
 
 	x11_surface = (tpl_x11_dri2_surface_t *) calloc(1,
-			sizeof(tpl_x11_dri2_surface_t));
+				  sizeof(tpl_x11_dri2_surface_t));
 
 	if (x11_surface == NULL) {
 		TPL_ERR("Failed to allocate memory for X11 surface!");
@@ -339,9 +339,9 @@ __tpl_x11_surface_begin_frame(tpl_surface_t *surface)
 
 	if (prev_frame && prev_frame->state != TPL_FRAME_STATE_POSTED) {
 		if ((DRI2_BUFFER_IS_FB(prev_frame->buffer->backend.flags) &&
-		     global.fb_swap_type == TPL_X11_SWAP_TYPE_SYNC) ||
-		    (!DRI2_BUFFER_IS_FB(prev_frame->buffer->backend.flags) &&
-		     global.win_swap_type == TPL_X11_SWAP_TYPE_SYNC)) {
+				global.fb_swap_type == TPL_X11_SWAP_TYPE_SYNC) ||
+				(!DRI2_BUFFER_IS_FB(prev_frame->buffer->backend.flags) &&
+				 global.win_swap_type == TPL_X11_SWAP_TYPE_SYNC)) {
 			__tpl_surface_wait_all_frames(surface);
 		}
 	}
@@ -364,9 +364,9 @@ __tpl_x11_surface_validate_frame(tpl_surface_t *surface)
 		return TPL_TRUE;
 
 	if ((DRI2_BUFFER_IS_FB(surface->frame->buffer->backend.flags) &&
-	     global.fb_swap_type == TPL_X11_SWAP_TYPE_LAZY) ||
-	    (!DRI2_BUFFER_IS_FB(surface->frame->buffer->backend.flags) &&
-	     global.win_swap_type == TPL_X11_SWAP_TYPE_LAZY)) {
+			global.fb_swap_type == TPL_X11_SWAP_TYPE_LAZY) ||
+			(!DRI2_BUFFER_IS_FB(surface->frame->buffer->backend.flags) &&
+			 global.win_swap_type == TPL_X11_SWAP_TYPE_LAZY)) {
 		if (x11_surface->latest_render_target == surface->frame->buffer) {
 			__tpl_surface_wait_all_frames(surface);
 			return TPL_FALSE;
@@ -392,9 +392,9 @@ __tpl_x11_surface_end_frame(tpl_surface_t *surface)
 		x11_surface->latest_render_target = frame->buffer;
 
 		if ((DRI2_BUFFER_IS_FB(frame->buffer->backend.flags) &&
-		     global.fb_swap_type == TPL_X11_SWAP_TYPE_ASYNC) ||
-		    (!DRI2_BUFFER_IS_FB(frame->buffer->backend.flags) &&
-		     global.win_swap_type == TPL_X11_SWAP_TYPE_ASYNC)) {
+				global.fb_swap_type == TPL_X11_SWAP_TYPE_ASYNC) ||
+				(!DRI2_BUFFER_IS_FB(frame->buffer->backend.flags) &&
+				 global.win_swap_type == TPL_X11_SWAP_TYPE_ASYNC)) {
 			__tpl_x11_dri2_surface_post_internal(surface, frame, TPL_FALSE);
 		}
 	}
@@ -402,7 +402,7 @@ __tpl_x11_surface_end_frame(tpl_surface_t *surface)
 
 static tpl_buffer_t *
 __tpl_x11_dri2_surface_get_buffer(tpl_surface_t *surface,
-				  tpl_bool_t *reset_buffers)
+								  tpl_bool_t *reset_buffers)
 {
 	tpl_buffer_t *buffer = NULL;
 	Display *display;
@@ -427,7 +427,7 @@ __tpl_x11_dri2_surface_get_buffer(tpl_surface_t *surface,
 
 	/* Get the current buffer via DRI2. */
 	dri2_buffers = DRI2GetBuffers(display, drawable,
-				      &width, &height, attachments, 1, &num_buffers);
+								  &width, &height, attachments, 1, &num_buffers);
 	if (dri2_buffers == NULL) {
 		TPL_ERR("DRI2GetBuffers failed!");
 		goto err_buffer;
@@ -438,7 +438,7 @@ __tpl_x11_dri2_surface_get_buffer(tpl_surface_t *surface,
 		 * However, sometimes we get a strange result of having reused flag for a newly
 		 * received buffer. I don't know the meaning of such cases but just handle it. */
 		buffer = __tpl_x11_surface_buffer_cache_find(&x11_surface->buffer_cache,
-				dri2_buffers[0].name);
+				 dri2_buffers[0].name);
 
 		if (buffer) {
 			/* Need to update buffer flag */
@@ -467,8 +467,8 @@ __tpl_x11_dri2_surface_get_buffer(tpl_surface_t *surface,
 
 	/* Create tpl buffer. */
 	buffer = __tpl_buffer_alloc(surface, (size_t) dri2_buffers[0].name,
-				    (int) bo_handle.u32,
-				    width, height, dri2_buffers[0].cpp * 8, dri2_buffers[0].pitch);
+								(int) bo_handle.u32,
+								width, height, dri2_buffers[0].cpp * 8, dri2_buffers[0].pitch);
 	if (NULL == buffer) {
 		TPL_ERR("TPL buffer alloc failed!");
 		goto err_buffer;
@@ -488,7 +488,7 @@ done:
 	if (reset_buffers) {
 		/* Users use this output value to check if they have to reset previous buffers. */
 		*reset_buffers = !DRI2_BUFFER_IS_REUSED(dri2_buffers[0].flags) ||
-				 width != surface->width || height != surface->height;
+						 width != surface->width || height != surface->height;
 	}
 
 	XFree(dri2_buffers);

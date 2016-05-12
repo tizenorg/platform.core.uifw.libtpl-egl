@@ -18,7 +18,7 @@ __tpl_surface_free(void *data)
 
 tpl_surface_t *
 tpl_surface_create(tpl_display_t *display, tpl_handle_t handle,
-		   tpl_surface_type_t type, tbm_format format)
+				   tpl_surface_type_t type, tbm_format format)
 {
 	tpl_surface_t *surface;
 
@@ -39,7 +39,7 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle,
 	}
 
 	if (__tpl_object_init(&surface->base, TPL_OBJECT_SURFACE,
-			      __tpl_surface_free) != TPL_ERROR_NONE) {
+						  __tpl_surface_free) != TPL_ERROR_NONE) {
 		TPL_ERR("Failed to initialize surface's base class!");
 		free(surface);
 		return NULL;
@@ -58,7 +58,7 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle,
 	__tpl_surface_init_backend(surface, display->backend.type);
 
 	if ((!surface->backend.init)
-	    || (surface->backend.init(surface) != TPL_ERROR_NONE)) {
+			|| (surface->backend.init(surface) != TPL_ERROR_NONE)) {
 		TPL_ERR("Failed to initialize surface's backend!");
 		tpl_object_unreference(&surface->base);
 		return NULL;
@@ -218,8 +218,8 @@ tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 
 tpl_result_t
 tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
-				       tbm_surface_h tbm_surface,
-				       int num_rects, const int *rects)
+									   tbm_surface_h tbm_surface,
+									   int num_rects, const int *rects)
 {
 	tpl_result_t ret = TPL_ERROR_NONE;
 
@@ -239,7 +239,7 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 	}
 
 	if (surface->is_frontbuffer_mode) {
-		if(surface->frontbuffer == tbm_surface) {
+		if (surface->frontbuffer == tbm_surface) {
 			TPL_OBJECT_UNLOCK(surface);
 			TRACE_END();
 			return ret;
@@ -248,7 +248,7 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 	}
 
 	/* Call backend post */
-    ret = surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects);
+	ret = surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects);
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
@@ -258,7 +258,7 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 
 tpl_result_t
 tpl_surface_get_swapchain_buffers(tpl_surface_t *surface,
-				  tbm_surface_h **buffers, int *buffer_count)
+								  tbm_surface_h **buffers, int *buffer_count)
 {
 	tpl_result_t ret = TPL_ERROR_INVALID_OPERATION;
 
@@ -288,7 +288,7 @@ tpl_surface_get_swapchain_buffers(tpl_surface_t *surface,
 
 tpl_result_t
 tpl_surface_create_swapchain(tpl_surface_t *surface, tbm_format format,
-			     int width, int height, int buffer_count)
+							 int width, int height, int buffer_count)
 {
 	tpl_result_t ret = TPL_ERROR_INVALID_OPERATION;
 
@@ -310,7 +310,7 @@ tpl_surface_create_swapchain(tpl_surface_t *surface, tbm_format format,
 	TPL_OBJECT_LOCK(surface);
 
 	ret = surface->backend.create_swapchain(surface, format, width, height,
-						buffer_count);
+											buffer_count);
 
 	TPL_OBJECT_UNLOCK(surface);
 

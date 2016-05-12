@@ -60,54 +60,54 @@ extern unsigned int tpl_dump_lvl;
 #ifdef DLOG_DEFAULT_ENABLE
 #define TPL_LOG(lvl, f, x...) TPL_LOG_PRINT(f, ##x)
 #else
-#define TPL_LOG(lvl, f, x...)								\
-	{										\
+#define TPL_LOG(lvl, f, x...)							\
+	{													\
 		if (tpl_log_lvl == lvl)							\
-		{									\
+		{												\
 			TPL_LOG_PRINT(f, ##x)						\
-		}									\
-		else if (tpl_log_lvl > 1 && tpl_log_lvl <=5 )				\
-		{									\
+		}												\
+		else if (tpl_log_lvl > 1 && tpl_log_lvl <=5 )	\
+		{												\
 			if (tpl_log_lvl <= lvl)						\
 				TPL_LOG_PRINT(f, ##x)					\
-		}									\
+		}												\
 		else if (tpl_log_lvl > 5)						\
-		{									\
+		{												\
 			if (tpl_log_lvl == lvl)						\
 				TPL_LOG_PRINT(f, ##x)					\
-		}									\
-		else									\
-		{									\
-			char *env = getenv("TPL_LOG_LEVEL");				\
-			if (env == NULL)						\
-				tpl_log_lvl = 1;					\
-			else								\
+		}												\
+		else											\
+		{												\
+			char *env = getenv("TPL_LOG_LEVEL");		\
+			if (env == NULL)							\
+				tpl_log_lvl = 1;						\
+			else										\
 				tpl_log_lvl = atoi(env);				\
-											\
-			if (tpl_log_lvl > 1 && tpl_log_lvl <= 5)			\
-			{								\
+														\
+			if (tpl_log_lvl > 1 && tpl_log_lvl <= 5)	\
+			{											\
 				if (tpl_log_lvl <= lvl)					\
 					TPL_LOG_PRINT(f, ##x)				\
-			} else if (tpl_log_lvl > 5) {					\
+			} else if (tpl_log_lvl > 5) {				\
 				if (tpl_log_lvl == lvl)					\
 					TPL_LOG_PRINT(f, ##x)				\
-			}								\
-		}									\
+			}											\
+		}												\
 	}
 #endif
-#define TPL_LOG_PRINT(fmt, args...)							\
-	{										\
-		LOGE("[\x1b[36mTPL\x1b[0m] \x1b[36m" fmt "\x1b[0m\n", ##args);		\
+#define TPL_LOG_PRINT(fmt, args...)										\
+	{																	\
+		LOGE("[\x1b[36mTPL\x1b[0m] \x1b[36m" fmt "\x1b[0m\n", ##args);	\
 	}
 
-#define TPL_ERR(f, x...)								\
-	{										\
-		LOGE("[\x1b[31mTPL_ERR\x1b[0m] \x1b[31m" f "\x1b[0m\n", ##x);		\
+#define TPL_ERR(f, x...)												\
+	{																	\
+		LOGE("[\x1b[31mTPL_ERR\x1b[0m] \x1b[31m" f "\x1b[0m\n", ##x);	\
 	}
 
-#define TPL_WARN(f, x...)								\
-	{										\
-		LOGW("[\x1b[33mTPL_WARN\x1b[0m] \x1b[33m" f "\x1b[0m\n", ##x);		\
+#define TPL_WARN(f, x...)												\
+	{																	\
+		LOGW("[\x1b[33mTPL_WARN\x1b[0m] \x1b[33m" f "\x1b[0m\n", ##x);	\
 	}
 
 #else
@@ -117,132 +117,132 @@ extern unsigned int tpl_dump_lvl;
 #endif
 
 #define TPL_CHECK_ON_NULL_RETURN(exp)							\
-	do										\
-	{										\
-		if ((exp) == NULL)							\
-		{									\
-			TPL_ERR("%s", "check failed: " # exp " == NULL");		\
-			return;								\
-		}									\
-	}										\
+	do															\
+	{															\
+		if ((exp) == NULL)										\
+		{														\
+			TPL_ERR("%s", "check failed: " # exp " == NULL");	\
+			return;												\
+		}														\
+	}															\
 	while (0)
 
-#define TPL_CHECK_ON_NULL_RETURN_VAL(exp, val)						\
-	do										\
-	{										\
-		if ((exp) == NULL)							\
-		{									\
-			TPL_ERR("%s", "check failed: " # exp " == NULL");		\
-			return (val);							\
-		}									\
-	}										\
+#define TPL_CHECK_ON_NULL_RETURN_VAL(exp, val)					\
+	do															\
+	{															\
+		if ((exp) == NULL)										\
+		{														\
+			TPL_ERR("%s", "check failed: " # exp " == NULL");	\
+			return (val);										\
+		}														\
+	}															\
 	while (0)
 
 #define TPL_CHECK_ON_NULL_GOTO(exp, label)						\
-	do										\
-	{										\
-		if ((exp) == NULL)							\
-		{									\
-			TPL_ERR("%s", "check failed: " # exp " == NULL");		\
-			goto label;							\
-		}									\
-	}										\
+	do															\
+	{															\
+		if ((exp) == NULL)										\
+		{														\
+			TPL_ERR("%s", "check failed: " # exp " == NULL");	\
+			goto label;											\
+		}														\
+	}															\
 	while (0)
 
 #define TPL_CHECK_ON_TRUE_RETURN(exp)							\
-	do										\
-	{										\
-		if (exp)								\
-		{									\
-			TPL_ERR("%s", "check failed: " # exp " is true");		\
-			return;								\
-		}									\
-	}										\
+	do															\
+	{															\
+		if (exp)												\
+		{														\
+			TPL_ERR("%s", "check failed: " # exp " is true");	\
+			return;												\
+		}														\
+	}															\
 	while (0)
 
-#define TPL_CHECK_ON_TRUE_RETURN_VAL(exp, val)						\
-	do										\
-	{										\
-		if (exp)								\
-		{									\
-			TPL_ERR("%s", "check failed: " # exp " is true");		\
-			return val;							\
-		}									\
-	}										\
+#define TPL_CHECK_ON_TRUE_RETURN_VAL(exp, val)					\
+	do															\
+	{															\
+		if (exp)												\
+		{														\
+			TPL_ERR("%s", "check failed: " # exp " is true");	\
+			return val;											\
+		}														\
+	}															\
 	while (0)
 
 #define TPL_CHECK_ON_TRUE_GOTO(exp, label)						\
-	do										\
-	{										\
-		if (exp)								\
-		{									\
-			TPL_ERR("%s", "check failed: " # exp " is true");		\
-			goto label;							\
-		}									\
-	}										\
+	do															\
+	{															\
+		if (exp)												\
+		{														\
+			TPL_ERR("%s", "check failed: " # exp " is true");	\
+			goto label;											\
+		}														\
+	}															\
 	while (0)
 
 #define TPL_CHECK_ON_FALSE_RETURN(exp)							\
-	do										\
-	{										\
-		if (!(exp))								\
-		{									\
-			TPL_ERR("%s", "check failed: " # exp " is false");		\
-			return;								\
-		}									\
-	}										\
+	do															\
+	{															\
+		if (!(exp))												\
+		{														\
+			TPL_ERR("%s", "check failed: " # exp " is false");	\
+			return;												\
+		}														\
+	}															\
 	while (0)
 
-#define TPL_CHECK_ON_FALSE_RETURN_VAL(exp, val)						\
-	do										\
-	{										\
-		if (!(exp))								\
-		{									\
-			TPL_ERR("%s", "check failed: " # exp " is false");		\
-			return val;							\
-		}									\
-	}										\
+#define TPL_CHECK_ON_FALSE_RETURN_VAL(exp, val)					\
+	do															\
+	{															\
+		if (!(exp))												\
+		{														\
+			TPL_ERR("%s", "check failed: " # exp " is false");	\
+			return val;											\
+		}														\
+	}															\
 	while (0)
 
 #define TPL_CHECK_ON_FALSE_GOTO(exp, label)						\
-	do										\
-	{										\
-		if (!(exp))								\
-		{									\
-			TPL_ERR("%s", "check failed: " # exp " is false");		\
-			goto label;							\
-		}									\
-	}										\
+	do															\
+	{															\
+		if (!(exp))												\
+		{														\
+			TPL_ERR("%s", "check failed: " # exp " is false");	\
+			goto label;											\
+		}														\
+	}															\
 	while (0)
 
-#define TPL_CHECK_ON_FALSE_ASSERT_FAIL(exp, mesg)					\
-	do										\
-	{										\
-		if (!(exp))								\
-		{									\
-			TPL_ERR("%s", mesg);						\
-			assert(0);							\
-		}									\
-	}										\
+#define TPL_CHECK_ON_FALSE_ASSERT_FAIL(exp, mesg)	\
+	do												\
+	{												\
+		if (!(exp))									\
+		{											\
+			TPL_ERR("%s", mesg);					\
+			assert(0);								\
+		}											\
+	}												\
 	while (0)
 
-#define TPL_IMAGE_DUMP(data, width, height, num)					\
-	{										\
-		if (tpl_dump_lvl != 0)							\
-		{									\
+#define TPL_IMAGE_DUMP(data, width, height, num)										\
+	{																					\
+		if (tpl_dump_lvl != 0)															\
+		{																				\
 			__tpl_util_image_dump(__func__, data, tpl_dump_lvl, width, height, num);	\
-		}									\
-		else									\
-		{									\
-			char *env = getenv("TPL_DUMP_LEVEL");				\
-			if (env == NULL)						\
-				tpl_dump_lvl = 0;					\
-			else								\
-				tpl_dump_lvl = atoi(env);				\
-											\
-			if (tpl_dump_lvl != 0)						\
+		}																				\
+		else																			\
+		{																				\
+			char *env = getenv("TPL_DUMP_LEVEL");										\
+			if (env == NULL)															\
+				tpl_dump_lvl = 0;														\
+			else																		\
+				tpl_dump_lvl = atoi(env);												\
+																						\
+			if (tpl_dump_lvl != 0)														\
 				__tpl_util_image_dump(__func__, data, tpl_dump_lvl, width, height, num);\
-		}									\
+		}																				\
 	}
 
 
@@ -296,26 +296,26 @@ struct tpl_util_map {
 };
 
 void tpl_util_map_init(tpl_util_map_t *map, int bucket_bits,
-		       tpl_util_hash_func_t hash_func,
-		       tpl_util_key_length_func_t key_length_func,
-		       tpl_util_key_compare_func_t key_compare_func,
-		       void *buckets);
+					   tpl_util_hash_func_t hash_func,
+					   tpl_util_key_length_func_t key_length_func,
+					   tpl_util_key_compare_func_t key_compare_func,
+					   void *buckets);
 
 void tpl_util_map_int32_init(tpl_util_map_t *map, int bucket_bits,
-			     void *buckets);
+							 void *buckets);
 
 void tpl_util_map_int64_init(tpl_util_map_t *map, int bucket_bits,
-			     void *buckets);
+							 void *buckets);
 
 void tpl_util_map_pointer_init(tpl_util_map_t *map, int bucket_bits,
-			       void *buckets);
+							   void *buckets);
 
 void tpl_util_map_fini(tpl_util_map_t *map);
 
 tpl_util_map_t *
 tpl_util_map_create(int bucket_bits, tpl_util_hash_func_t hash_func,
-		    tpl_util_key_length_func_t key_length_func,
-		    tpl_util_key_compare_func_t key_compare_func);
+					tpl_util_key_length_func_t key_length_func,
+					tpl_util_key_compare_func_t key_compare_func);
 
 tpl_util_map_t *tpl_util_map_int32_create(int bucket_bits);
 
@@ -331,7 +331,7 @@ void *tpl_util_map_get(tpl_util_map_t *map, const tpl_util_key_t key);
 
 void
 tpl_util_map_set(tpl_util_map_t *map, const tpl_util_key_t key, void *data,
-		 tpl_free_func_t free_func);
+				 tpl_free_func_t free_func);
 
 static TPL_INLINE int
 __tpl_list_get_count(const tpl_list_t *list)
@@ -528,7 +528,7 @@ __tpl_list_insert(tpl_list_node_t *pos, void *data)
 
 static TPL_INLINE void
 __tpl_list_remove_data(tpl_list_t *list, void *data, int occurrence,
-		       tpl_free_func_t func)
+					   tpl_free_func_t func)
 {
 	tpl_list_node_t *node;
 
@@ -641,7 +641,7 @@ tpl_list_pop_back(tpl_list_t *list, tpl_free_func_t func)
 
 static TPL_INLINE int
 __tpl_util_image_dump_bmp(const char *file, const void *data, int width,
-			  int height)
+						  int height)
 {
 	int i;
 
@@ -683,7 +683,7 @@ __tpl_util_image_dump_bmp(const char *file, const void *data, int width,
 		return -2;
 	} else {
 		bmpfile_header.filesz = sizeof (bmpfile_magic) + sizeof (bmpfile_header) +
-					sizeof (bmp_dib_v3_header_t) + width * height * 3;
+								sizeof (bmp_dib_v3_header_t) + width * height * 3;
 		bmp_dib_v3_header_t.header_sz = sizeof (bmp_dib_v3_header_t);
 		bmp_dib_v3_header_t.width = width;
 		bmp_dib_v3_header_t.height = -height;
@@ -721,7 +721,7 @@ __tpl_util_image_dump_bmp(const char *file, const void *data, int width,
 #define PNG_DEPTH 8
 static TPL_INLINE int
 __tpl_util_image_dump_png(const char *file, const void *data, int width,
-			  int height)
+						  int height)
 {
 	TPL_CHECK_ON_FALSE_RETURN_VAL(data != NULL, -1);
 	TPL_CHECK_ON_FALSE_RETURN_VAL(width > 0, -1);
@@ -740,14 +740,14 @@ __tpl_util_image_dump_png(const char *file, const void *data, int width,
 			if (pPngInfo) {
 				png_init_io(pPngStruct, fp);
 				png_set_IHDR(pPngStruct,
-					     pPngInfo,
-					     width,
-					     height,
-					     PNG_DEPTH,
-					     PNG_COLOR_TYPE_RGBA,
-					     PNG_INTERLACE_NONE,
-					     PNG_COMPRESSION_TYPE_DEFAULT,
-					     PNG_FILTER_TYPE_DEFAULT);
+							 pPngInfo,
+							 width,
+							 height,
+							 PNG_DEPTH,
+							 PNG_COLOR_TYPE_RGBA,
+							 PNG_INTERLACE_NONE,
+							 PNG_COMPRESSION_TYPE_DEFAULT,
+							 PNG_FILTER_TYPE_DEFAULT);
 
 				png_set_bgr(pPngStruct);
 				png_write_info(pPngStruct, pPngInfo);
@@ -766,8 +766,8 @@ __tpl_util_image_dump_png(const char *file, const void *data, int width,
 
 				for (; y < height; ++y) {
 					png_bytep row = png_malloc(pPngStruct,
-								   sizeof(png_byte) * width *
-								   pixel_size);
+											   sizeof(png_byte) * width *
+											   pixel_size);
 					if (!row) {
 						fclose(fp);
 						return res;
@@ -807,7 +807,7 @@ __tpl_util_image_dump_png(const char *file, const void *data, int width,
 
 static TPL_INLINE void
 __tpl_util_image_dump(const char *func, const void *data, int type,
-		      int width, int height, int num)
+					  int width, int height, int num)
 {
 	char name[200];
 	char path_name[20] = "/tmp/tpl_dump";
@@ -821,7 +821,7 @@ __tpl_util_image_dump(const char *func, const void *data, int type,
 
 	if (type == 1) {
 		snprintf(name, sizeof(name), "%s/[%d][%s][%d][%d][%04d].bmp",
-			 path_name, getpid(), func, width, height, num);
+				 path_name, getpid(), func, width, height, num);
 
 		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
 		switch (__tpl_util_image_dump_bmp(name, data, width, height)) {
@@ -830,7 +830,7 @@ __tpl_util_image_dump(const char *func, const void *data, int type,
 			break;
 		case -1:
 			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n",
-				data, width, height);
+					data, width, height);
 			break;
 		case -2:
 			TPL_LOG(6, "Dump failed..file pointer error\n");
@@ -840,7 +840,7 @@ __tpl_util_image_dump(const char *func, const void *data, int type,
 #ifdef PNG_DUMP_ENABLE
 	else {
 		snprintf(name, sizeof(name), "%s/[%d][%s][%d][%d][%04d].png",
-			 path_name, getpid(), func, width, height, num);
+				 path_name, getpid(), func, width, height, num);
 
 		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
 		switch (__tpl_util_image_dump_png(name, data, width, height)) {
@@ -849,7 +849,7 @@ __tpl_util_image_dump(const char *func, const void *data, int type,
 			break;
 		case -1:
 			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n",
-				data, width, height);
+					data, width, height);
 			break;
 		case -2:
 			TPL_LOG(6, "Dump failed..file pointer error\n");

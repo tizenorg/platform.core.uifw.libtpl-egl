@@ -56,26 +56,26 @@ __tpl_x11_swap_str_to_swap_type(char *str, tpl_x11_swap_type_t *type);
 
 tpl_buffer_t *
 __tpl_x11_surface_buffer_cache_find(tpl_list_t	 *buffer_cache,
-				    unsigned int name);
+									unsigned int name);
 void
 __tpl_x11_surface_buffer_cache_remove(tpl_list_t 	*buffer_cache,
-				      unsigned int name);
+									  unsigned int name);
 tpl_bool_t
 __tpl_x11_surface_buffer_cache_add(tpl_list_t	*buffer_cache,
-				   tpl_buffer_t *buffer);
+								   tpl_buffer_t *buffer);
 void
 __tpl_x11_surface_buffer_cache_clear(tpl_list_t	*buffer_cache);
 tpl_bool_t
 __tpl_x11_display_query_config(tpl_display_t *display,
-			       tpl_surface_type_t surface_type, int red_size,
-			       int green_size, int blue_size, int alpha_size,
-			       int color_depth, int *native_visual_id, tpl_bool_t *is_slow);
+							   tpl_surface_type_t surface_type, int red_size,
+							   int green_size, int blue_size, int alpha_size,
+							   int color_depth, int *native_visual_id, tpl_bool_t *is_slow);
 tpl_bool_t
 __tpl_x11_display_get_window_info(tpl_display_t *display, tpl_handle_t window,
-				  int *width, int *height, tpl_format_t *format, int depth, int a_size);
+								  int *width, int *height, tpl_format_t *format, int depth, int a_size);
 tpl_bool_t
 __tpl_x11_display_get_pixmap_info(tpl_display_t *display, tpl_handle_t pixmap,
-				  int *width, int *height, tpl_format_t *format);
+								  int *width, int *height, tpl_format_t *format);
 void
 __tpl_x11_display_flush(tpl_display_t *display);
 tpl_bool_t
