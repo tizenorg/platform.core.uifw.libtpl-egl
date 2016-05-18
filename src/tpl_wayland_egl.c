@@ -650,8 +650,6 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 		surface->height = height;
 	}
 
-	wayland_egl_surface->reset = TPL_FALSE;
-
 	TPL_OBJECT_UNLOCK(surface);
 	wl_display_dispatch_queue_pending((struct wl_display *)
 									  surface->display->native_handle,
@@ -715,6 +713,17 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 	wayland_egl_buffer->bo = tbm_surface_internal_get_bo(tbm_surface, 0);
 	wayland_egl_buffer->wayland_egl_surface = wayland_egl_surface;
 	wayland_egl_surface->current_buffer = tbm_surface;
+
+	/*
+	 * Only when the tbm_surface which it dequeued after tbm_surface_queue_dequeue
+	 * was called is not reused one, the following flag 'reset' has to
+	 * initialize to TPL_FALSE.
+	 *
+	 * If this flag initialized before tbm_surface_queue_dequeue, it cause
+	 * the problem that return TPL_FALSE in tpl_surface_validate() in spite of
+	 * EGL already has valid buffer.
+	 */
+	wayland_egl_surface->reset = TPL_FALSE;
 
 	__tpl_wayland_egl_set_wayland_buffer_to_tbm_surface(tbm_surface,
 			wayland_egl_buffer);
