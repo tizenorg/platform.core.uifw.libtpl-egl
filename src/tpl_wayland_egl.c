@@ -14,6 +14,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <poll.h>
 
 #include <tbm_bufmgr.h>
 #include <tbm_surface.h>
@@ -21,6 +22,7 @@
 #include <tbm_surface_queue.h>
 #include <wayland-tbm-client.h>
 #include <wayland-tbm-server.h>
+#include <tdm_client.h>
 
 /* In wayland, application and compositor create its own drawing buffers. Recommend size is more than 2. */
 #define CLIENT_QUEUE_SIZE 3
@@ -32,6 +34,7 @@ typedef struct _tpl_wayland_egl_buffer tpl_wayland_egl_buffer_t;
 struct _tpl_wayland_egl_display {
 	tbm_bufmgr bufmgr;
 	struct wayland_tbm_client *wl_tbm_client;
+	tdm_client *tdm_client;
 	struct wl_event_queue *wl_queue;
 	struct wl_registry *wl_registry;
 };
@@ -41,6 +44,7 @@ struct _tpl_wayland_egl_surface {
 	tbm_surface_h current_buffer;
 	tpl_bool_t resized;
 	tpl_bool_t reset;          /* TRUE if queue reseted by external */
+	tpl_bool_t vblank_done;
 	struct wl_proxy *wl_proxy; /* wl_tbm_queue proxy */
 };
 
@@ -108,6 +112,14 @@ __tpl_wayland_egl_display_is_wl_display(tpl_handle_t native_dpy)
 	return TPL_FALSE;
 }
 
+static void
+__cb_tdm_client_wait_vblank(unsigned int sequence, unsigned int tv_sec,
+					        unsigned int tv_usec, void *user_data)
+{
+	tpl_wayland_egl_surface_t *wayland_egl_surface = (tpl_wayland_egl_surface_t *)user_data;
+	wayland_egl_surface->vblank_done = TPL_TRUE;
+}
+
 static int
 __tpl_wayland_egl_display_roundtrip(tpl_display_t *display)
 {
@@ -159,6 +171,7 @@ __tpl_wayland_egl_display_init(tpl_display_t *display)
 	display->bufmgr_fd = -1;
 
 	if (__tpl_wayland_egl_display_is_wl_display(display->native_handle)) {
+		tdm_client_error tdm_err = 0;
 		struct wl_display *wl_dpy =
 			(struct wl_display *)display->native_handle;
 		wayland_egl_display->wl_tbm_client =
@@ -178,6 +191,13 @@ __tpl_wayland_egl_display_init(tpl_display_t *display)
 		wayland_egl_display->wl_registry = wl_display_get_registry(wl_dpy);
 		if (!wayland_egl_display->wl_registry) {
 			TPL_ERR("Failed to get wl_registry with wl_dpy(%p).", wl_dpy);
+			goto destroy_queue;
+		}
+
+		wayland_egl_display->tdm_client = tdm_client_create(&tdm_err);
+
+		if (!wayland_egl_display->tdm_client) {
+			TPL_ERR("tdm client initialization failed!");
 			goto destroy_queue;
 		}
 
@@ -210,6 +230,7 @@ __tpl_wayland_egl_display_fini(tpl_display_t *display)
 	wayland_egl_display = (tpl_wayland_egl_display_t *)display->backend.data;
 	if (wayland_egl_display) {
 		wayland_tbm_client_deinit(wayland_egl_display->wl_tbm_client);
+		tdm_client_destroy(wayland_egl_display->tdm_client);
 		free(wayland_egl_display);
 	}
 	display->backend.data = NULL;
@@ -359,6 +380,7 @@ __tpl_wayland_egl_surface_init(tpl_surface_t *surface)
 	surface->backend.data = (void *)wayland_egl_surface;
 	wayland_egl_surface->tbm_queue = NULL;
 	wayland_egl_surface->resized = TPL_FALSE;
+	wayland_egl_surface->vblank_done = TPL_TRUE;
 	wayland_egl_surface->current_buffer = NULL;
 
 	if (wl_egl_window->surface) {
@@ -484,6 +506,9 @@ __tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
 	struct wl_egl_window *wl_egl_window =
 		(struct wl_egl_window *)surface->native_handle;
 	struct wl_callback *frame_callback = NULL;
+	tpl_wayland_egl_surface_t *wayland_egl_surface =
+		(tpl_wayland_egl_surface_t *) surface->backend.data;
+	tdm_client_error tdm_err = 0;
 
 	wayland_egl_buffer =
 		__tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface);
@@ -526,6 +551,19 @@ __tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
 	wl_surface_commit(wl_egl_window->surface);
 
 	wl_display_flush((struct wl_display *)surface->display->native_handle);
+
+	tdm_err = tdm_client_wait_vblank(wayland_egl_display->tdm_client, /* tdm_client */
+									"default", /* name */
+									1, /* sw_timer */
+									1, /* interval */
+									0, /* asynchronous */
+									__cb_tdm_client_wait_vblank, /* handler */
+									surface->backend.data); /* user_data */
+
+	if (tdm_err == TDM_CLIENT_ERROR_NONE)
+		wayland_egl_surface->vblank_done = TPL_FALSE;
+	else
+		TPL_ERR ("Failed to tdm_client_wait_vblank. error:%d", tdm_err);
 
 	TRACE_ASYNC_BEGIN((int)tbm_surface, "[COMMIT ~ RELEASE_CB] BO_NAME:%d",
 					  tbm_bo_export(wayland_egl_buffer->bo));
@@ -651,6 +689,43 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 	}
 
 	TPL_OBJECT_UNLOCK(surface);
+
+	if (wayland_egl_surface->vblank_done == TPL_FALSE) {
+		int fd = -1;
+		tdm_client_error tdm_err = 0;
+		int ret;
+		struct pollfd fds;
+
+		tdm_err = tdm_client_get_fd(wayland_egl_display->tdm_client, &fd);
+
+		if (tdm_err != TDM_CLIENT_ERROR_NONE || fd < 0) {
+			TPL_ERR("Failed to tdm_client_get_fd | tdm_err = %d", tdm_err);
+		}
+
+		fds.events = POLLIN;
+		fds.fd = fd;
+		fds.revents = 0;
+
+		do {
+			ret = poll(&fds, 1, -1);
+
+			if (ret < 0) {
+				if (errno == EBUSY)
+					continue;
+				else {
+					TPL_ERR("Failed to poll.");
+				}
+			}
+
+			tdm_err = tdm_client_handle_events(wayland_egl_display->tdm_client);
+
+			if (tdm_err != TDM_CLIENT_ERROR_NONE) {
+				TPL_ERR("Failed to tdm_client_handle_events.");
+			}
+
+		} while (wayland_egl_surface->vblank_done == TPL_FALSE);
+	}
+
 	wl_display_dispatch_queue_pending((struct wl_display *)
 									  surface->display->native_handle,
 									  wayland_egl_display->wl_queue);

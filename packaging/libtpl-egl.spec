@@ -65,6 +65,7 @@ BuildRequires:	pkgconfig(xshmfence)
 BuildRequires:  libtool
 BuildRequires:  wayland-devel
 BuildRequires:	pkgconfig(gbm)
+BuildRequires:	pkgconfig(libtdm-client)
 BuildRequires:	pkgconfig(wayland-tbm-client)
 BuildRequires:  pkgconfig(wayland-tbm-server)
 %endif

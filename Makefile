@@ -28,8 +28,8 @@ endif
 
 ifneq ($(call is-feature-enabled,winsys_wl),)
 	CFLAGS += -DTPL_WINSYS_WL=1
-	CFLAGS += `pkg-config --cflags gbm`
-	LDFLAGS += `pkg-config --libs gbm wayland-tbm-client wayland-tbm-server`
+	CFLAGS += `pkg-config --cflags gbm libtdm-client`
+	LDFLAGS += `pkg-config --libs gbm wayland-tbm-client wayland-tbm-server libtdm-client`
 endif
 
 ifneq ($(call is-feature-enabled,winsys_tbm),)
