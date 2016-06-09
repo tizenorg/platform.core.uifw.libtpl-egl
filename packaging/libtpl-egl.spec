@@ -9,7 +9,7 @@
 %define TPL_WINSYS	WL
 
 #TPL FEATURE OPTION
-%define ENABLE_TTRACE	0
+%define ENABLE_TTRACE	1
 %define ENABLE_DLOG	0
 %define ENABLE_PNG_DUMP	0
 #WAYLAND-EGL VERSION MACROS
@@ -65,6 +65,7 @@ BuildRequires:	pkgconfig(xshmfence)
 BuildRequires:  libtool
 BuildRequires:  wayland-devel
 BuildRequires:	pkgconfig(gbm)
+BuildRequires:	pkgconfig(libtdm-client)
 BuildRequires:	pkgconfig(wayland-tbm-client)
 BuildRequires:  pkgconfig(wayland-tbm-server)
 %endif
