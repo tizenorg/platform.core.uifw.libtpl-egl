@@ -248,7 +248,7 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 	}
 
 	/* Call backend post */
-    ret = surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects);
+	ret = surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects);
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
