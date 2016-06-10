@@ -44,6 +44,9 @@ endif
 ifneq ($(call is-feature-enabled,dlog),)
 	CFLAGS += -DDLOG_DEFAULT_ENABLE
 endif
+ifneq ($(call is-feature-enabled,default_log),)
+	CFLAGS += -DLOG_DEFAULT_ENABLE
+endif
 ifneq ($(call is-feature-enabled,pngdump),)
 	CFLAGS += -DPNG_DUMP_ENABLE
 	CFLAGS += `pkg-config --cflags libpng`

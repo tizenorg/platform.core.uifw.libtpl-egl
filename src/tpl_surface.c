@@ -12,6 +12,8 @@ static void
 __tpl_surface_free(void *data)
 {
 	TPL_ASSERT(data);
+	TPL_LOG_F("tpl_surface_t(%p)", data);
+
 	__tpl_surface_fini((tpl_surface_t *) data);
 	free(data);
 }
@@ -64,6 +66,8 @@ tpl_surface_create(tpl_display_t *display, tpl_handle_t handle,
 		return NULL;
 	}
 
+	TPL_LOG_F("tpl_display_t(%p) tpl_surface_t(%p) native_handle(%p) format(%d)",
+			  display, surface, handle, format);
 	return surface;
 }
 
@@ -137,6 +141,8 @@ tpl_surface_validate(tpl_surface_t *surface)
 
 	TPL_OBJECT_UNLOCK(surface);
 
+	TPL_LOG_F("tpl_surface_t(%p) valid [%s]", surface, was_valid?"TRUE":"FALSE");
+
 	return was_valid;
 }
 
@@ -207,6 +213,9 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();
 
+	TPL_LOG_F("tpl_surface_t(%p) tbm_surface(%p) (%dx%d)", surface, tbm_surface,
+			  surface->width, surface->height);
+
 	return tbm_surface;
 }
 
@@ -246,6 +255,10 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 		}
 		surface->frontbuffer = tbm_surface;
 	}
+
+	TPL_LOG_F("tpl_surface_t(%p) tbm_surface(%p) (%dx%d)", surface, tbm_surface,
+			  tbm_surface_get_width(tbm_surface),
+			  tbm_surface_get_height(tbm_surface));
 
 	/* Call backend post */
 	ret = surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects);
@@ -307,6 +320,9 @@ tpl_surface_create_swapchain(tpl_surface_t *surface, tbm_format format,
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
+	TPL_LOG_F("tpl_surface_t(%p) format(%d) buffer_count(%d) (%dx%d)",
+			  surface, format, buffer_count, width, height);
+
 	TPL_OBJECT_LOCK(surface);
 
 	ret = surface->backend.create_swapchain(surface, format, width, height,
@@ -331,6 +347,8 @@ tpl_surface_destroy_swapchain(tpl_surface_t *surface)
 		TPL_ERR("Backend does not support!");
 		return TPL_ERROR_INVALID_OPERATION;
 	}
+
+	TPL_LOG_F("tpl_surface_t(%p)", surface);
 
 	TPL_OBJECT_LOCK(surface);
 
@@ -362,5 +380,7 @@ tpl_surface_set_frontbuffer_mode(tpl_surface_t *surface, tpl_bool_t set)
 
 	TPL_OBJECT_UNLOCK(surface);
 
+	TPL_LOG_F("tpl_surface_t(%p) frontbuffer_mode [%s]",
+			  surface, set?"ACTIVATED":"DEACTIVATED");
 	return ret;
 }

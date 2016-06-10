@@ -96,7 +96,11 @@ __tpl_gbm_display_init(tpl_display_t *display)
 	TPL_ASSERT(display);
 
 	/* Do not allow default display in gbm. */
-	if (!display->native_handle) return TPL_ERROR_INVALID_PARAMETER;
+	if (!display->native_handle)
+	{
+		TPL_ERR("native_handle is NULL. Can not allow default display in gbm.");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
 
 	gbm_display = (tpl_gbm_display_t *) calloc(1, sizeof(tpl_gbm_display_t));
 	if (!gbm_display) return TPL_ERROR_INVALID_PARAMETER;
@@ -105,6 +109,8 @@ __tpl_gbm_display_init(tpl_display_t *display)
 	gbm_display->bufmgr = tbm_bufmgr_init(display->bufmgr_fd);
 	display->backend.data = gbm_display;
 
+	TPL_LOG_B("GBM", "[INIT] tpl_gbm_display_t(%p) bufmgr_fd(%d) bufmgr(%p)",
+			  gbm_display, display->bufmgr_fd, gbm_display->bufmgr);
 	return TPL_ERROR_NONE;
 }
 
@@ -116,6 +122,10 @@ __tpl_gbm_display_fini(tpl_display_t *display)
 	TPL_ASSERT(display);
 
 	gbm_display = (tpl_gbm_display_t *)display->backend.data;
+
+	TPL_LOG_B("GBM", "[FINI] tpl_gbm_display_t(%p) bufmgr(%p)",
+			  gbm_display, gbm_display->bufmgr);
+
 	if (gbm_display) {
 		tbm_bufmgr_deinit(gbm_display->bufmgr);
 		free(gbm_display);
@@ -238,6 +248,9 @@ __tpl_gbm_display_get_buffer_from_native_pixmap(tpl_handle_t pixmap)
 		return NULL;
 	}
 
+	TPL_LOG_B("GBM", "[PIXMAP] wl_resource(%p) tbm_surface(%p) bo(%d)", pixmap, tbm_surface,
+			  tbm_bo_export(tbm_surface_internal_get_bo(tbm_surface, 0)));
+
 	return tbm_surface;
 }
 
@@ -273,8 +286,10 @@ __tpl_gbm_surface_init(tpl_surface_t *surface)
 			goto error;
 		}
 
-		TPL_LOG(3, "window(%p, %p) %dx%d", surface, surface->native_handle,
-				surface->width, surface->height);
+		TPL_LOG_B("GBM", "[INIT] WINDOW|tpl_gbm_surface_t(%p) tbm_queue(%p) (%dx%d)",
+				  tpl_gbm_surface, tpl_gbm_surface->tbm_queue,
+				  surface->width, surface->height);
+
 		return TPL_ERROR_NONE;
 	} else if (surface->type == TPL_SURFACE_TYPE_PIXMAP) {
 		if (__tpl_gbm_display_get_pixmap_info(surface->display,
@@ -283,6 +298,9 @@ __tpl_gbm_surface_init(tpl_surface_t *surface)
 			TPL_ERR("Failed to get native pixmap info.");
 			goto error;
 		}
+
+		TPL_LOG_B("GBM", "[INIT] PIXMAP|tpl_gbm_surface_t(%p) (%dx%d)",
+				  tpl_gbm_surface, surface->width, surface->height);
 
 		return TPL_ERROR_NONE;
 	}
@@ -304,10 +322,11 @@ __tpl_gbm_surface_fini(tpl_surface_t *surface)
 	gbm_surface = (tpl_gbm_surface_t *) surface->backend.data;
 	if (!gbm_surface) return;
 
-	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
-
 	if (gbm_surface->current_buffer)
 		tbm_surface_internal_unref(gbm_surface->current_buffer);
+
+	TPL_LOG_B("GBM", "[FINI] tpl_surface_t(%p) tpl_gbm_surface_t(%p)",
+			  surface, gbm_surface);
 
 	free(gbm_surface);
 	surface->backend.data = NULL;
@@ -327,8 +346,6 @@ __tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface,
 	TPL_IGNORE(num_rects);
 	TPL_IGNORE(rects);
 
-	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
-
 	tpl_gbm_surface_t *gbm_surface = (tpl_gbm_surface_t *)surface->backend.data;
 	if (!gbm_surface) {
 		TPL_ERR("tpl_gbm_surface_t is invalid. tpl_surface_t(%p)",
@@ -337,7 +354,7 @@ __tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface,
 	}
 
 	if (!tbm_surface_internal_is_valid(tbm_surface)) {
-		TPL_ERR("Failed to enqueue tbm_surface(%p) Invalid value.");
+		TPL_ERR("Failed to enqueue tbm_surface(%p) Invalid value.", tbm_surface);
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
@@ -362,6 +379,9 @@ __tpl_gbm_surface_enqueue_buffer(tpl_surface_t *surface,
 				gbm_surface->tbm_queue, tbm_surface);
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
+
+	TPL_LOG_B("GBM", "[ENQ] tpl_gbm_surface_t(%p) tbm_surface(%p) bo(%d)",
+			  gbm_surface, tbm_surface, tbm_bo_export(bo));
 
 	TRACE_MARK("[ENQ] BO_NAME:%d", tbm_bo_export(bo));
 	return TPL_ERROR_NONE;
@@ -412,6 +432,8 @@ __tpl_gbm_surface_dequeue_buffer(tpl_surface_t *surface)
 	gbm_buffer = __tpl_gbm_get_gbm_buffer_from_tbm_surface(tbm_surface);
 	if (gbm_buffer) {
 		TRACE_MARK("[DEQ][REUSED]BO_NAME:%d", tbm_bo_export(gbm_buffer->bo));
+		TPL_LOG_B("GBM", "[DEQ][R] tpl_gbm_surface_t(%p) tbm_surface(%p) bo(%d)",
+                gbm_surface, tbm_surface, tbm_bo_export(gbm_buffer->bo));
 		return tbm_surface;
 	}
 
@@ -436,7 +458,8 @@ __tpl_gbm_surface_dequeue_buffer(tpl_surface_t *surface)
 	__tpl_gbm_set_gbm_buffer_to_tbm_surface(tbm_surface, gbm_buffer);
 
 	TRACE_MARK("[DEQ][NEW]BO_NAME:%d", tbm_bo_export(gbm_buffer->bo));
-
+	TPL_LOG_B("GBM", "[DEQ][N] tpl_gbm_surface_t(%p) tbm_surface(%p) bo(%d)",
+			   gbm_surface, tbm_surface, tbm_bo_export(bo));
 	return tbm_surface;
 }
 

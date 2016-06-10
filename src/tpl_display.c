@@ -8,6 +8,7 @@ __tpl_display_fini(tpl_display_t *display)
 	if (display->backend.fini != NULL)
 		display->backend.fini(display);
 
+	TPL_LOG_F("tpl_display_t(%p) finilize.", display);
 	__tpl_runtime_remove_display(display);
 }
 
@@ -30,7 +31,7 @@ tpl_display_create(tpl_backend_type_t type, tpl_handle_t native_dpy)
 	display = __tpl_runtime_find_display(type, native_dpy);
 
 	/* If tpl_display already exists, then return NULL */
-	if (display) return NULL;
+	TPL_CHECK_ON_TRUE_RETURN_VAL(display, NULL);
 
 	/* if backend is unknown, try to find the best match from the list of supported types */
 	if (TPL_BACKEND_UNKNOWN == type)
@@ -76,6 +77,9 @@ tpl_display_create(tpl_backend_type_t type, tpl_handle_t native_dpy)
 		tpl_object_unreference((tpl_object_t *) display);
 		return NULL;
 	}
+
+	TPL_LOG_F("backend(%d) native_dpy(%p) tpl_display_t(%p) created successful.",
+			  type, native_dpy, display);
 
 	return display;
 }
