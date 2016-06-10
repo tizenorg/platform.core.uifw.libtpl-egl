@@ -1,6 +1,7 @@
 #include "tpl_internal.h"
 
-unsigned int tpl_log_lvl;
+unsigned int tpl_log_lvl = 0;
+unsigned int tpl_log_initialized = 0;
 unsigned int tpl_dump_lvl;
 
 struct _tpl_runtime {
@@ -170,7 +171,7 @@ __tpl_runtime_add_display(tpl_display_t *display)
 	ret = __tpl_hashlist_insert(runtime->displays[type],
 								(size_t) handle, (void *) display);
 	if (TPL_ERROR_NONE != ret) {
-		TPL_ERR("__tpl_hashlist_insert failed. list(%p), handle(%d), display(%p)",
+		TPL_ERR("__tpl_hashlist_insert failed. list(%p), handle(%p), display(%p)",
 				runtime->displays[type], handle, display);
 		pthread_mutex_unlock(&runtime_mutex);
 		return TPL_ERROR_INVALID_OPERATION;

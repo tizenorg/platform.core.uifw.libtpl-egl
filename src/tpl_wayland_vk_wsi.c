@@ -261,9 +261,6 @@ __tpl_wayland_vk_wsi_surface_init(tpl_surface_t *surface)
 	surface->backend.data = (void *)wayland_vk_wsi_surface;
 	wayland_vk_wsi_surface->tbm_queue = NULL;
 
-	TPL_LOG(3, "window(%p, %p) %dx%d", surface, surface->native_handle,
-			surface->width, surface->height);
-
 	return TPL_ERROR_NONE;
 }
 
@@ -282,8 +279,6 @@ __tpl_wayland_vk_wsi_surface_fini(tpl_surface_t *surface)
 	wayland_vk_wsi_display = (tpl_wayland_vk_wsi_display_t *)
 							 surface->display->backend.data;
 	if (wayland_vk_wsi_display == NULL) return;
-
-	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
 	if (wayland_vk_wsi_surface->tbm_queue)
 		__tpl_wayland_vk_wsi_surface_destroy_swapchain(surface);
@@ -310,10 +305,8 @@ __tpl_wayland_vk_wsi_surface_enqueue_buffer(tpl_surface_t *surface,
 	tpl_wayland_vk_wsi_buffer_t *wayland_vk_wsi_buffer = NULL;
 	tbm_surface_queue_error_e tsq_err;
 
-	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
-
 	if (!tbm_surface_internal_is_valid(tbm_surface)) {
-		TPL_ERR("Failed to enqueue tbm_surface(%p) Invalid value.");
+		TPL_ERR("Failed to enqueue tbm_surface(%p) Invalid value.", tbm_surface);
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
+#include <string.h>
 
 #if defined(__GNUC__) && __GNUC__ >= 4
 #   define TPL_API __attribute__ ((visibility("default")))
@@ -17,9 +18,9 @@
 
 #ifdef ARM_ATOMIC_OPERATION
 #define TPL_DMB() __asm__ volatile("dmb sy" : : : "memory")
-#else
+#else /* ARM_ATOMIC_OPERATION */
 #define TPL_DMB() __asm__ volatile("" : : : "memory")
-#endif
+#endif /* ARM_ATOMIC_OPERATION */
 
 #if (TTRACE_ENABLE)
 #include <ttrace.h>
@@ -29,14 +30,14 @@
 #define TRACE_ASYNC_END(key, name,...) traceAsyncEnd(TTRACE_TAG_GRAPHICS, key, name, ##__VA_ARGS__)
 #define TRACE_COUNTER(value, name,...) traceCounter(TTRACE_TAG_GRAPHICS, value, name, ##__VA_ARGS__)
 #define TRACE_MARK(name,...) traceMark(TTRACE_TAG_GRAPHICS, name, ##__VA_ARGS__)
-#else
+#else /* TTRACE_ENABLE */
 #define TRACE_BEGIN(name,...)
 #define TRACE_END()
 #define TRACE_ASYNC_BEGIN(key, name,...)
 #define TRACE_ASYNC_END(key, name,...)
 #define TRACE_COUNTER(value, name,...)
 #define TRACE_MARK(name,...)
-#endif
+#endif /* TTRACE_ENABLE */
 
 #ifndef NDEBUG
 #include <stdio.h>
@@ -46,185 +47,191 @@
 #include <sys/stat.h>
 #include <signal.h>
 
-#define LOG_TAG "TPL"
-#include <dlog.h>
-
 #ifdef PNG_DUMP_ENABLE
 #include <png.h>
-#endif
+#endif /* PNG_DUMP_ENABLE */
 
 /* 0:uninitialized, 1:initialized,no log, 2:user log */
 extern unsigned int tpl_log_lvl;
+extern unsigned int tpl_log_initialized;
 extern unsigned int tpl_dump_lvl;
 
 #ifdef DLOG_DEFAULT_ENABLE
-#define TPL_LOG(lvl, f, x...) TPL_LOG_PRINT(f, ##x)
-#else
-#define TPL_LOG(lvl, f, x...)							\
+#define LOG_TAG "TPL"
+#include <dlog.h>
+#define TPL_LOG_F(f, x...)		LOGD(f, ##x)
+#define TPL_LOG_B(b, f, x...)	LOGD(f, ##x)
+#define TPL_DEBUG(f, x...)		LOGD(f, ##x)
+#define TPL_ERR(f, x...)		LOGE(f, ##x)
+#define TPL_WARN(f, x...)		LOGW(f, ##x)
+#else /* DLOG_DEFAULT_ENABLE */
+#ifdef LOG_DEFAULT_ENABLE
+#define TPL_LOG_F(f, x...)								\
+	fprintf(stderr, "[TPL_F(%d):%s(%d)] " f "\n",		\
+			getpid(), __func__, __LINE__, ##x)
+#define TPL_LOG_B(b, f, x...)							\
+	fprintf(stderr,	"[TPL_" b "(%d):%s(%d)] " f "\n",	\
+			getpid(), __FILE__, __LINE__, ##x)
+#define TPL_DEBUG(f, x...)								\
+	fprintf(stderr,	"[TPL_D(%d):%s(%d)] " f "\n",		\
+			getpid(), __func__, __LINE__, ##x)
+#else /* LOG_DEFAULT_ENABLE */
+/*
+ * TPL_LOG_LEVEL
+ * export TPL_LOG_LEVEL=[lvl]
+ * -1: uninitialized.
+ * 0: initialized but do not print any log.
+ * 1: enable only frontend API logs. TPL_LOG_F
+ * 2: enable also backend API logs. TPL_LOG_B (detail info about window system)
+ * 3: enable also debug logs. TPL_DEBUG
+ * 4: enable only debug logs. TPL_DEBUG
+ */
+#define LOG_INIT()										\
 	{													\
-		if (tpl_log_lvl == lvl)							\
-		{												\
-			TPL_LOG_PRINT(f, ##x)						\
-		}												\
-		else if (tpl_log_lvl > 1 && tpl_log_lvl <=5 )	\
-		{												\
-			if (tpl_log_lvl <= lvl)						\
-				TPL_LOG_PRINT(f, ##x)					\
-		}												\
-		else if (tpl_log_lvl > 5)						\
-		{												\
-			if (tpl_log_lvl == lvl)						\
-				TPL_LOG_PRINT(f, ##x)					\
-		}												\
-		else											\
+		if (!tpl_log_initialized)						\
 		{												\
 			char *env = getenv("TPL_LOG_LEVEL");		\
 			if (env == NULL)							\
-				tpl_log_lvl = 1;						\
+				tpl_log_lvl = 0;						\
 			else										\
 				tpl_log_lvl = atoi(env);				\
-														\
-			if (tpl_log_lvl > 1 && tpl_log_lvl <= 5)	\
-			{											\
-				if (tpl_log_lvl <= lvl)					\
-					TPL_LOG_PRINT(f, ##x)				\
-			} else if (tpl_log_lvl > 5) {				\
-				if (tpl_log_lvl == lvl)					\
-					TPL_LOG_PRINT(f, ##x)				\
-			}											\
+			tpl_log_initialized = 1;					\
 		}												\
 	}
-#endif
-#define TPL_LOG_PRINT(fmt, args...)										\
-	{																	\
-		LOGE("[\x1b[36mTPL\x1b[0m] \x1b[36m" fmt "\x1b[0m\n", ##args);	\
+
+#define TPL_LOG_F(f, x...)								\
+	{													\
+		LOG_INIT();										\
+		if (tpl_log_lvl > 0 && tpl_log_lvl < 4)			\
+			fprintf(stderr, "[TPL_F(%d):%s(%d)] " f "\n",\
+					getpid(), __func__, __LINE__, ##x);	\
 	}
 
-#define TPL_ERR(f, x...)												\
-	{																	\
-		LOGE("[\x1b[31mTPL_ERR\x1b[0m] \x1b[31m" f "\x1b[0m\n", ##x);	\
+#define TPL_LOG_B(b, f, x...)								\
+	{														\
+		LOG_INIT();											\
+		if (tpl_log_lvl > 1 && tpl_log_lvl < 4)				\
+			fprintf(stderr,	"[TPL_" b "(%d):%s(%d)] " f "\n",\
+					getpid(), __FILE__, __LINE__, ##x);		\
 	}
 
-#define TPL_WARN(f, x...)												\
-	{																	\
-		LOGW("[\x1b[33mTPL_WARN\x1b[0m] \x1b[33m" f "\x1b[0m\n", ##x);	\
+#define TPL_DEBUG(f, x...)								\
+	{													\
+		LOG_INIT();										\
+		if (tpl_log_lvl > 2)							\
+			fprintf(stderr,	"[TPL_D(%d):%s(%d)] " f "\n",\
+					getpid(), __func__, __LINE__, ##x);	\
 	}
 
-#else
-#define TPL_LOG(lvl, f, x...)
+#endif /* LOG_DEFAULT_ENABLE */
+
+#define TPL_ERR(f, x...)								\
+	fprintf(stderr,										\
+			"[TPL_ERR(%d):%s(%d)] " f "\n",				\
+			getpid(), __func__, __LINE__, ##x)
+
+#define TPL_WARN(f, x...)								\
+	fprintf(stderr,										\
+			"[TPL_WARN(%d):%s(%d)] " f "\n",			\
+			getpid(), __func__, __LINE__, ##x)
+#endif /* DLOG_DEFAULT_ENABLE */
+#else /* NDEBUG */
+#define TPL_LOG_F(f, x...)
+#define TPL_LOG_B(b, f, x...)
+#define TPL_DEBUG(f, x...)
 #define TPL_ERR(f, x...)
 #define TPL_WARN(f, x...)
-#endif
+#endif /* NDEBUG */
 
 #define TPL_CHECK_ON_NULL_RETURN(exp)							\
-	do															\
 	{															\
 		if ((exp) == NULL)										\
 		{														\
 			TPL_ERR("%s", "check failed: " # exp " == NULL");	\
 			return;												\
 		}														\
-	}															\
-	while (0)
+	}
 
 #define TPL_CHECK_ON_NULL_RETURN_VAL(exp, val)					\
-	do															\
 	{															\
 		if ((exp) == NULL)										\
 		{														\
 			TPL_ERR("%s", "check failed: " # exp " == NULL");	\
 			return (val);										\
 		}														\
-	}															\
-	while (0)
+	}
 
 #define TPL_CHECK_ON_NULL_GOTO(exp, label)						\
-	do															\
 	{															\
 		if ((exp) == NULL)										\
 		{														\
 			TPL_ERR("%s", "check failed: " # exp " == NULL");	\
 			goto label;											\
 		}														\
-	}															\
-	while (0)
+	}
 
 #define TPL_CHECK_ON_TRUE_RETURN(exp)							\
-	do															\
 	{															\
 		if (exp)												\
 		{														\
 			TPL_ERR("%s", "check failed: " # exp " is true");	\
 			return;												\
 		}														\
-	}															\
-	while (0)
+	}
 
 #define TPL_CHECK_ON_TRUE_RETURN_VAL(exp, val)					\
-	do															\
 	{															\
 		if (exp)												\
 		{														\
 			TPL_ERR("%s", "check failed: " # exp " is true");	\
 			return val;											\
 		}														\
-	}															\
-	while (0)
+	}
 
-#define TPL_CHECK_ON_TRUE_GOTO(exp, label)						\
-	do															\
+#define TPL_CHECK_ON_TRUE_GOTO(exp, label)				        \
 	{															\
 		if (exp)												\
 		{														\
-			TPL_ERR("%s", "check failed: " # exp " is true");	\
+			TPL_ERR("%s", "check failed: " # exp " is true");   \
 			goto label;											\
 		}														\
-	}															\
-	while (0)
+	}
 
 #define TPL_CHECK_ON_FALSE_RETURN(exp)							\
-	do															\
 	{															\
 		if (!(exp))												\
 		{														\
 			TPL_ERR("%s", "check failed: " # exp " is false");	\
 			return;												\
 		}														\
-	}															\
-	while (0)
+	}
 
 #define TPL_CHECK_ON_FALSE_RETURN_VAL(exp, val)					\
-	do															\
 	{															\
 		if (!(exp))												\
 		{														\
 			TPL_ERR("%s", "check failed: " # exp " is false");	\
 			return val;											\
 		}														\
-	}															\
-	while (0)
+	}
 
 #define TPL_CHECK_ON_FALSE_GOTO(exp, label)						\
-	do															\
 	{															\
 		if (!(exp))												\
 		{														\
 			TPL_ERR("%s", "check failed: " # exp " is false");	\
 			goto label;											\
 		}														\
-	}															\
-	while (0)
+	}
 
 #define TPL_CHECK_ON_FALSE_ASSERT_FAIL(exp, mesg)	\
-	do												\
 	{												\
 		if (!(exp))									\
 		{											\
 			TPL_ERR("%s", mesg);					\
 			assert(0);								\
 		}											\
-	}												\
-	while (0)
+	}
 
 #define TPL_IMAGE_DUMP(data, width, height, num)										\
 	{																					\
@@ -814,7 +821,7 @@ __tpl_util_image_dump(const char *func, const void *data, int type,
 
 	if (mkdir (path_name, 0755) == -1) {
 		if (errno != EEXIST) {
-			TPL_LOG(3, "Directory creation error!");
+			TPL_ERR("Directory creation error!");
 			return;
 		}
 	}
@@ -826,14 +833,14 @@ __tpl_util_image_dump(const char *func, const void *data, int type,
 		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
 		switch (__tpl_util_image_dump_bmp(name, data, width, height)) {
 		case 0:
-			TPL_LOG(6, "%s file is dumped\n", name);
+			TPL_DEBUG("%s file is dumped\n", name);
 			break;
 		case -1:
-			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n",
+			TPL_ERR("Dump failed..internal error (data = %p)(width = %d)(height = %d)\n",
 					data, width, height);
 			break;
 		case -2:
-			TPL_LOG(6, "Dump failed..file pointer error\n");
+			TPL_ERR("Dump failed..file pointer error\n");
 			break;
 		}
 	}
@@ -845,14 +852,14 @@ __tpl_util_image_dump(const char *func, const void *data, int type,
 		/*snprintf(name, sizeof(name), "[%d][%04d]", getpid(), num);*/
 		switch (__tpl_util_image_dump_png(name, data, width, height)) {
 		case 0:
-			TPL_LOG(6, "%s file is dumped\n", name);
+			TPL_DEBUG("%s file is dumped\n", name);
 			break;
 		case -1:
-			TPL_LOG(6, "Dump failed..internal error (data = %p)(width = %d)(height = %d)\n",
+			TPL_ERR("Dump failed..internal error (data = %p)(width = %d)(height = %d)\n",
 					data, width, height);
 			break;
 		case -2:
-			TPL_LOG(6, "Dump failed..file pointer error\n");
+			TPL_ERR("Dump failed..file pointer error\n");
 			break;
 		}
 	}

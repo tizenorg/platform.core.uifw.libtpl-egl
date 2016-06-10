@@ -192,9 +192,6 @@ __tpl_tbm_surface_init(tpl_surface_t *surface)
 										 __tpl_tbm_surface_queue_notify_cb,
 										 surface);
 
-		TPL_LOG(3, "window(%p, %p) %dx%d", surface,
-				surface->native_handle, surface->width, surface->height);
-
 		return TPL_ERROR_NONE;
 	} else if (surface->type == TPL_SURFACE_TYPE_PIXMAP) {
 		if (__tpl_tbm_display_get_pixmap_info(surface->display,
@@ -208,8 +205,6 @@ __tpl_tbm_surface_init(tpl_surface_t *surface)
 
 		tbm_surface_internal_ref((tbm_surface_h)surface->native_handle);
 
-		TPL_LOG(3, "pixmap(%p, %p) %dx%d", surface,
-				surface->native_handle, surface->width, surface->height);
 		return TPL_ERROR_NONE;
 	}
 
@@ -225,10 +220,6 @@ __tpl_tbm_surface_fini(tpl_surface_t *surface)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
-
-	TPL_LOG(3, "%s(%p, %p)",
-			((surface->type == TPL_SURFACE_TYPE_WINDOW) ? "window" : "pixmap"),
-			surface, surface->native_handle);
 
 	if (surface->type == TPL_SURFACE_TYPE_PIXMAP)
 		tbm_surface_internal_unref((tbm_surface_h)surface->native_handle);
@@ -254,7 +245,7 @@ __tpl_tbm_surface_enqueue_buffer(tpl_surface_t *surface,
 	TPL_IGNORE(rects);
 
 	if (!tbm_surface_internal_is_valid(tbm_surface)) {
-		TPL_ERR("Failed to enqueue tbm_surface(%p) Invalid value.");
+		TPL_ERR("Failed to enqueue tbm_surface(%p) Invalid value.",tbm_surface);
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
 
@@ -265,8 +256,6 @@ __tpl_tbm_surface_enqueue_buffer(tpl_surface_t *surface,
 				surface->native_handle);
 		return TPL_ERROR_INVALID_PARAMETER;
 	}
-
-	TPL_LOG(3, "window(%p, %p)", surface, surface->native_handle);
 
 	tbm_surface_queue_h tbm_queue = (tbm_surface_queue_h)surface->native_handle;
 
