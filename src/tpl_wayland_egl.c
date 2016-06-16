@@ -702,7 +702,7 @@ __tpl_wayland_egl_surface_wait_dequeuable(tpl_surface_t *surface)
 	if (tbm_surface_queue_can_dequeue(wayland_egl_surface->tbm_queue, 0))
 		return TPL_ERROR_NONE;
 
-	tbm_surface_queue_get_buffers(wayland_egl_surface->tbm_queue, buffers, &num);
+	tbm_surface_queue_get_surfaces(wayland_egl_surface->tbm_queue, buffers, &num);
 	if (num == 0)
 	{
 		TPL_ERR("tbm_queue(%p) has no buffer", wayland_egl_surface->tbm_queue);
