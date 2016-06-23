@@ -790,10 +790,6 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 		height = wl_egl_window->height;
 		format = tbm_surface_queue_get_format(wayland_egl_surface->tbm_queue);
 
-		/* TODO: In dequeue_buffer case, does it explictly need on unref of current_buffer? */
-		if (wayland_egl_surface->current_buffer)
-			tbm_surface_internal_unref(wayland_egl_surface->current_buffer);
-
 		tbm_surface_queue_reset(wayland_egl_surface->tbm_queue, width, height, format);
 		wayland_egl_surface->resized = TPL_FALSE;
 		surface->width = width;
