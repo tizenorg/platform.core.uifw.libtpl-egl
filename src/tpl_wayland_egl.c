@@ -319,6 +319,10 @@ __cb_tbm_surface_queue_reset_callback(tbm_surface_queue_h surface_queue,
 
 	if (!wayland_egl_surface) return;
 
+	TPL_LOG_B("WL_EGL",
+			  "[QUEUE_RESET_CB] tpl_wayland_egl_surface_t(%p) surface_queue(%p)",
+			  data, surface_queue);
+
 	wayland_egl_surface->reset = TPL_TRUE;
 }
 
@@ -582,7 +586,6 @@ __tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
 										 0, /* asynchronous */
 										 __cb_tdm_client_wait_vblank, /* handler */
 										 surface->backend.data); /* user_data */
-		TPL_DEBUG("tdm_client(%p)",wayland_egl_display->tdm_client);
 		if (tdm_err == TDM_CLIENT_ERROR_NONE)
 			wayland_egl_surface->vblank_done = TPL_FALSE;
 		else
@@ -720,6 +723,21 @@ __tpl_wayland_egl_surface_wait_dequeuable(tpl_surface_t *surface)
 		wayland_egl_buffer = __tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(buffers[i]);
 		if (wayland_egl_buffer && wayland_egl_buffer->wl_proxy)
 			wl_proxy_set_queue(wayland_egl_buffer->wl_proxy, queue);
+	}
+
+	wl_display_dispatch_pending((struct wl_display *)surface->display->native_handle);
+
+	if (tbm_surface_queue_can_dequeue(wayland_egl_surface->tbm_queue, 0))
+	{
+		for (i=0; i<num; i++) {
+			wayland_egl_buffer = __tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(buffers[i]);
+			if (wayland_egl_buffer && wayland_egl_buffer->wl_proxy)
+				wl_proxy_set_queue(wayland_egl_buffer->wl_proxy, NULL);
+		}
+
+		wl_event_queue_destroy(queue);
+
+		return TPL_ERROR_NONE;
 	}
 
 	TRACE_BEGIN("WAITING FOR DEQUEUEABLE");
@@ -860,7 +878,7 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 					  tbm_bo_export(wayland_egl_buffer->bo));
 	TPL_LOG_B("WL_EGL",
               "[DEQ][N] tpl_wayland_egl_buffer_t(%p) wl_buffer(%p) tbm_surface(%p) bo(%d)",
-              wayland_egl_surface, wayland_egl_buffer->wl_proxy, tbm_surface,
+              wayland_egl_buffer, wayland_egl_buffer->wl_proxy, tbm_surface,
               tbm_bo_export(wayland_egl_buffer->bo));
 
 	return tbm_surface;
