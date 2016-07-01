@@ -133,7 +133,7 @@ __tpl_wayland_egl_display_init(tpl_display_t *display)
 	display->bufmgr_fd = -1;
 
 	if (__tpl_wayland_egl_display_is_wl_display(display->native_handle)) {
-		tdm_client_error tdm_err = 0;
+		tdm_error tdm_err = 0;
 		struct wl_display *wl_dpy =
 			(struct wl_display *)display->native_handle;
 		wayland_egl_display->wl_tbm_client =
@@ -468,7 +468,7 @@ static void
 __tpl_wayland_egl_surface_wait_vblank(tpl_surface_t *surface)
 {
 	int fd = -1;
-	tdm_client_error tdm_err = 0;
+	tdm_error tdm_err = 0;
 	int ret;
 	struct pollfd fds;
 
@@ -479,7 +479,7 @@ __tpl_wayland_egl_surface_wait_vblank(tpl_surface_t *surface)
 
 	tdm_err = tdm_client_get_fd(wayland_egl_display->tdm_client, &fd);
 
-	if (tdm_err != TDM_CLIENT_ERROR_NONE || fd < 0) {
+	if (tdm_err != TDM_ERROR_NONE || fd < 0) {
 		TPL_ERR("Failed to tdm_client_get_fd | tdm_err = %d", tdm_err);
 	}
 
@@ -500,7 +500,7 @@ __tpl_wayland_egl_surface_wait_vblank(tpl_surface_t *surface)
 
 		tdm_err = tdm_client_handle_events(wayland_egl_display->tdm_client);
 
-		if (tdm_err != TDM_CLIENT_ERROR_NONE) {
+		if (tdm_err != TDM_ERROR_NONE) {
 			TPL_ERR("Failed to tdm_client_handle_events.");
 		}
 
@@ -530,7 +530,7 @@ __tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
 		(tpl_wayland_egl_display_t *) surface->display->backend.data;
 	tpl_wayland_egl_surface_t *wayland_egl_surface =
 		(tpl_wayland_egl_surface_t *) surface->backend.data;
-	tdm_client_error tdm_err = 0;
+	tdm_error tdm_err = 0;
 
 	wayland_egl_buffer =
 		__tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface);
@@ -586,7 +586,7 @@ __tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
 										 0, /* asynchronous */
 										 __cb_tdm_client_wait_vblank, /* handler */
 										 surface->backend.data); /* user_data */
-		if (tdm_err == TDM_CLIENT_ERROR_NONE)
+		if (tdm_err == TDM_ERROR_NONE)
 			wayland_egl_surface->vblank_done = TPL_FALSE;
 		else
 			TPL_ERR ("Failed to tdm_client_wait_vblank. error:%d", tdm_err);
