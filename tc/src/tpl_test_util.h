@@ -46,7 +46,7 @@ struct _TPLNativeWnd {
 	int depth;
 	tpl_display_t *tpl_display;
 	tpl_surface_t *tpl_surf;
-	tpl_buffer_t *tpl_buf;
+	tbm_surface_h tbm_surf;
 };
 
 typedef struct _TPLTest TPLTest;
@@ -63,80 +63,53 @@ extern int tpl_test_log_level;
 #define LOG_LEVEL_HIGH 3
 
 #define LOG(type,level, format, ...) \
-    do { \
-       if(level>=minLevel) fprintf(stderr, "[%s|%22s:%3d] " format "\n", \
-		type, __FILE__, __LINE__, ##__VA_ARGS__ ); \
-    } while (0)
+	do { \
+		if(level>=minLevel) fprintf(stderr, "[%s|%22s:%3d] " format "\n", \
+			type, __FILE__, __LINE__, ##__VA_ARGS__); \
+	} while (0)
 
 #define LONGLOG(type,level, format, ...) \
-    do { \
-       if(level>=minLevel) fprintf(stderr, "[%s|%s@%s:%d] " format "\n", \
-		type, __func__, __FILE__, __LINE__, ##__VA_ARGS__ ); \
-    } while (0)
-
-
+	do { \
+		if(level>=minLevel) fprintf(stderr, "[%s|%s@%s:%d] " format "\n", \
+			type, __func__, __FILE__, __LINE__, ##__VA_ARGS__); \
+	} while (0)
 
 
 /* for tpl test */
-bool tpl_buffer_map_unmap_test(TPLNativeWnd *wnd );
-bool tpl_buffer_lock_unlock_test(TPLNativeWnd *wnd );
-bool tpl_buffer_get_arg_test(TPLNativeWnd *wnd );
-bool tpl_buffer_create_native_buffer_test(TPLNativeWnd *wnd );
-
+bool tpl_display_create_test (TPLNativeWnd *wnd);
 bool tpl_display_get_test (TPLNativeWnd *wnd);
-bool tpl_display_bind_client_display_test(TPLNativeWnd *wnd);
-bool tpl_display_get_arg_test (TPLNativeWnd *wnd);
+bool tpl_display_get_native_handle_test (TPLNativeWnd *wnd);
 bool tpl_display_query_config_test (TPLNativeWnd *wnd);
 bool tpl_display_filter_config_test (TPLNativeWnd *wnd);
 
-bool tpl_object_get_type_test(TPLNativeWnd *wnd );
-bool tpl_object_userdata_test(TPLNativeWnd *wnd );
-bool tpl_object_reference_test(TPLNativeWnd *wnd );
+bool tpl_object_get_type_test(TPLNativeWnd* wnd);
+bool tpl_object_userdata_test(TPLNativeWnd* wnd);
+bool tpl_object_reference_test(TPLNativeWnd* wnd);
 
-bool tpl_surface_create_test(TPLNativeWnd *wnd);
-bool tpl_surface_get_arg_test(TPLNativeWnd *wnd);
-bool tpl_surface_frame_test(TPLNativeWnd *wnd);
-bool tpl_surface_get_buffer_test(TPLNativeWnd *wnd );
-bool tpl_surface_post_test(TPLNativeWnd *wnd );
+bool tpl_surface_create_test(TPLNativeWnd* wnd);
+bool tpl_surface_validate_test(TPLNativeWnd* wnd);
+bool tpl_surface_get_arg_test(TPLNativeWnd* wnd);
+bool tpl_surface_dequeue_and_enqueue_buffer_test(TPLNativeWnd* wnd);
 
-bool tpl_surface_abnormal_test(TPLNativeWnd *wnd);
-bool tpl_object_abnormal_test(TPLNativeWnd *wnd);
-bool tpl_display_abnormal_test(TPLNativeWnd *wnd);
-bool tpl_buffer_abnormal_test(TPLNativeWnd *wnd);
-
-bool tpl_surface_stress_test(TPLNativeWnd *wnd );
-bool tpl_buffer_stress_test(TPLNativeWnd *wnd );
 
 static TPLTest tpl_test[] = {
-	{ "Check TPL buffer map and unmap", tpl_buffer_map_unmap_test },
-	{ "Check TPL buffer lock and unlock",  tpl_buffer_lock_unlock_test },
-	{ "Check TPL buffer get args",	      tpl_buffer_get_arg_test },
-	{ "TPL buffer create native buffer test", tpl_buffer_create_native_buffer_test },
-	{ "TPL buffer stress test", tpl_buffer_stress_test },
+	{"TPL display create test", tpl_display_create_test},
+	{"TPL display get test", tpl_display_get_test},
+	{"TPL display get native handle test", tpl_display_get_native_handle_test},
+	{"TPL display query config test", tpl_display_query_config_test},
+	{"TPL display filter config test", tpl_display_filter_config_test},
 
-	{ "TPL display get test", tpl_display_get_test },
-	//{ "Check TPL display bind client display",tpl_display_bind_client_display_test },/*5*/
-	{ "Check TPL display get args", tpl_display_get_arg_test },
-	{ "TPL display query config test", tpl_display_query_config_test },
-	{ "TPL display filter config test", tpl_display_filter_config_test },
+	{"TPL object get types test", tpl_object_get_type_test},
+	{"TPL object set and get userdata test", tpl_object_userdata_test},
+	{"TPL object reference and unreference test", tpl_object_reference_test},
 
-	{ "Check TPL object get types", tpl_object_get_type_test },
-	{ "Check TPL object set and get userdate", tpl_object_userdata_test },
-	{ "Check TPL object reference and unreference", tpl_object_reference_test },
+	{"TPL surface create test", tpl_surface_create_test},
+	{"TPL surface validate test", tpl_surface_validate_test},
+	{"TPL surface get args test", tpl_surface_get_arg_test},
+	{"TPL surface dequeue and buffer test",
+		tpl_surface_dequeue_and_enqueue_buffer_test},
 
-	{ "Check TPL surface create", tpl_surface_create_test },
-	{ "Check TPL surface get args", tpl_surface_get_arg_test },
-	{ "Check TPL surface frame operation" ,  tpl_surface_frame_test },
-	{ "TPL surface get buffer test", tpl_surface_get_buffer_test }, /*15*/
-	{ "TPL surface post test", tpl_surface_post_test },
-	{ "TPL surface stress test", tpl_surface_stress_test },
-	/*
-		{ "TPL surface abnormal test",tpl_surface_abnormal_test },
-		{ "TPL object abnormal test",tpl_object_abnormal_test },
-		{ "TPL display abnormal test",tpl_display_abnormal_test },
-		{ "TPL buffer abnormal test",tpl_buffer_abnormal_test },
-	*/
-	{ NULL, NULL }
+	{NULL, NULL}
 
 };
 
@@ -151,12 +124,12 @@ static TPLTest tpl_test[] = {
  * time
  *-----------------------------------------------------------------*/
 #define HAVE_MONOTONIC_CLOCK 1
-#define __SEC_TO_USEC( sec ) ((sec) * 1000000)
-#define __USEC_TO_SEC( usec ) ((float)(usec) * 1.0e-6f)
-#define __MSEC_TO_SEC( usec ) ((float)(usec) * 1.0e-3f)
-long int tpl_test_util_get_systime( void );
-void tpl_test_util_init_fps( long int *s_time );
-float tpl_test_util_get_fps( long int s_time, int frame );
+#define __SEC_TO_USEC(sec) ((sec) * 1000000)
+#define __USEC_TO_SEC(usec) ((float)(usec) * 1.0e-6f)
+#define __MSEC_TO_SEC(usec) ((float)(usec) * 1.0e-3f)
+long int tpl_test_util_get_systime(void);
+void tpl_test_util_init_fps(long int *s_time);
+float tpl_test_util_get_fps(long int s_time, int frame);
 
 /*-----------------------------------------------------------------
  * performance measurement
@@ -186,33 +159,33 @@ struct _GfxUtilTimer {
 #endif
 };
 
-# define __TPL_TIMER_GLOBAL_BEGIN( timer, msg ) \
-	tpl_test_util_timer_begin( timer, __func__, __LINE__, msg );
-# define __TPL_TIMER_GLOBAL_END( timer, msg ) \
-	tpl_test_util_timer_end( timer, __func__, __LINE__, msg );
+# define __TPL_TIMER_GLOBAL_BEGIN(timer, msg) \
+	tpl_test_util_timer_begin(timer, __func__, __LINE__, msg);
+# define __TPL_TIMER_GLOBAL_END(timer, msg) \
+	tpl_test_util_timer_end(timer, __func__, __LINE__, msg);
 
-# define __TPL_TIMER_BEGIN( msg ) \
+# define __TPL_TIMER_BEGIN(msg) \
 	GfxUtilTimer __timer = { false, 0, 0 }; \
-	tpl_test_util_timer_begin( &__timer, __func__, __LINE__, msg );
-# define __TPL_TIMER_END( msg ) \
-	tpl_test_util_timer_end( &__timer, __func__, __LINE__, msg );
+	tpl_test_util_timer_begin(&__timer, __func__, __LINE__, msg);
+# define __TPL_TIMER_END(msg) \
+	tpl_test_util_timer_end(&__timer, __func__, __LINE__, msg);
 
-void		tpl_test_util_timer_list_display( void );
-void		tpl_test_util_timer_release( GfxUtilTimer *timer );
-GfxUtilTimer	*tpl_test_util_timer_copy( GfxUtilTimer *src, const char *func,
-		int line, const char *msg );
-void		tpl_test_util_timer_list_clear( void );
-void		tpl_test_util_timer_begin( GfxUtilTimer *timer, const char *func,
-		int line, const char *msg );
-void		tpl_test_util_timer_end( GfxUtilTimer *timer, const char *func, int line,
-		const char *msg );
+void tpl_test_util_timer_list_display(void);
+void tpl_test_util_timer_release(GfxUtilTimer *timer);
+GfxUtilTimer *tpl_test_util_timer_copy(GfxUtilTimer *src, const char *func,
+									   int line, const char *msg);
+void tpl_test_util_timer_list_clear(void);
+void tpl_test_util_timer_begin(GfxUtilTimer *timer, const char *func,
+							   int line, const char *msg);
+void tpl_test_util_timer_end(GfxUtilTimer *timer, const char *func, int line,
+							 const char *msg);
 #else
-# define __TPL_TIMER_GLOBAL_BEGIN( ... ) { ; }
-# define __TPL_TIMER_GLOBAL_END( ... ) { ; }
-# define __TPL_TIMER_BEGIN( ... ) { ; }
-# define __TPL_TIMER_END( ... ) { ; }
-# define tpl_test_util_timer_list_display( ... ) { ; }
-# define tpl_test_util_timer_list_clear( ... ) { ; }
+# define __TPL_TIMER_GLOBAL_BEGIN(...) { ; }
+# define __TPL_TIMER_GLOBAL_END(...) { ; }
+# define __TPL_TIMER_BEGIN(...) { ; }
+# define __TPL_TIMER_END(...) { ; }
+# define tpl_test_util_timer_list_display(...) { ; }
+# define tpl_test_util_timer_list_clear(...) { ; }
 #endif
 
 
@@ -229,56 +202,56 @@ void		tpl_test_util_timer_end( GfxUtilTimer *timer, const char *func, int line,
 #define DEFAULT_LOG_STREAM stderr
 
 #define __log_err(fmt, args...) __LOG_ERR(__func__, __LINE__, fmt, ##args)
-bool __LOG_ERR( const char *func, int line, const char *fmt, ... );
-bool __tpl_test_log_display_msg( const char *msg );
+bool __LOG_ERR(const char *func, int line, const char *fmt, ...);
+bool __tpl_test_log_display_msg(const char *msg);
 
 
 
 #if TPL_ENABLE_LOG
 # define __log(fmt, args...) __LOG(__func__, __LINE__, fmt, ##args)
-# define __log_begin( ... ) __LOG_BEGIN(__func__);
-# define __log_end( ... ) __LOG_END(__func__);
-bool __LOG( const char *func, int line, const char *fmt, ... );
-void __LOG_BEGIN( const char *func );
-void __LOG_END( const char *func );
+# define __log_begin(...) __LOG_BEGIN(__func__);
+# define __log_end(...) __LOG_END(__func__);
+bool __LOG(const char *func, int line, const char *fmt, ...);
+void __LOG_BEGIN(const char *func);
+void __LOG_END(const char *func);
 #else
-# define __log( ... ) { ; }
-# define __log_begin( ... ) { ; }
-# define __log_end( ... ) { ; }
-# define __LOG( ... ) { ; }
-# define __LOG_BEGIN( ... ) { ; }
-# define __LOG_END( ... ) { ; }
+# define __log(...) { ; }
+# define __log_begin(...) { ; }
+# define __log_end(...) { ; }
+# define __LOG(...) { ; }
+# define __LOG_BEGIN(...) { ; }
+# define __LOG_END(...) { ; }
 #endif
 
 
 /*-----------------------------------------------------------------
  * validation
  *-----------------------------------------------------------------*/
-#define TPL_RSM_MALLOC( obj, type ) \
+#define TPL_RSM_MALLOC(obj, type) \
 	{ \
-		obj = (type*)malloc( sizeof(type) ); \
-		if( !obj ) \
+		obj = (type*)malloc(sizeof(type)); \
+		if(!obj) \
 		{ \
-			__log_err( "failed to allocate memory" ); \
+			__log_err("failed to allocate memory"); \
 			goto finish; \
 		} \
 	}
 
-#define TPL_RSM_FREE( obj ) \
+#define TPL_RSM_FREE(obj) \
 	{ \
-		free( obj ); \
+		free(obj); \
 	}
 
-#define TPL_RSM_MEMCPY( dst, src, type, num ) \
+#define TPL_RSM_MEMCPY(dst, src, type, num) \
 	{ \
-		memcpy( dst, src, sizeof(type) * num ); \
+		memcpy(dst, src, sizeof(type) * num); \
 	}
 
-#define	TPL_CHK_PARAM( exp ) \
+#define TPL_CHK_PARAM(exp) \
 	{ \
-		if( exp ) \
+		if(exp) \
 		{ \
-			__log_err( "invalid input parameter. '"#exp"' is true" ); \
+			__log_err("invalid input parameter. '"#exp"' is true"); \
 			goto finish; \
 		} \
 	}
