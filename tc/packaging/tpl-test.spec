@@ -1,20 +1,16 @@
 Name:       tpl-test
-Summary:    test for tpl
+Summary:    Test module for tpl
 Version:	0.0.1
-Release:    01
-Group:      System/X Hardware Support
+Release:    1
+Group:      Graphics & UI Framework/GL
 License:    Samsung
 Source0:    %{name}-%{version}.tar.gz
-BuildRequires:  pkgconfig(libdrm)
-BuildRequires:  pkgconfig(libudev)
 BuildRequires:  pkgconfig(libtbm)
 BuildRequires:  pkgconfig(gbm)
-BuildRequires:  pkgconfig(wayland-client)
 BuildRequires:  libwayland-egl-devel
 BuildRequires:  libtpl-egl-devel
 %description
-The Simple Test Cases
-
+Test module for testing TPL frontend APIs
 
 %prep
 %setup -q
@@ -28,6 +24,5 @@ mkdir -p %{buildroot}/opt/usr/tpl-test
 cp -arp ./tpl-test 		%{buildroot}/opt/usr/tpl-test
 
 %files
-%manifest tpl-test.manifest
 %defattr(-,root,root,-)
 /opt/usr/tpl-test/*

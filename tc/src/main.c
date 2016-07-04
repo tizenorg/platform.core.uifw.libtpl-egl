@@ -195,7 +195,6 @@ tpl_test_native_wnd_create( void )
 	wnd->depth = 0;
 	tpl_display_t *tpl_display = NULL;
 	tpl_surface_t *tpl_surf = NULL;
-	tpl_buffer_t *tpl_buf = NULL;
 finish:
 	return wnd;
 }
@@ -250,6 +249,26 @@ finish:
 }
 
 bool
+tpl_test_finalize( TPLNativeWnd *wnd )
+{
+	bool res = true;
+
+	TPL_CHK_PARAM( !wnd );
+
+	if (NULL != wnd->tpl_surf) {
+		tpl_object_unreference((tpl_object_t *)wnd->tpl_surf);
+	}
+	if (NULL != wnd->tpl_display) {
+		tpl_object_unreference((tpl_object_t *)wnd->tpl_display);
+	}
+
+
+	res = true;
+finish:
+	return res;
+}
+
+bool
 tpl_test_native_wnd_finalize( TPLNativeWnd *wnd )
 {
 	bool res = false;
@@ -264,39 +283,17 @@ tpl_test_native_wnd_finalize( TPLNativeWnd *wnd )
 		wl_surface_destroy(wnd->surface);
 	if (wnd->shell)
 		wl_shell_destroy(wnd->shell);
-
 	if (wnd->compositor)
 		wl_compositor_destroy(wnd->compositor);
 
 	wl_registry_destroy(wnd->registry);
 	wl_display_flush(wnd->dpy);
 	wl_display_disconnect(wnd->dpy);
-	//XCloseDisplay( (Display*)wnd->dpy );
 
 	res = true;
 finish:
 	return res;
 }
-
-bool
-tpl_test_finalize( TPLNativeWnd *wnd )
-{
-	bool res = true;
-
-	TPL_CHK_PARAM( !wnd );
-
-	if (NULL != wnd->tpl_display) {
-		tpl_object_unreference((tpl_object_t *)wnd->tpl_display);
-	}
-	if (NULL != wnd->tpl_surf) {
-		tpl_object_unreference((tpl_object_t *)wnd->tpl_surf);
-	}
-
-	res = true;
-finish:
-	return res;
-}
-
 
 void
 tpl_test_native_wnd_release( TPLNativeWnd *wnd )
@@ -430,7 +427,7 @@ check_option( int argc, char **argv )
 
 }
 
-int tpl_test_log_level = 5;
+int tpl_test_log_level = 1;
 
 int
 main( int argc, char **argv )
@@ -524,9 +521,9 @@ main( int argc, char **argv )
 
 finish:
 	if ( wnd ) {
+		tpl_test_finalize( wnd );
 		tpl_test_native_wnd_finalize( wnd );
 		tpl_test_native_wnd_release( wnd );
-		tpl_test_finalize( wnd );
 	}
 
 

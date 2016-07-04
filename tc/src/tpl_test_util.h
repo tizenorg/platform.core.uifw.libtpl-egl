@@ -46,7 +46,7 @@ struct _TPLNativeWnd {
 	int depth;
 	tpl_display_t *tpl_display;
 	tpl_surface_t *tpl_surf;
-	tpl_buffer_t *tpl_buf;
+    tbm_surface_h tbm_surf;
 };
 
 typedef struct _TPLTest TPLTest;
@@ -75,68 +75,40 @@ extern int tpl_test_log_level;
     } while (0)
 
 
-
-
 /* for tpl test */
-bool tpl_buffer_map_unmap_test(TPLNativeWnd *wnd );
-bool tpl_buffer_lock_unlock_test(TPLNativeWnd *wnd );
-bool tpl_buffer_get_arg_test(TPLNativeWnd *wnd );
-bool tpl_buffer_create_native_buffer_test(TPLNativeWnd *wnd );
-
+bool tpl_display_create_test (TPLNativeWnd *wnd);
 bool tpl_display_get_test (TPLNativeWnd *wnd);
-bool tpl_display_bind_client_display_test(TPLNativeWnd *wnd);
-bool tpl_display_get_arg_test (TPLNativeWnd *wnd);
+bool tpl_display_get_native_handle_test (TPLNativeWnd *wnd);
 bool tpl_display_query_config_test (TPLNativeWnd *wnd);
 bool tpl_display_filter_config_test (TPLNativeWnd *wnd);
 
-bool tpl_object_get_type_test(TPLNativeWnd *wnd );
-bool tpl_object_userdata_test(TPLNativeWnd *wnd );
-bool tpl_object_reference_test(TPLNativeWnd *wnd );
+bool tpl_object_get_type_test(TPLNativeWnd* wnd);
+bool tpl_object_userdata_test(TPLNativeWnd* wnd);
+bool tpl_object_reference_test(TPLNativeWnd* wnd);
 
-bool tpl_surface_create_test(TPLNativeWnd *wnd);
-bool tpl_surface_get_arg_test(TPLNativeWnd *wnd);
-bool tpl_surface_frame_test(TPLNativeWnd *wnd);
-bool tpl_surface_get_buffer_test(TPLNativeWnd *wnd );
-bool tpl_surface_post_test(TPLNativeWnd *wnd );
+bool tpl_surface_create_test(TPLNativeWnd* wnd);
+bool tpl_surface_validate_test(TPLNativeWnd* wnd);
+bool tpl_surface_get_arg_test(TPLNativeWnd* wnd);
+bool tpl_surface_dequeue_and_enqueue_buffer_test(TPLNativeWnd* wnd);
 
-bool tpl_surface_abnormal_test(TPLNativeWnd *wnd);
-bool tpl_object_abnormal_test(TPLNativeWnd *wnd);
-bool tpl_display_abnormal_test(TPLNativeWnd *wnd);
-bool tpl_buffer_abnormal_test(TPLNativeWnd *wnd);
-
-bool tpl_surface_stress_test(TPLNativeWnd *wnd );
-bool tpl_buffer_stress_test(TPLNativeWnd *wnd );
 
 static TPLTest tpl_test[] = {
-	{ "Check TPL buffer map and unmap", tpl_buffer_map_unmap_test },
-	{ "Check TPL buffer lock and unlock",  tpl_buffer_lock_unlock_test },
-	{ "Check TPL buffer get args",	      tpl_buffer_get_arg_test },
-	{ "TPL buffer create native buffer test", tpl_buffer_create_native_buffer_test },
-	{ "TPL buffer stress test", tpl_buffer_stress_test },
-
+	{ "TPL display create test", tpl_display_create_test },
 	{ "TPL display get test", tpl_display_get_test },
-	//{ "Check TPL display bind client display",tpl_display_bind_client_display_test },/*5*/
-	{ "Check TPL display get args", tpl_display_get_arg_test },
-	{ "TPL display query config test", tpl_display_query_config_test },
-	{ "TPL display filter config test", tpl_display_filter_config_test },
+    { "TPL display get native handle test", tpl_display_get_native_handle_test },	
+    { "TPL display query config test", tpl_display_query_config_test },	
+    { "TPL display filter config test", tpl_display_filter_config_test },	
 
-	{ "Check TPL object get types", tpl_object_get_type_test },
-	{ "Check TPL object set and get userdate", tpl_object_userdata_test },
-	{ "Check TPL object reference and unreference", tpl_object_reference_test },
+    { "TPL object get types test", tpl_object_get_type_test },
+    { "TPL object set and get userdata test", tpl_object_userdata_test },
+    { "TPL object reference and unreference test", tpl_object_reference_test },
 
-	{ "Check TPL surface create", tpl_surface_create_test },
-	{ "Check TPL surface get args", tpl_surface_get_arg_test },
-	{ "Check TPL surface frame operation" ,  tpl_surface_frame_test },
-	{ "TPL surface get buffer test", tpl_surface_get_buffer_test }, /*15*/
-	{ "TPL surface post test", tpl_surface_post_test },
-	{ "TPL surface stress test", tpl_surface_stress_test },
-	/*
-		{ "TPL surface abnormal test",tpl_surface_abnormal_test },
-		{ "TPL object abnormal test",tpl_object_abnormal_test },
-		{ "TPL display abnormal test",tpl_display_abnormal_test },
-		{ "TPL buffer abnormal test",tpl_buffer_abnormal_test },
-	*/
-	{ NULL, NULL }
+    { "TPL surface create test", tpl_surface_create_test },
+    { "TPL surface validate test", tpl_surface_validate_test },
+    { "TPL surface get args test", tpl_surface_get_arg_test },
+    { "TPL surface dequeue and buffer test", tpl_surface_dequeue_and_enqueue_buffer_test },
+
+    { NULL, NULL }
 
 };
 
