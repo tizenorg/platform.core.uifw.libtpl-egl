@@ -219,6 +219,21 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 	return tbm_surface;
 }
 
+tbm_surface_h
+tpl_surface_dequeue_buffer_with_sync_fence(tpl_surface_t *surface, int *fd)
+{
+	TPL_ASSERT(surface);
+
+	tbm_surface_h ret = tpl_surface_dequeue_buffer(surface);
+
+	if (ret && fd && surface->backend.get_sync_fence)
+		*fd = surface->backend.get_sync_fence(ret);
+	else if (fd)
+		*fd = -1;
+
+	return ret;
+}
+
 tpl_result_t
 tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {

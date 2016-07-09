@@ -70,6 +70,8 @@ struct _tpl_surface_backend {
 									 tbm_format format, int width,
 									 int height, int buffer_count);
 	tpl_result_t (*destroy_swapchain)(tpl_surface_t *surface);
+
+	int (*get_sync_fence)(tbm_surface_h tbm_surface);
 };
 
 struct _tpl_object {
