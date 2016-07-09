@@ -1,0 +1,14 @@
+<protocol name="vulkan_present_mode">
+	<interface name="present_mode" version="1">
+		<enum name="present_type">
+			<entry name="IMMEDIATE" value="0"/>
+			<entry name="MAILBOX" value="1"/>
+			<entry name="FIFO" value="2"/>
+			<entry name="FIFO_RELAXED" value="3"/>
+		</enum>
+		<request name="set_present_mode">
+			<arg name="surface" type="object" interface="wl_surface" />
+			<arg name="mode" type="uint" />
+		</request>
+	</interface>
+</protocol>
