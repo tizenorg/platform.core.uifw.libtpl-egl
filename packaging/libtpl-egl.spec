@@ -69,6 +69,8 @@ BuildRequires:	pkgconfig(gbm)
 BuildRequires:	pkgconfig(libtdm-client)
 BuildRequires:	pkgconfig(wayland-tbm-client)
 BuildRequires:  pkgconfig(wayland-tbm-server)
+BuildRequires:	libsync-devel
+BuildRequires:	libsync
 %endif
 
 %if "%{ENABLE_PNG_DUMP}" == "1"

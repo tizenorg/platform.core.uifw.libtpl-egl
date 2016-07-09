@@ -458,6 +458,8 @@ tpl_surface_validate(tpl_surface_t *surface);
 tbm_surface_h
 tpl_surface_dequeue_buffer(tpl_surface_t *surface);
 
+tbm_surface_h
+tpl_surface_dequeue_buffer_with_sync_fence(tpl_surface_t *surface, int *fd);
 /**
  * Post a given tbm_surface.
  *
