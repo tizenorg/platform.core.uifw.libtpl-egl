@@ -23,12 +23,12 @@ Test module for testing libtpl-egl frontend APIs
 
 
 %build
-export GTEST_DIR="%{_builddir}/%{name}-%{version}/gtest/googletest/googletest"
+export GTEST_DIR="%{_builddir}/%{name}-%{version}/tc/gtest/googletest/googletest"
 export GTEST_INCLUDE="-I${GTEST_DIR} -I${GTEST_DIR}/include"
 export GTEST_FLAGS="-g -Wall -Wextra -pthread"
 
 # Build Google Test Framework
-cd gtest
+cd tc/gtest
 make
 
 # Build tpl-test using libgtest.a
@@ -36,14 +36,26 @@ cd ..
 make
 
 
+%pre
+if [ "$1" -eq 1 ]; then
+echo "Initial installation"
+  # Perform tasks to prepare for the initial installation
+elif [ "$1" -eq 2 ]; then
+  # Perform whatever maintenance must occur before the upgrade begins
+rm -rf /opt/usr/tpl-test
+fi
+
+
 %install
-rm -fr %{buildroot}
-
 mkdir -p %{buildroot}/opt/usr/tpl-test
-cp -arp ./tpl-test %{buildroot}/opt/usr/tpl-test
+cp -arp ./tc/tpl-test %{buildroot}/opt/usr/tpl-test
 
+
+%clean
+rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root,-)
+%dir /opt/usr/tpl-test/
 /opt/usr/tpl-test/*
 
