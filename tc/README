@@ -1,0 +1,41 @@
+tpl-test - Test module for testing libtpl-egl frontend APIs
+
+
+1. Build Instruction
+
+ - Build libtpl-egl
+   $ gbs build -A armv7l --spec=libtpl-egl.spec
+
+ - Build tpl-test:
+   $ gbs build -A armv7l --spec=tpl-test.spec
+
+ - Build all:
+   $ gbs build -A armv7l
+
+
+
+2. Install Instruction
+
+ 1) Install
+    $ rpm -ivh tpl-test-0.2.0-1.armv7l.rpm
+    (file name can be different with version change)
+
+    then tpl-test binary file will be installed on
+    /opt/usr/tpl-test
+
+
+ 2) Uninstall
+    $ rpm -e tpl-test
+
+
+
+3. Run Tests
+
+ 1) Run
+    $ cd /opt/usr/tpl-test
+    $ ./tpl-test
+
+
+ 2) Run with configuration
+    $ ./tpl-test --config.width=720 --config.height=1280 --config.depth=24
+
