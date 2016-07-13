@@ -1,0 +1,2 @@
+/home/yub/window_system/projects/tpl-test-gtest3/tc/gtest/googletest/googletest/mybuild/CMakeFiles/gtest.dir
+/home/yub/window_system/projects/tpl-test-gtest3/tc/gtest/googletest/googletest/mybuild/CMakeFiles/gtest_main.dir
