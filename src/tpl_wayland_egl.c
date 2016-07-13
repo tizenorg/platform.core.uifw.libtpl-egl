@@ -449,6 +449,7 @@ __tpl_wayland_egl_surface_fini(tpl_surface_t *surface)
 		}
 
 		wl_display_flush(surface->display->native_handle);
+		wl_display_dispatch_pending((struct wl_display *)surface->display->native_handle);
 
 		if (wayland_egl_surface->current_buffer &&
 				tbm_surface_internal_is_valid(wayland_egl_surface->current_buffer))
@@ -725,6 +726,9 @@ __tpl_wayland_egl_surface_wait_dequeuable(tpl_surface_t *surface)
 			wl_proxy_set_queue(wayland_egl_buffer->wl_proxy, queue);
 	}
 
+	if (wayland_egl_surface->wl_proxy)
+		wl_proxy_set_queue(wayland_egl_surface->wl_proxy, queue);
+
 	wl_display_dispatch_pending((struct wl_display *)surface->display->native_handle);
 
 	if (tbm_surface_queue_can_dequeue(wayland_egl_surface->tbm_queue, 0))
@@ -734,6 +738,9 @@ __tpl_wayland_egl_surface_wait_dequeuable(tpl_surface_t *surface)
 			if (wayland_egl_buffer && wayland_egl_buffer->wl_proxy)
 				wl_proxy_set_queue(wayland_egl_buffer->wl_proxy, NULL);
 		}
+
+		if (wayland_egl_surface->wl_proxy)
+			wl_proxy_set_queue(wayland_egl_surface->wl_proxy, NULL);
 
 		wl_event_queue_destroy(queue);
 
@@ -760,6 +767,9 @@ __tpl_wayland_egl_surface_wait_dequeuable(tpl_surface_t *surface)
 		if (wayland_egl_buffer && wayland_egl_buffer->wl_proxy)
 			wl_proxy_set_queue(wayland_egl_buffer->wl_proxy, NULL);
 	}
+
+	if (wayland_egl_surface->wl_proxy)
+		wl_proxy_set_queue(wayland_egl_surface->wl_proxy, NULL);
 
 	wl_event_queue_destroy(queue);
 	return ret;
