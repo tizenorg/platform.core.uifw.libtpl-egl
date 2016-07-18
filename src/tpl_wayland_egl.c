@@ -449,6 +449,7 @@ __tpl_wayland_egl_surface_fini(tpl_surface_t *surface)
 		}
 
 		wl_display_flush(surface->display->native_handle);
+		wl_display_dispatch_pending((struct wl_display *)surface->display->native_handle);
 
 		if (wayland_egl_surface->current_buffer &&
 				tbm_surface_internal_is_valid(wayland_egl_surface->current_buffer))
