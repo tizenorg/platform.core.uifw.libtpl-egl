@@ -220,24 +220,58 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 }
 
 tbm_surface_h
-tpl_surface_dequeue_buffer_with_sync_fence(tpl_surface_t *surface, int *fd)
+tpl_surface_dequeue_buffer_with_sync(tpl_surface_t *surface, uint64_t timeout, int *sync_fd)
 {
 	TPL_ASSERT(surface);
 
-	tbm_surface_h ret = tpl_surface_dequeue_buffer(surface);
+	tbm_surface_h tbm_surface = NULL;
 
-	if (ret && fd && surface->backend.get_sync_fence)
-		*fd = surface->backend.get_sync_fence(ret);
-	else if (fd)
-		*fd = -1;
+	if (!surface->backend.dequeue_buffer_with_sync) {
+		TPL_ERR("TPL surface has not been initialized correctly!");
+		return NULL;
+	}
 
-	return ret;
+	TRACE_BEGIN("TPL:DEQUEUE_BUFFER");
+	TPL_OBJECT_LOCK(surface);
+
+	if (surface->is_frontbuffer_mode && surface->frontbuffer) {
+		if (TPL_TRUE == surface->backend.validate(surface)) {
+			tbm_surface = surface->frontbuffer;
+		} else {
+			surface->frontbuffer = NULL;
+		}
+	}
+
+	if (!tbm_surface)
+		tbm_surface = surface->backend.dequeue_buffer_with_sync(surface, timeout, sync_fd);
+
+	if (tbm_surface) {
+		/* Update size of the surface. */
+		surface->width = tbm_surface_get_width(tbm_surface);
+		surface->height = tbm_surface_get_height(tbm_surface);
+	}
+
+	TPL_OBJECT_UNLOCK(surface);
+	TRACE_END();
+
+	TPL_LOG_F("tpl_surface_t(%p) tbm_surface(%p) (%dx%d)", surface, tbm_surface,
+			  surface->width, surface->height);
+
+	return tbm_surface;
 }
 
 tpl_result_t
 tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
 	return tpl_surface_enqueue_buffer_with_damage(surface, tbm_surface, 0, NULL);
+}
+
+tpl_result_t
+tpl_surface_enqueue_buffer_with_sync(tpl_surface_t *surface, tbm_surface_h tbm_surface,
+									 int sync_fd)
+{
+	return tpl_surface_enqueue_buffer_with_damage_and_sync(surface, tbm_surface, 0, NULL,
+														   sync_fd);
 }
 
 tpl_result_t
@@ -284,6 +318,51 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 	return ret;
 }
 
+tpl_result_t
+tpl_surface_enqueue_buffer_with_damage_and_sync(tpl_surface_t *surface,
+												tbm_surface_h tbm_surface,
+												int num_rects, const int *rects,
+												int sync_fd)
+{
+	tpl_result_t ret = TPL_ERROR_NONE;
+
+	if (!surface || (surface->type != TPL_SURFACE_TYPE_WINDOW)) {
+		TPL_ERR("Invalid surface!");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	TRACE_BEGIN("TPL:ENQUEUE_BUFFER_WITH_DAMAGE");
+	TPL_OBJECT_LOCK(surface);
+
+	if (!tbm_surface) {
+		TPL_OBJECT_UNLOCK(surface);
+		TRACE_END();
+		TPL_ERR("tbm surface is invalid.");
+		return TPL_ERROR_INVALID_PARAMETER;
+	}
+
+	if (surface->is_frontbuffer_mode) {
+		if (surface->frontbuffer == tbm_surface) {
+			TPL_OBJECT_UNLOCK(surface);
+			TRACE_END();
+			return ret;
+		}
+		surface->frontbuffer = tbm_surface;
+	}
+
+	TPL_LOG_F("tpl_surface_t(%p) tbm_surface(%p) (%dx%d)", surface, tbm_surface,
+			  tbm_surface_get_width(tbm_surface),
+			  tbm_surface_get_height(tbm_surface));
+
+	/* Call backend post */
+	ret = surface->backend.enqueue_buffer_with_sync(surface, tbm_surface,
+													num_rects, rects, sync_fd);
+
+	TPL_OBJECT_UNLOCK(surface);
+	TRACE_END();
+
+	return ret;
+}
 tpl_result_t
 tpl_surface_get_swapchain_buffers(tpl_surface_t *surface,
 								  tbm_surface_h **buffers, int *buffer_count)

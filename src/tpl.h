@@ -459,7 +459,7 @@ tbm_surface_h
 tpl_surface_dequeue_buffer(tpl_surface_t *surface);
 
 tbm_surface_h
-tpl_surface_dequeue_buffer_with_sync_fence(tpl_surface_t *surface, int *fd);
+tpl_surface_dequeue_buffer_with_sync(tpl_surface_t *surface, uint64_t timeout, int *fd);
 /**
  * Post a given tbm_surface.
  *
@@ -478,6 +478,10 @@ tpl_surface_dequeue_buffer_with_sync_fence(tpl_surface_t *surface, int *fd);
  */
 tpl_result_t
 tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface);
+
+tpl_result_t
+tpl_surface_enqueue_buffer_with_sync(tpl_surface_t *surface, tbm_surface_h tbm_surface,
+									 int sync_fd);
 
 /**
  * Post a given tbm_surface with region of damage.
@@ -505,6 +509,12 @@ tpl_result_t
 tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 									   tbm_surface_h tbm_surface,
 									   int num_rects, const int *rects);
+
+tpl_result_t
+tpl_surface_enqueue_buffer_with_damage_and_sync(tpl_surface_t *surface,
+												tbm_surface_h tbm_surface,
+												int num_rects, const int *rects,
+												int sync_fd);
 
 /**
  * Set frame interval of the given TPL surface.
