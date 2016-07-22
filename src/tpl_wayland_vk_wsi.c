@@ -11,6 +11,7 @@
 #include <sw_sync.h>
 #include <pthread.h>
 #include <poll.h>
+#include <time.h>
 
 #define CLIENT_QUEUE_SIZE 3
 
@@ -33,6 +34,7 @@ struct _tpl_wayland_vk_wsi_surface {
 	int worker_running;
 	pthread_mutex_t free_queue_mutex;
 	pthread_mutex_t dirty_queue_mutex;
+	pthread_cond_t free_queue_cond;
 };
 
 struct _tpl_wayland_vk_wsi_buffer {
@@ -405,6 +407,7 @@ __tpl_wayland_vk_wsi_surface_commit_buffer(tpl_surface_t *surface, tbm_surface_h
 
 	pthread_mutex_lock(&wayland_vk_wsi_surface->free_queue_mutex);
 	tbm_surface_queue_release(wayland_vk_wsi_surface->tbm_queue, tbm_surface);
+	pthread_cond_signal(&wayland_vk_wsi_surface->free_queue_cond);
 	pthread_mutex_unlock(&wayland_vk_wsi_surface->free_queue_mutex);
 
 	return TPL_ERROR_NONE;
@@ -595,14 +598,34 @@ __tpl_wayland_vk_wsi_surface_dequeue_buffer_with_sync(tpl_surface_t *surface,
 		(tpl_wayland_vk_wsi_display_t *)surface->display->backend.data;
 	struct wl_proxy *wl_proxy = NULL;
 	tbm_surface_queue_error_e tsq_err = 0;
+	struct timespec abs_time;
 
+	if (timeout != UINT64_MAX) {
+		clock_gettime(CLOCK_REALTIME, &abs_time);
+		abs_time.tv_sec += (timeout / 1000000000L);
+		abs_time.tv_nsec += (timeout % 1000000000L);
+		if (abs_time.tv_nsec >= 1000000000L) {
+			abs_time.tv_sec += (abs_time.tv_nsec / 1000000000L);
+			abs_time.tv_nsec = (abs_time.tv_nsec % 1000000000L);
+		}
+	}
 	pthread_mutex_lock(&wayland_vk_wsi_surface->free_queue_mutex);
 	while (tbm_surface_queue_can_dequeue(
 				wayland_vk_wsi_surface->tbm_queue, 0) == 0) {
 		/* Application sent all buffers to the server. Wait for server response. */
-		pthread_mutex_unlock(&wayland_vk_wsi_surface->free_queue_mutex);
-		usleep(1);
-		pthread_mutex_lock(&wayland_vk_wsi_surface->free_queue_mutex);
+		if (timeout != UINT64_MAX) {
+			int ret;
+			ret = pthread_cond_timedwait(&wayland_vk_wsi_surface->free_queue_cond,
+										 &wayland_vk_wsi_surface->free_queue_mutex,
+										 &abs_time);
+			if (ret == ETIMEDOUT) {
+				/* timeout */
+				return NULL;
+			}
+		} else {
+			pthread_cond_wait(&wayland_vk_wsi_surface->free_queue_cond,
+							  &wayland_vk_wsi_surface->free_queue_mutex);
+		}
 	}
 
 	tsq_err = tbm_surface_queue_dequeue(wayland_vk_wsi_surface->tbm_queue,
@@ -786,6 +809,7 @@ __tpl_wayland_vk_wsi_surface_create_swapchain(tpl_surface_t *surface,
 	wayland_vk_wsi_surface->worker_running = 1;
 	pthread_mutex_init(&wayland_vk_wsi_surface->dirty_queue_mutex, NULL);
 	pthread_mutex_init(&wayland_vk_wsi_surface->free_queue_mutex, NULL);
+	pthread_cond_init(&wayland_vk_wsi_surface->free_queue_cond, NULL);
 	pthread_create(&wayland_vk_wsi_surface->worker_id, NULL,
 				   __tpl_wayland_vk_wsi_worker_thread_loop, surface);
 
