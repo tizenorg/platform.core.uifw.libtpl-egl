@@ -169,6 +169,8 @@ make all
 cd src/wayland-egl
 export WLD_EGL_SO_VER=%{WL_EGL_VERSION}
 make
+cd ../wayland-vulkan
+make
 %endif
 
 %install

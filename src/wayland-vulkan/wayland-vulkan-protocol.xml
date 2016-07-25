@@ -1,6 +1,6 @@
 <protocol name="vulkan_present_mode">
 	<interface name="present_mode" version="1">
-		<enum name="present_type">
+		<enum name="type">
 			<entry name="IMMEDIATE" value="0"/>
 			<entry name="MAILBOX" value="1"/>
 			<entry name="FIFO" value="2"/>
