@@ -9,6 +9,8 @@
 #include <tbm_surface_queue.h>
 #include <wayland-tbm-client.h>
 
+#include <tbm_sync.h>
+
 #define CLIENT_QUEUE_SIZE 3
 
 typedef struct _tpl_wayland_vk_wsi_display tpl_wayland_vk_wsi_display_t;
@@ -32,6 +34,8 @@ struct _tpl_wayland_vk_wsi_buffer {
 	tpl_display_t *display;
 	tpl_wayland_vk_wsi_surface_t *wayland_vk_wsi_surface;
 	struct wl_proxy *wl_proxy;
+	int sync_timeline;
+	int sync_timestamp;
 };
 
 static const struct wl_registry_listener registry_listener;
@@ -351,6 +355,7 @@ __tpl_wayland_vk_wsi_surface_enqueue_buffer(tpl_surface_t *surface,
 	wl_surface_commit(wl_sfc);
 
 	wl_display_flush(surface->display->native_handle);
+	wayland_vk_wsi_buffer->sync_timestamp++;
 
 	return TPL_ERROR_NONE;
 }
@@ -406,6 +411,22 @@ __tpl_wayland_vk_wsi_surface_dequeue_buffer(tpl_surface_t *surface,
 	if ((wayland_vk_wsi_buffer =
 				__tpl_wayland_vk_wsi_get_wayland_buffer_from_tbm_surface(
 					tbm_surface)) != NULL) {
+		if (sync_fd) {
+			if (wayland_vk_wsi_buffer->sync_timestamp) {
+				/* first return -1 */
+				char name[32];
+				snprintf(name, 32, "%d",
+						 tbm_bo_export(tbm_surface_internal_get_bo(tbm_surface, 0)));
+				*sync_fd = tbm_sync_fence_create(wayland_vk_wsi_buffer->sync_timeline, name,
+												 wayland_vk_wsi_buffer->sync_timestamp + 1);
+				if (*sync_fd < 0) {
+					TPL_ERR("Failed to create TBM sync fence!");
+					/* ??? destroy and return NULL */
+				}
+			} else {
+				*sync_fd = -1;
+			}
+		}
 		return tbm_surface;
 	}
 
@@ -425,6 +446,22 @@ __tpl_wayland_vk_wsi_surface_dequeue_buffer(tpl_surface_t *surface,
 		free(wayland_vk_wsi_buffer);
 		return NULL;
 	}
+
+	/* can change signaled sync */
+	if (sync_fd)
+		*sync_fd = -1;
+	wayland_vk_wsi_buffer->sync_timeline = tbm_sync_timeline_create();
+	if (wayland_vk_wsi_buffer->sync_timeline < 0) {
+		TPL_ERR("Failed to create TBM sync timeline!");
+		wl_proxy_destroy(wl_proxy);
+		tbm_surface_internal_unref(tbm_surface);
+		free(wayland_vk_wsi_buffer);
+		return NULL;
+	}
+	wayland_vk_wsi_buffer->sync_timestamp = 0;
+	wayland_tbm_client_set_sync_timeline(wayland_vk_wsi_display->wl_tbm_client,
+										 (void *)wl_proxy,
+										 wayland_vk_wsi_buffer->sync_timeline);
 
 	wl_buffer_add_listener((void *)wl_proxy, &buffer_release_listener,
 						   tbm_surface);
