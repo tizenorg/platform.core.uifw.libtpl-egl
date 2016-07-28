@@ -600,7 +600,7 @@ __tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
 static tpl_result_t
 __tpl_wayland_egl_surface_enqueue_buffer(tpl_surface_t *surface,
 		tbm_surface_h tbm_surface,
-		int num_rects, const int *rects)
+		int num_rects, const int *rects, int sync_fd)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
@@ -787,7 +787,7 @@ __tpl_wayland_egl_surface_wait_dequeuable(tpl_surface_t *surface)
 }
 
 static tbm_surface_h
-__tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
+__tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface, uint64_t timeout_ns, int *sync_fd)
 {
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->backend.data);

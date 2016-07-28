@@ -181,6 +181,12 @@ tpl_surface_get_post_interval(tpl_surface_t *surface)
 tbm_surface_h
 tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 {
+	return tpl_surface_dequeue_buffer_with_sync(surface, UINT64_MAX, NULL);
+}
+
+tbm_surface_h
+tpl_surface_dequeue_buffer_with_sync(tpl_surface_t *surface, uint64_t timeout_ns, int *sync_fd)
+{
 	TPL_ASSERT(surface);
 
 	tbm_surface_h tbm_surface = NULL;
@@ -202,7 +208,7 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 	}
 
 	if (!tbm_surface)
-		tbm_surface = surface->backend.dequeue_buffer(surface);
+		tbm_surface = surface->backend.dequeue_buffer(surface, timeout_ns, sync_fd);
 
 	if (tbm_surface) {
 		/* Update size of the surface. */
@@ -222,13 +228,29 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface)
 tpl_result_t
 tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface)
 {
-	return tpl_surface_enqueue_buffer_with_damage(surface, tbm_surface, 0, NULL);
+	return tpl_surface_enqueue_buffer_with_damage_and_sync(surface, tbm_surface, 0, NULL, -1);
+}
+
+tpl_result_t
+tpl_surface_enqueue_buffer_with_sync(tpl_surface_t *surface, tbm_surface_h tbm_surface, int sync_fd)
+{
+	return tpl_surface_enqueue_buffer_with_damage_and_sync(surface, tbm_surface, 0, NULL, sync_fd);
 }
 
 tpl_result_t
 tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 									   tbm_surface_h tbm_surface,
 									   int num_rects, const int *rects)
+{
+	return tpl_surface_enqueue_buffer_with_damage_and_sync(surface, tbm_surface,
+														   num_rects, rects, -1);
+}
+
+tpl_result_t
+tpl_surface_enqueue_buffer_with_damage_and_sync(tpl_surface_t *surface,
+												tbm_surface_h tbm_surface,
+												int num_rects, const int *rects,
+												int sync_fd)
 {
 	tpl_result_t ret = TPL_ERROR_NONE;
 
@@ -261,7 +283,7 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 			  tbm_surface_get_height(tbm_surface));
 
 	/* Call backend post */
-	ret = surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects);
+	ret = surface->backend.enqueue_buffer(surface, tbm_surface, num_rects, rects, sync_fd);
 
 	TPL_OBJECT_UNLOCK(surface);
 	TRACE_END();

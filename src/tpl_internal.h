@@ -59,10 +59,10 @@ struct _tpl_surface_backend {
 	tpl_result_t (*init)(tpl_surface_t *surface);
 	void (*fini)(tpl_surface_t *surface);
 	tpl_bool_t (*validate)(tpl_surface_t *surface);
-	tbm_surface_h (*dequeue_buffer)(tpl_surface_t *surface);
+	tbm_surface_h (*dequeue_buffer)(tpl_surface_t *surface, uint64_t timeout_ns, int *sync_fd);
 	tpl_result_t (*enqueue_buffer)(tpl_surface_t *surface,
 								   tbm_surface_h tbm_surface,
-								   int num_rects, const int *rects);
+								   int num_rects, const int *rects, int sync_fd);
 	tpl_result_t (*get_swapchain_buffers)(tpl_surface_t *surface,
 										  tbm_surface_h **buffers,
 										  int *buffer_count);
