@@ -27,6 +27,9 @@
 /* In wayland, application and compositor create its own drawing buffers. Recommend size is more than 2. */
 #define CLIENT_QUEUE_SIZE 3
 
+/* [HOT-FIX] display validation checking */
+bool IS_VALID_DISPLAY;
+
 typedef struct _tpl_wayland_egl_display tpl_wayland_egl_display_t;
 typedef struct _tpl_wayland_egl_surface tpl_wayland_egl_surface_t;
 typedef struct _tpl_wayland_egl_buffer tpl_wayland_egl_buffer_t;
@@ -160,7 +163,7 @@ __tpl_wayland_egl_display_init(tpl_display_t *display)
 			wayland_egl_display->tdm_client = NULL;
 		}
 
-
+		IS_VALID_DISPLAY = TPL_TRUE;
 
 	} else {
 		TPL_ERR("Invalid native handle for display.");
@@ -463,6 +466,7 @@ __tpl_wayland_egl_surface_fini(tpl_surface_t *surface)
 
 	free(wayland_egl_surface);
 	surface->backend.data = NULL;
+	IS_VALID_DISPLAY = TPL_FALSE;
 }
 
 static void
@@ -905,19 +909,30 @@ static void
 __tpl_wayland_egl_buffer_free(tpl_wayland_egl_buffer_t *wayland_egl_buffer)
 {
 	TPL_ASSERT(wayland_egl_buffer);
-	TPL_ASSERT(wayland_egl_buffer->display);
 
-	tpl_wayland_egl_display_t *wayland_egl_display =
-		(tpl_wayland_egl_display_t *)wayland_egl_buffer->display->backend.data;
+	if (IS_VALID_DISPLAY == TPL_TRUE)
+	{
+		TPL_ASSERT(wayland_egl_buffer->display);
 
-	TPL_LOG_B("WL_EGL", "[FREE] tpl_wayland_egl_buffer_t(%p) wl_buffer(%p)",
-			  wayland_egl_buffer, wayland_egl_buffer->wl_proxy);
-	wl_display_flush((struct wl_display *)
-					 wayland_egl_buffer->display->native_handle);
+		tpl_wayland_egl_display_t *wayland_egl_display =
+			(tpl_wayland_egl_display_t *)wayland_egl_buffer->display->backend.data;
 
-	if (wayland_egl_buffer->wl_proxy)
-		wayland_tbm_client_destroy_buffer(wayland_egl_display->wl_tbm_client,
-										  (void *)wayland_egl_buffer->wl_proxy);
+		TPL_LOG_B("WL_EGL", "[FREE] tpl_wayland_egl_buffer_t(%p) wl_buffer(%p)",
+				  wayland_egl_buffer, wayland_egl_buffer->wl_proxy);
+		wl_display_flush((struct wl_display *)
+				wayland_egl_buffer->display->native_handle);
+
+		if (wayland_egl_buffer->wl_proxy)
+			wayland_tbm_client_destroy_buffer(wayland_egl_display->wl_tbm_client,
+					(void *)wayland_egl_buffer->wl_proxy);
+	}
+	else
+	{
+		TPL_LOG_B("WL_EGL", "[FREE] display already destroyed | wayland_egl_buffer(%p) wl_buffer(%p)",
+				  wayland_egl_buffer, wayland_egl_buffer->wl_proxy);
+		wl_buffer_set_user_data(wayland_egl_buffer->wl_proxy, NULL);
+		wl_buffer_destroy(wayland_egl_buffer->wl_proxy);
+	}
 
 	free(wayland_egl_buffer);
 }
