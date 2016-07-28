@@ -459,6 +459,25 @@ tbm_surface_h
 tpl_surface_dequeue_buffer(tpl_surface_t *surface);
 
 /**
+ * Get the buffer of the current frame for the given TPL surface.
+ *
+ * This function returns buffer of the current frame. Depending on backend,
+ * communication with the server might be required.
+ * Returned buffers can used for render target after sync_fd signaled.
+ *
+ * @param surface surface to get buffer for the current frame.
+ * @param timeout_ns block timeout nano seconds.
+ * @param sync_fd signal when buffer is valid.
+ * @return buffer for the current frame or NULL when timeout.
+ *
+ * @see tpl_surface_enqueue_buffer()
+ * @see tpl_surface_enqueue_buffer_with_damage()
+ * @see tpl_surface_get_swapchain_buffers()
+ */
+tbm_surface_h
+tpl_surface_dequeue_buffer_with_sync(tpl_surface_t *surface, uint64_t timeout_ns, int *sync_fd);
+
+/**
  * Post a given tbm_surface.
  *
  * This function request display server to post a frame. This is the
@@ -476,6 +495,27 @@ tpl_surface_dequeue_buffer(tpl_surface_t *surface);
  */
 tpl_result_t
 tpl_surface_enqueue_buffer(tpl_surface_t *surface, tbm_surface_h tbm_surface);
+
+/**
+ * Post a given tbm_surface.
+ *
+ * This function request display server to post a frame. This is the
+ * function which can enqueue a buffer to the tbm_surface_queue.
+ *
+ * Make sure this function is called exactly once for a frame.
+ * Scheduling post calls on a separate thread is recommended.
+ * This function will be wait internally until signaled sync.
+ *
+ * @param surface surface to post a frame.
+ * @param tbm_surface buffer to post.
+ * @param sync_fd signal when draw done.
+ *
+ * @see tpl_surface_enqueue_buffer_with_damage()
+ * @see tpl_surface_dequeue_buffer()
+ * @see tpl_surface_get_swapchain_buffers()
+ */
+tpl_result_t
+tpl_surface_enqueue_buffer_with_sync(tpl_surface_t *surface, tbm_surface_h tbm_surface, int sync_fd);
 
 /**
  * Post a given tbm_surface with region of damage.
@@ -504,6 +544,34 @@ tpl_surface_enqueue_buffer_with_damage(tpl_surface_t *surface,
 									   tbm_surface_h tbm_surface,
 									   int num_rects, const int *rects);
 
+/**
+ * Post a given tbm_surface with region of damage.
+ *
+ * Damage information is used for reducing number of pixels composited in the
+ * compositor. Setting num_rects to 0 or rects to NULL means entire area is damaged.
+ *
+ * This function request display server to post a frame.
+ * This function is identical with tpl_surface_enqueue_buffer except delivering
+ * the damage information for updating.
+ * This function will be wait internally until signaled sync.
+ *
+ * Make sure this function is called exactly once for a frame.
+ * Scheduling post calls on a separate thread is recommended.
+ *
+ * @param surface surface to post a frame.
+ * @param tbm_surface buffer to post.
+ * @param num_rects the number of rectangles of the damage region.
+ * @param rects pointer to coordinates of rectangles. x0, y0, w0, h0, x1, y1, w1, h1...
+ * @param sync_fd signal when draw done.
+ *
+ * @see tpl_surface_enqueue_buffer()
+ * @see tpl_surface_dequeue_buffer()
+ * @see tpl_surface_get_swapchain_buffers()
+ */
+tpl_result_t
+tpl_surface_enqueue_buffer_with_damage_and_sync(tpl_surface_t *surface,
+												tbm_surface_h tbm_surface,
+												int num_rects, const int *rects, int sync_fd);
 /**
  * Set frame interval of the given TPL surface.
  *
