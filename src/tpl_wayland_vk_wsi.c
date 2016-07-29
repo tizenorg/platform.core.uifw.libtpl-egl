@@ -357,6 +357,8 @@ __tpl_wayland_vk_wsi_surface_enqueue_buffer(tpl_surface_t *surface,
 	wl_display_flush(surface->display->native_handle);
 	wayland_vk_wsi_buffer->sync_timestamp++;
 
+	tbm_surface_queue_release(wayland_vk_wsi_surface->tbm_queue, tbm_surface);
+
 	return TPL_ERROR_NONE;
 }
 
@@ -729,8 +731,6 @@ __cb_client_buffer_release_callback(void *data, struct wl_proxy *proxy)
 		wayland_vk_wsi_surface = wayland_vk_wsi_buffer->wayland_vk_wsi_surface;
 
 		tbm_surface_internal_unref(tbm_surface);
-
-		tbm_surface_queue_release(wayland_vk_wsi_surface->tbm_queue, tbm_surface);
 	}
 }
 
