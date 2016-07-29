@@ -337,6 +337,15 @@ __tpl_wayland_vk_wsi_surface_enqueue_buffer(tpl_surface_t *surface,
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
+	if (sync_fd != -1) {
+		/* non worker thread mode */
+		int result;
+		result = tbm_sync_wait(sync_fd, -1);
+		if (result < 0)
+			TPL_ERR("Failed to wait sync. | error: %d", errno);
+		close(sync_fd);
+	}
+
 	tsq_err = tbm_surface_queue_acquire(wayland_vk_wsi_surface->tbm_queue,
 										&tbm_surface);
 	if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
