@@ -13,8 +13,14 @@
 
 #define CLIENT_QUEUE_SIZE 3
 
+#define USE_WORKER_THREAD
 #ifndef USE_WORKER_THREAD
 #define USE_WORKER_THREAD 0
+#else
+#include <pthread.h>
+#include <time.h>
+#undef USE_WORKER_THREAD
+#define USE_WORKER_THREAD 1
 #endif
 
 typedef struct _tpl_wayland_vk_wsi_display tpl_wayland_vk_wsi_display_t;
@@ -32,6 +38,21 @@ struct _tpl_wayland_vk_wsi_display {
 struct _tpl_wayland_vk_wsi_surface {
 	tbm_surface_queue_h tbm_queue;
 	int buffer_count;
+
+#if USE_WORKER_THREAD == 1
+	/* TODO: move thread per display or process */
+	pthread_t worker_id;
+	tpl_bool_t worker_running;
+
+	/*
+	 * TODO: it can move to libtbm
+	 *		 libtbm already has free queue's pthread_cond and pthread_mutex
+	 */
+	pthread_mutex_t dirty_queue_mutex;
+	pthread_cond_t dirty_queue_cond;
+	pthread_mutex_t free_queue_mutex;
+	pthread_cond_t free_queue_cond;
+#endif
 };
 
 struct _tpl_wayland_vk_wsi_buffer {
@@ -40,6 +61,10 @@ struct _tpl_wayland_vk_wsi_buffer {
 	struct wl_proxy *wl_proxy;
 	int sync_timeline;
 	int sync_timestamp;
+
+#if USE_WORKER_THREAD == 1
+	int wait_sync;
+#endif
 };
 
 static const struct wl_registry_listener registry_listener;
@@ -318,7 +343,7 @@ __tpl_wayland_vk_wsi_surface_commit_buffer(tpl_surface_t *surface,
 	tbm_surface_internal_ref(tbm_surface);
 	wl_surface_attach(wl_sfc, (void *)wayland_vk_wsi_buffer->wl_proxy, 0, 0);
 
-	/* TODO: num_rects and rects add to tpl_wayland_vk_wsi_buffer_t */
+	/* TODO: add num_rects and rects to tpl_wayland_vk_wsi_buffer_t */
 	wl_surface_damage(wl_sfc, 0, 0, surface->width, surface->height);
 
 	frame_callback = wl_surface_frame(wl_sfc);
@@ -329,7 +354,14 @@ __tpl_wayland_vk_wsi_surface_commit_buffer(tpl_surface_t *surface,
 	wl_display_flush(surface->display->native_handle);
 	wayland_vk_wsi_buffer->sync_timestamp++;
 
+#if USE_WORKER_THREAD == 1
+	pthread_mutex_lock(&wayland_vk_wsi_surface->free_queue_mutex);
+#endif
 	tbm_surface_queue_release(wayland_vk_wsi_surface->tbm_queue, tbm_surface);
+#if USE_WORKER_THREAD == 1
+	pthread_mutex_unlock(&wayland_vk_wsi_surface->free_queue_mutex);
+	pthread_cond_signal(&wayland_vk_wsi_surface->free_queue_cond);
+#endif
 }
 
 static tpl_result_t
@@ -367,16 +399,22 @@ __tpl_wayland_vk_wsi_surface_enqueue_buffer(tpl_surface_t *surface,
 
 	tbm_surface_internal_unref(tbm_surface);
 
+#if USE_WORKER_THREAD == 1
+	wayland_vk_wsi_buffer->wait_sync = sync_fd;
+	pthread_mutex_lock(&wayland_vk_wsi_surface->dirty_queue_mutex);
+#endif
 	tsq_err = tbm_surface_queue_enqueue(wayland_vk_wsi_surface->tbm_queue,
 										tbm_surface);
 	if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
 		TPL_ERR("Failed to enqeueue tbm_surface. | tsq_err = %d", tsq_err);
+#if USE_WORKER_THREAD == 1
+		pthread_mutex_unlock(&wayland_vk_wsi_surface->dirty_queue_mutex);
+#endif
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
 #if USE_WORKER_THREAD == 0
 	if (sync_fd != -1) {
-		/* non worker thread mode */
 		int result;
 		result = tbm_sync_wait(sync_fd, -1);
 		if (result < 0)
@@ -392,6 +430,13 @@ __tpl_wayland_vk_wsi_surface_enqueue_buffer(tpl_surface_t *surface,
 	}
 
 	__tpl_wayland_vk_wsi_surface_commit_buffer(surface, tbm_surface);
+#else
+	/*
+	 * TODO: it can move to libtbm
+	 *		 libtbm already has dirty queue's pthread_cond and pthread_mutex
+	 */
+	pthread_mutex_unlock(&wayland_vk_wsi_surface->dirty_queue_mutex);
+	pthread_cond_signal(&wayland_vk_wsi_surface->dirty_queue_cond);
 #endif
 
 	/*
@@ -433,6 +478,7 @@ __tpl_wayland_vk_wsi_surface_dequeue_buffer(tpl_surface_t *surface,
 	struct wl_proxy *wl_proxy = NULL;
 	tbm_surface_queue_error_e tsq_err = 0;
 
+#if USE_WORKER_THREAD == 0
 	TPL_OBJECT_UNLOCK(surface);
 	while (tbm_surface_queue_can_dequeue(
 				wayland_vk_wsi_surface->tbm_queue, 0) == 0) {
@@ -444,9 +490,45 @@ __tpl_wayland_vk_wsi_surface_dequeue_buffer(tpl_surface_t *surface,
 		}
 	}
 	TPL_OBJECT_LOCK(surface);
+#else
+	/*
+	 * TODO: it can move to libtbm
+	 *		 libtbm already has free queue's pthread_cond and pthread_mutex
+	 */
+	struct timespec abs_time;
+	if (timeout_ns != UINT64_MAX) {
+		clock_gettime(CLOCK_REALTIME, &abs_time);
+		abs_time.tv_sec += (timeout_ns / 1000000000L);
+		abs_time.tv_nsec += (timeout_ns % 1000000000L);
+		if (abs_time.tv_nsec >= 1000000000L) {
+			abs_time.tv_sec += (abs_time.tv_nsec / 1000000000L);
+			abs_time.tv_nsec = (abs_time.tv_nsec % 1000000000L);
+		}
+	}
+	pthread_mutex_lock(&wayland_vk_wsi_surface->free_queue_mutex);
+	while (tbm_surface_queue_can_dequeue(wayland_vk_wsi_surface->tbm_queue, 0) == 0) {
+		if (timeout_ns != UINT64_MAX) {
+			int ret;
+			ret = pthread_cond_timedwait(&wayland_vk_wsi_surface->free_queue_cond,
+										 &wayland_vk_wsi_surface->free_queue_mutex,
+										 &abs_time);
+			if (ret == ETIMEDOUT) {
+				/* timeout */
+				pthread_mutex_unlock(&wayland_vk_wsi_surface->free_queue_mutex);
+				return NULL;
+			}
+		} else {
+			pthread_cond_wait(&wayland_vk_wsi_surface->free_queue_cond,
+							  &wayland_vk_wsi_surface->free_queue_mutex);
+		}
+	}
+#endif
 
 	tsq_err = tbm_surface_queue_dequeue(wayland_vk_wsi_surface->tbm_queue,
 										&tbm_surface);
+#if USE_WORKER_THREAD == 1
+	pthread_mutex_unlock(&wayland_vk_wsi_surface->free_queue_mutex);
+#endif
 	if (!tbm_surface) {
 		TPL_ERR("Failed to get tbm_surface from tbm_surface_queue | tsq_err = %d",
 				tsq_err);
@@ -589,6 +671,11 @@ release_buffer_fail:
 	return TPL_ERROR_INVALID_OPERATION;
 }
 
+#if USE_WORKER_THREAD == 1
+static void *
+__tpl_wayland_vk_wsi_worker_thread_loop(void *arg);
+#endif
+
 static tpl_result_t
 __tpl_wayland_vk_wsi_surface_create_swapchain(tpl_surface_t *surface,
 		tbm_format format, int width,
@@ -630,6 +717,17 @@ __tpl_wayland_vk_wsi_surface_create_swapchain(tpl_surface_t *surface,
 	surface->width = width;
 	surface->height = height;
 
+#if USE_WORKER_THREAD == 1
+	pthread_mutex_init(&wayland_vk_wsi_surface->dirty_queue_mutex, NULL);
+	pthread_mutex_init(&wayland_vk_wsi_surface->free_queue_mutex, NULL);
+	pthread_cond_init(&wayland_vk_wsi_surface->dirty_queue_cond, NULL);
+	pthread_cond_init(&wayland_vk_wsi_surface->free_queue_cond, NULL);
+
+	wayland_vk_wsi_surface->worker_running = 1;
+	pthread_create(&wayland_vk_wsi_surface->worker_id, NULL,
+				   __tpl_wayland_vk_wsi_worker_thread_loop, surface);
+
+#endif
 	return TPL_ERROR_NONE;
 }
 
@@ -654,6 +752,15 @@ __tpl_wayland_vk_wsi_surface_destroy_swapchain(tpl_surface_t *surface)
 		wayland_vk_wsi_surface->tbm_queue = NULL;
 	}
 
+#if USE_WORKER_THREAD == 1
+	wayland_vk_wsi_surface->worker_running = 0;
+	pthread_join(wayland_vk_wsi_surface->worker_id, NULL);
+
+	pthread_cond_destroy(&wayland_vk_wsi_surface->free_queue_cond);
+	pthread_cond_destroy(&wayland_vk_wsi_surface->dirty_queue_cond);
+	pthread_mutex_destroy(&wayland_vk_wsi_surface->free_queue_mutex);
+	pthread_mutex_destroy(&wayland_vk_wsi_surface->dirty_queue_mutex);
+#endif
 	return TPL_ERROR_NONE;
 }
 
@@ -785,3 +892,71 @@ __cb_client_buffer_release_callback(void *data, struct wl_proxy *proxy)
 static const struct wl_buffer_listener buffer_release_listener = {
 	(void *)__cb_client_buffer_release_callback,
 };
+
+#if USE_WORKER_THREAD == 1
+static void *
+__tpl_wayland_vk_wsi_worker_thread_loop(void *arg)
+{
+	tpl_surface_t *surface = arg;
+	tpl_wayland_vk_wsi_surface_t *wayland_vk_wsi_surface =
+		(tpl_wayland_vk_wsi_surface_t *) surface->backend.data;
+
+	/*
+	 * TODO: it can change when thread per display or process model
+	 *		 then need poll all surface's buffers wait sync
+	 */
+	while (wayland_vk_wsi_surface->worker_running) {
+		tbm_surface_queue_error_e tsq_err;
+		tbm_surface_h tbm_surface;
+		tpl_wayland_vk_wsi_buffer_t *wayland_vk_wsi_buffer;
+
+		/*
+		 * TODO: it can move to libtbm
+		 *		 libtbm already has dirty queue's pthread_cond and pthread_mutex
+		 *		 or with wait vblank in poll
+		 */
+		struct timespec abs_time;
+		tpl_bool_t timeout = TPL_FALSE;
+
+		clock_gettime(CLOCK_REALTIME, &abs_time);
+		abs_time.tv_sec += 1;
+		pthread_mutex_lock(&wayland_vk_wsi_surface->dirty_queue_mutex);
+		while (tbm_surface_queue_can_acquire(wayland_vk_wsi_surface->tbm_queue, 0) == 0 &&
+			   timeout == TPL_FALSE) {
+			int ret;
+			ret = pthread_cond_timedwait(&wayland_vk_wsi_surface->dirty_queue_cond,
+										&wayland_vk_wsi_surface->dirty_queue_mutex,
+										&abs_time);
+			if (ret == ETIMEDOUT) {
+				timeout = TPL_TRUE;
+			}
+		}
+		if (timeout) {
+			pthread_mutex_unlock(&wayland_vk_wsi_surface->dirty_queue_mutex);
+			continue;
+		}
+
+		tsq_err = tbm_surface_queue_acquire(wayland_vk_wsi_surface->tbm_queue, &tbm_surface);
+		pthread_mutex_unlock(&wayland_vk_wsi_surface->dirty_queue_mutex);
+		if (tsq_err != TBM_SURFACE_QUEUE_ERROR_NONE) {
+			TPL_ERR("Failed to acquire tbm_surface. | tsq_err = %d", tsq_err);
+			continue;
+		}
+
+		wayland_vk_wsi_buffer =
+			__tpl_wayland_vk_wsi_get_wayland_buffer_from_tbm_surface(tbm_surface);
+		TPL_ASSERT(wayland_vk_wsi_buffer);
+		if (wayland_vk_wsi_buffer->wait_sync != -1) {
+			int result;
+			result = tbm_sync_wait(wayland_vk_wsi_buffer->wait_sync, -1);
+			if (result < 0)
+				TPL_ERR("Failed to wait sync. | error: %d", errno);
+			close(wayland_vk_wsi_buffer->wait_sync);
+		}
+
+		__tpl_wayland_vk_wsi_surface_commit_buffer(surface, tbm_surface);
+	}
+
+	return NULL;
+}
+#endif
