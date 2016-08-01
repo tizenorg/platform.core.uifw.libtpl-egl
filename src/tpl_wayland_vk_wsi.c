@@ -13,6 +13,10 @@
 
 #define CLIENT_QUEUE_SIZE 3
 
+#ifndef USE_WORKER_THREAD
+#define USE_WORKER_THREAD 0
+#endif
+
 typedef struct _tpl_wayland_vk_wsi_display tpl_wayland_vk_wsi_display_t;
 typedef struct _tpl_wayland_vk_wsi_surface tpl_wayland_vk_wsi_surface_t;
 typedef struct _tpl_wayland_vk_wsi_buffer tpl_wayland_vk_wsi_buffer_t;
@@ -291,14 +295,49 @@ __tpl_wayland_vk_wsi_surface_fini(tpl_surface_t *surface)
 	surface->backend.data = NULL;
 }
 
+static void
+__tpl_wayland_vk_wsi_surface_commit_buffer(tpl_surface_t *surface,
+		tbm_surface_h tbm_surface)
+{
+	TPL_ASSERT(surface);
+	TPL_ASSERT(surface->display);
+	TPL_ASSERT(surface->display->native_handle);
+	TPL_ASSERT(tbm_surface);
+
+	struct wl_surface *wl_sfc = NULL;
+	struct wl_callback *frame_callback = NULL;
+	tpl_wayland_vk_wsi_surface_t *wayland_vk_wsi_surface =
+		(tpl_wayland_vk_wsi_surface_t *) surface->backend.data;
+	tpl_wayland_vk_wsi_buffer_t *wayland_vk_wsi_buffer =
+		__tpl_wayland_vk_wsi_get_wayland_buffer_from_tbm_surface(tbm_surface);
+	TPL_ASSERT(wayland_vk_wsi_buffer);
+
+
+	wl_sfc = (struct wl_surface *)surface->native_handle;
+
+	tbm_surface_internal_ref(tbm_surface);
+	wl_surface_attach(wl_sfc, (void *)wayland_vk_wsi_buffer->wl_proxy, 0, 0);
+
+	/* TODO: num_rects and rects add to tpl_wayland_vk_wsi_buffer_t */
+	wl_surface_damage(wl_sfc, 0, 0, surface->width, surface->height);
+
+	frame_callback = wl_surface_frame(wl_sfc);
+	wl_callback_add_listener(frame_callback, &frame_listener, tbm_surface);
+
+	wl_surface_commit(wl_sfc);
+
+	wl_display_flush(surface->display->native_handle);
+	wayland_vk_wsi_buffer->sync_timestamp++;
+
+	tbm_surface_queue_release(wayland_vk_wsi_surface->tbm_queue, tbm_surface);
+}
+
 static tpl_result_t
 __tpl_wayland_vk_wsi_surface_enqueue_buffer(tpl_surface_t *surface,
 		tbm_surface_h tbm_surface,
 		int num_rects, const int *rects,
 		int sync_fd)
 {
-	struct wl_surface *wl_sfc = NULL;
-	struct wl_callback *frame_callback = NULL;
 
 	TPL_ASSERT(surface);
 	TPL_ASSERT(surface->display);
@@ -326,8 +365,6 @@ __tpl_wayland_vk_wsi_surface_enqueue_buffer(tpl_surface_t *surface,
 		TPL_IMAGE_DUMP(bo_handle.ptr, surface->width, surface->height,
 					   surface->dump_count++);
 
-	wl_sfc = (struct wl_surface *)surface->native_handle;
-
 	tbm_surface_internal_unref(tbm_surface);
 
 	tsq_err = tbm_surface_queue_enqueue(wayland_vk_wsi_surface->tbm_queue,
@@ -337,6 +374,7 @@ __tpl_wayland_vk_wsi_surface_enqueue_buffer(tpl_surface_t *surface,
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
+#if USE_WORKER_THREAD == 0
 	if (sync_fd != -1) {
 		/* non worker thread mode */
 		int result;
@@ -353,20 +391,8 @@ __tpl_wayland_vk_wsi_surface_enqueue_buffer(tpl_surface_t *surface,
 		return TPL_ERROR_INVALID_OPERATION;
 	}
 
-	tbm_surface_internal_ref(tbm_surface);
-	wl_surface_attach(wl_sfc, (void *)wayland_vk_wsi_buffer->wl_proxy, 0, 0);
-
-	wl_surface_damage(wl_sfc, 0, 0, surface->width, surface->height);
-
-	frame_callback = wl_surface_frame(wl_sfc);
-	wl_callback_add_listener(frame_callback, &frame_listener, tbm_surface);
-
-	wl_surface_commit(wl_sfc);
-
-	wl_display_flush(surface->display->native_handle);
-	wayland_vk_wsi_buffer->sync_timestamp++;
-
-	tbm_surface_queue_release(wayland_vk_wsi_surface->tbm_queue, tbm_surface);
+	__tpl_wayland_vk_wsi_surface_commit_buffer(surface, tbm_surface);
+#endif
 	wl_display_dispatch(surface->display->native_handle);
 
 	return TPL_ERROR_NONE;
