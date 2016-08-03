@@ -43,6 +43,7 @@ struct _tpl_wayland_egl_surface {
 	tpl_bool_t resized;
 	tpl_bool_t reset;          /* TRUE if queue reseted by external */
 	tpl_bool_t vblank_done;
+	tpl_list_t *attached_buffers; /* list for tracking [ACQ]~[REL] buffers */
 	struct wl_proxy *wl_proxy; /* wl_tbm_queue proxy */
 };
 
@@ -50,6 +51,7 @@ struct _tpl_wayland_egl_buffer {
 	tpl_display_t *display;
 	tbm_bo bo;
 	tpl_wayland_egl_surface_t *wayland_egl_surface;
+	tpl_bool_t reset; /* TRUE if queue reseted by external */
 	struct wl_proxy *wl_proxy; /* wl_buffer proxy */
 };
 
@@ -315,7 +317,8 @@ static void
 __cb_tbm_surface_queue_reset_callback(tbm_surface_queue_h surface_queue,
 									  void *data)
 {
-	tpl_wayland_egl_surface_t *wayland_egl_surface = data;
+	tpl_wayland_egl_surface_t *wayland_egl_surface = (tpl_wayland_egl_surface_t*) data;
+	tpl_list_node_t *node = NULL;
 
 	if (!wayland_egl_surface) return;
 
@@ -324,6 +327,25 @@ __cb_tbm_surface_queue_reset_callback(tbm_surface_queue_h surface_queue,
 			  data, surface_queue);
 
 	wayland_egl_surface->reset = TPL_TRUE;
+
+	/* Set the reset flag of the buffers which attaced but not released to TPL_TRUE. */
+	node = __tpl_list_get_front_node(wayland_egl_surface->attached_buffers);
+
+	while (node)
+	{
+		tbm_surface_h tbm_surface = (tbm_surface_h) __tpl_list_node_get_data(node);
+		tpl_wayland_egl_buffer_t *wayland_egl_buffer = NULL;
+
+		if (!tbm_surface) break;
+
+		wayland_egl_buffer =
+			__tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface);
+		if (!wayland_egl_buffer) break;
+
+		wayland_egl_buffer->reset = TPL_TRUE;
+
+		node = __tpl_list_node_next(node);
+	}
 }
 
 static tpl_result_t
@@ -352,6 +374,14 @@ __tpl_wayland_egl_surface_init(tpl_surface_t *surface)
 	wayland_egl_surface->resized = TPL_FALSE;
 	wayland_egl_surface->vblank_done = TPL_TRUE;
 	wayland_egl_surface->current_buffer = NULL;
+
+	wayland_egl_surface->attached_buffers = __tpl_list_alloc();
+	if (!wayland_egl_surface->attached_buffers) {
+		TPL_ERR("Failed to allcate the list of attached_buffers.");
+		free(wayland_egl_surface);
+		surface->backend.data = NULL;
+		return TPL_ERROR_INVALID_OPERATION;
+	}
 
 	if (wl_egl_window->surface) {
 		wayland_egl_surface->tbm_queue = wayland_tbm_client_create_surface_queue(
@@ -451,14 +481,24 @@ __tpl_wayland_egl_surface_fini(tpl_surface_t *surface)
 		wl_display_flush(surface->display->native_handle);
 		wl_display_dispatch_pending((struct wl_display *)surface->display->native_handle);
 
-		if (wayland_egl_surface->current_buffer &&
-				tbm_surface_internal_is_valid(wayland_egl_surface->current_buffer))
-			tbm_surface_internal_unref(wayland_egl_surface->current_buffer);
-
 		TPL_LOG_B("WL_EGL", "[FINI] tpl_wayland_egl_surface_t(%p) wl_egl_window(%p) tbm_queue(%p)",
 				  wayland_egl_surface, wl_egl_window, wayland_egl_surface->tbm_queue);
 		tbm_surface_queue_destroy(wayland_egl_surface->tbm_queue);
 		wayland_egl_surface->tbm_queue = NULL;
+	}
+
+	/* When surface is destroyed, unreference tbm_surface which tracked by
+	 * the list of attached_buffers in order to free the created resources.
+	 * (tpl_wayland_egl_buffer_t or wl_buffer) */
+	if (wayland_egl_surface->attached_buffers) {
+		while (!__tpl_list_is_empty(wayland_egl_surface->attached_buffers)) {
+			tbm_surface_h tbm_surface =
+				__tpl_list_pop_front(wayland_egl_surface->attached_buffers, NULL);
+			tbm_surface_internal_unref(tbm_surface);
+		}
+
+		__tpl_list_free(wayland_egl_surface->attached_buffers, NULL);
+		wayland_egl_surface->attached_buffers = NULL;
 	}
 
 	free(wayland_egl_surface);
@@ -576,6 +616,9 @@ __tpl_wayland_egl_surface_commit(tpl_surface_t *surface,
 	TPL_LOG_B("WL_EGL", "[COMMIT] wl_surface(%p) wl_egl_window(%p)(%dx%d) wl_buffer(%p)",
 			  wl_egl_window->surface, wl_egl_window,
 			  wl_egl_window->width, wl_egl_window->height, wayland_egl_buffer->wl_proxy);
+
+	/* Start tracking of this tbm_surface until release_cb called. */
+	__tpl_list_push_back(wayland_egl_surface->attached_buffers, (void *)tbm_surface);
 
 	/* TPL_WAIT_VBLANK = 1 */
 	if (wayland_egl_display->tdm_client)
@@ -874,6 +917,9 @@ __tpl_wayland_egl_surface_dequeue_buffer(tpl_surface_t *surface)
 	wayland_egl_buffer->wl_proxy = wl_proxy;
 	wayland_egl_buffer->bo = tbm_surface_internal_get_bo(tbm_surface, 0);
 	wayland_egl_buffer->wayland_egl_surface = wayland_egl_surface;
+
+	/* reset flag is to check whether it is the buffer before tbm_surface_queue is reset or not. */
+	wayland_egl_buffer->reset = TPL_FALSE;
 	wayland_egl_surface->current_buffer = tbm_surface;
 
 	/*
@@ -1004,8 +1050,6 @@ static const struct wl_callback_listener frame_listener = {
 static void
 __cb_client_buffer_release_callback(void *data, struct wl_proxy *proxy)
 {
-	tpl_wayland_egl_surface_t *wayland_egl_surface = NULL;
-	tpl_wayland_egl_buffer_t *wayland_egl_buffer = NULL;
 	tbm_surface_h tbm_surface = NULL;
 
 	TPL_ASSERT(data);
@@ -1017,22 +1061,32 @@ __cb_client_buffer_release_callback(void *data, struct wl_proxy *proxy)
 	TPL_LOG_B("WL_EGL", "[RELEASE_CB] wl_buffer(%p) tbm_surface(%p) bo(%d)",
 			  proxy, tbm_surface,
 			  tbm_bo_export(tbm_surface_internal_get_bo(tbm_surface, 0)));
-	/* If tbm_surface_queue reset/destroy before this callback
-	 * tbm_surface will be not used any more.
-	 * So, it should be detroyed before getting its user_data */
-	tbm_surface_internal_unref(tbm_surface);
 
 	if (tbm_surface_internal_is_valid(tbm_surface))
 	{
+		tpl_wayland_egl_surface_t *wayland_egl_surface = NULL;
+		tpl_wayland_egl_buffer_t *wayland_egl_buffer = NULL;
+
 		wayland_egl_buffer =
 			__tpl_wayland_egl_get_wayland_buffer_from_tbm_surface(tbm_surface);
 
 		if (wayland_egl_buffer) {
 			wayland_egl_surface = wayland_egl_buffer->wayland_egl_surface;
 
-			tbm_surface_queue_release(wayland_egl_surface->tbm_queue, tbm_surface);
+			/* Stop tracking of this release tbm_surface. */
+			__tpl_list_remove_data(wayland_egl_surface->attached_buffers,
+								   (void *)tbm_surface, TPL_FIRST, NULL);
+
+			/* If tbm_surface_queue was reset before release_cb called out,
+			 * tbm_surface_queue_release doesn't have to be done. */
+			if (wayland_egl_buffer->reset == TPL_FALSE)
+				tbm_surface_queue_release(wayland_egl_surface->tbm_queue, tbm_surface);
 		}
 	}
+
+	tbm_surface_internal_unref(tbm_surface);
+
+
 }
 
 static const struct wl_buffer_listener buffer_release_listener = {
